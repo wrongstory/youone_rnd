@@ -77,6 +77,7 @@ describe("M04 migration contract", () => {
   it("writes audit, transition and outbox in each state-changing function", () => {
     expect(sql).toContain("app_private.append_approval_audit_transition");
     expect(sql).toContain("app_private.enqueue_approval_event");
+    expect(sql).toContain("coalesce(target_reason_code,'APPROVAL_TRANSITION_APPLIED')");
     for (const fn of ["submit_approval_instance", "activate_approval_instance", "perform_approval_action", "request_approval_recall", "complete_approval_recall", "cancel_approval_instance"]) {
       const body = sql.slice(sql.indexOf(`function public.${fn}`));
       expect(body.slice(0, body.indexOf("end $$;") + 7)).toContain("append_approval_audit_transition");

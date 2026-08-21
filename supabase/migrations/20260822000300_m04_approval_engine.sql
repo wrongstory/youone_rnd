@@ -431,6 +431,7 @@ create or replace function app_private.append_approval_audit_transition(
   target_event_id text,target_from_state text,target_to_state text,target_reason_code text,target_occurred_at timestamptz
 ) returns void language plpgsql security definer set search_path=pg_catalog,public,app_private
 as $$ begin
+  target_reason_code := coalesce(target_reason_code,'APPROVAL_TRANSITION_APPLIED');
   perform app_private.append_audit(target_audit_id,target_action_id,'APPROVAL_INSTANCE',target_instance_id,target_version,'SUCCEEDED',target_reason_code,null,null,null,null,target_occurred_at);
   perform app_private.append_state_transition(target_transition_id,target_audit_id,'APPROVAL_INSTANCE',target_instance_id,'SM-APPROVAL-V1',target_event_id,target_from_state,target_to_state,target_version-1,target_version,target_reason_code,null,
     app_private.required_setting('app.correlation_id'),app_private.optional_setting('app.causation_id'),target_occurred_at);
