@@ -43,6 +43,8 @@ describe("M03 migration contract",()=>{
     }
     expect(sql).toContain("revoke all on all functions in schema app_private from public");
     expect(sql).toContain("grant execute on function app_private.request_time() to youone_request");
+    expect(sql).toContain("grant execute on function app_private.action_set_allows(uuid,bigint,text,timestamptz) to youone_request");
+    expect(sql).toContain("grant execute on function app_private.acting_authority_allows(text,timestamptz) to youone_request");
   });
   it("guards audited account and vendor lifecycle commands",()=>{
     for (const fn of ["disable_user_account","disable_vendor","grant_vendor_membership","revoke_vendor_membership"]) {

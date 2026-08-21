@@ -594,6 +594,8 @@ grant execute on function app_private.current_acting_authority_id() to youone_re
 grant execute on function app_private.actor_is_active(timestamptz) to youone_request;
 grant execute on function app_private.actor_has_vendor_membership(uuid,uuid,timestamptz) to youone_request;
 grant execute on function app_private.actor_has_active_vendor(uuid,timestamptz) to youone_request;
+grant execute on function app_private.action_set_allows(uuid,bigint,text,timestamptz) to youone_request;
+grant execute on function app_private.acting_authority_allows(text,timestamptz) to youone_request;
 grant execute on function app_private.actor_has_permission(text,timestamptz) to youone_request;
 grant execute on function app_private.grant_user_role(uuid,uuid,uuid,timestamptz,timestamptz,text,uuid,text,timestamptz) to youone_request;
 grant execute on function app_private.revoke_user_role(uuid,bigint,text,uuid,text,text,timestamptz) to youone_request;
