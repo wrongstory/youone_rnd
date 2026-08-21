@@ -1803,7 +1803,7 @@ as $$ declare decision_row public.acceptance_payment_decision%rowtype; next_vers
             'strengthenedRiskRequired',s.strengthened_risk_required,'representativeMode',s.representative_completion_mode,
             'coversUpwardAdjustment',s.covers_upward_adjustment))
           and (select count(*) from public.approval_policy_step_rule sr where sr.policy_version_id=pv.id)
-            =case s.representative_completion_mode when 'NONE' then 1 else 2 end
+            =(case s.representative_completion_mode when 'NONE' then 1 else 2 end)
           and exists(select 1 from public.approval_policy_step_rule sr
             where sr.policy_version_id=pv.id and sr.sequence_no=1 and sr.step_role='APPROVAL'
               and sr.completion_mode='SEQUENTIAL' and sr.required
@@ -1821,7 +1821,7 @@ as $$ declare decision_row public.acceptance_payment_decision%rowtype; next_vers
                     and (select count(*) from public.approval_policy_participant_rule pr join public.position p on p.id=pr.position_id
                       where pr.step_rule_id=sr.id and pr.selector_kind='POSITION' and pr.required_for_completion
                         and p.stable_code='POSITION_REPRESENTATIVE')=1
-                    and (select count(*) from public.approval_policy_participant_rule pr where pr.step_rule_id=sr.id)=1)))))) then
+                    and (select count(*) from public.approval_policy_participant_rule pr where pr.step_rule_id=sr.id)=1))))) then
     raise exception 'owned DRAFT Approval and scoped payment decision required' using errcode='42501';
   end if;
   if (select count(*) from public.approval_policy_version candidate
