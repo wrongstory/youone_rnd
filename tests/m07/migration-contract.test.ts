@@ -5,6 +5,12 @@ import { describe, expect, it } from "vitest";
 const sql = readFileSync(resolve(import.meta.dirname, "../../supabase/migrations/20260822000600_m07_vendor_contract.sql"), "utf8");
 
 describe("M07 Vendor/Contract migration contract", () => {
+  it("preserves existing permission IDs while allowing the reviewed finance-detail ID", () => {
+    expect(sql).toContain("alter table public.permission drop constraint permission_stable_code_check");
+    expect(sql).toContain("(\\.[a-z][a-z0-9_]*){2,}");
+    expect(sql).toContain("'contract.detail.finance.read'");
+  });
+
   it("normalizes Contract, exact versions, projects and milestone finance", () => {
     for (const table of ["vendor_contract", "contract_version", "contract_project", "contract_milestone", "contract_version_legal_check_item", "contract_signature_evidence"]) {
       expect(sql).toContain(`create table public.${table}`);

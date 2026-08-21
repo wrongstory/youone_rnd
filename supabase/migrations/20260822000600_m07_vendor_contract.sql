@@ -2,6 +2,13 @@
 -- Internal contract presets are versioned comparison baselines, never statutory values.
 -- M08 owns inspection, acceptance and payment eligibility/execution.
 
+-- M03 initially allowed exactly three permission segments. M07 introduces the
+-- reviewed, stable `contract.detail.finance.read` identifier while preserving
+-- every existing three-segment identifier.
+alter table public.permission drop constraint permission_stable_code_check;
+alter table public.permission add constraint permission_stable_code_check
+  check(stable_code ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){2,}$');
+
 insert into public.aggregate_type_definition(aggregate_type) values
   ('VENDOR_CONTRACT'),('CONTRACT_VERSION'),('DELIVERABLE'),('GUARANTEE'),('WARRANTY_ISSUE'),('CONTRACT_VENDOR_GRANT')
 on conflict do nothing;
