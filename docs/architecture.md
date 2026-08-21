@@ -164,7 +164,9 @@ Identity/RBAC 변경은 일반 table write로 열지 않는다. 계정·업체 �
 - 회수·반려 후 재상신은 이전 Instance를 보존하고 새 generation으로 연결한다. subject adapter는 같은 업무 root와 더 높은 새 immutable version을 검증한다.
 - Approval Engine은 계약·구매·기술자료 접근·기술문서 삭제 등 여러 업무가 재사용하지만 각 도메인의 전이조건을 대신하지 않는다.
 
-M04는 순환 의존 없이 엔진 자체를 승인하기 위한 최초 typed adapter로 `APPROVAL_POLICY_VERSION`을 물리 구현한다. M05 이후 각 feature가 자기 typed link와 adapter를 추가하며 Approval Core 내부나 generic polymorphic subject table을 확장하지 않는다. 개인 결재함·상세 화면은 query/command adapter가 연결되지 않으면 가짜 빈 결과나 실행 가능한 버튼을 만들지 않고 명시적 unavailable 상태를 반환한다.
+M04는 순환 의존 없이 엔진 자체를 승인하기 위한 최초 typed adapter로 `APPROVAL_POLICY_VERSION`을 물리 구현한다. M05는 `DOCUMENT_VERSION` exact composite FK와 Document-owned adapter를 추가하며 Approval Core 내부나 generic polymorphic subject table을 확장하지 않는다. 개인 결재함·상세 및 문서함·상세 화면은 query/command adapter가 연결되지 않으면 가짜 빈 결과나 실행 가능한 버튼을 만들지 않고 명시적 unavailable 상태를 반환한다.
+
+M05의 파일 전달은 `core.file`의 trusted authorization과 `infrastructure.supabase-storage`의 일회성 broker를 통과한다. 브라우저는 Storage SDK, bucket/key 또는 provider signed URL을 직접 받지 않는다. PostgreSQL은 content hash와 봉인 manifest를 다시 계산하고, Supabase Storage 스키마가 존재할 때 `PRIVATE_BUSINESS` 비공개 bucket과 restrictive object policy를 설치한다. 일반 PostgreSQL CI에서는 이 conditional provider branch를 계약 검사하며 실제 Supabase 환경 smoke test는 별도 운영 Gate로 남긴다.
 
 ## 9. PWA와 오프라인
 

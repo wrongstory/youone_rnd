@@ -364,6 +364,15 @@ States: `DRAFT`, `REVIEW_READY`, `APPROVAL_PENDING`, `APPROVED`, `REJECTED`, `RE
 | `APPROVAL_PENDING` | `EVT-DOCUMENT-REJECT` | `REJECTED` | System after rejection | actions retained |
 | `APPROVAL_PENDING` | `EVT-DOCUMENT-RECALL` | `RECALLED` | System after recall | new version required for change |
 | `APPROVED` | `EVT-DOCUMENT-REVISE` | `SUPERSEDED` | authorized author | new DocumentVersion/possibly new lifecycle head |
+
+M05 implementation notes:
+
+- `DRAFT` edits require a fresh trusted content-validation evidence record; checksum is recalculated in PostgreSQL.
+- Seal locks the DocumentVersion and active Attachment rows, requires every active attachment to be `AVAILABLE`, and stores one full manifest checksum/evidence snapshot.
+- `APPROVAL_PENDING` outcomes are applied by the exact typed Approval subject in the same transaction as Approval audit/transition/outbox.
+- `REJECTED`/`RECALLED` cannot be edited in place; resubmission requires a strictly newer same-root DocumentVersion.
+- `APPROVED` to `SUPERSEDED` changes only lifecycle/head linkage. Approved content, template, renderer, security and manifest fields remain immutable.
+- Attachment lifecycle is `UPLOAD_INTENDED → UPLOADED → SCANNING → AVAILABLE | QUARANTINED`; FILE_INGEST and FILE_SCANNER are distinct trusted system actors.
 | protected | `EVT-DOCUMENT-HOLD` | `RETENTION_HOLD` | document/security authority | disposal blocked |
 | eligible | `EVT-DOCUMENT-REQUEST-DISPOSAL` | `DISPOSAL_REQUESTED` | authorized requester | reason/retention check |
 | `DISPOSAL_REQUESTED` | `EVT-DOCUMENT-QUARANTINE` | `QUARANTINED` | authorized after required approval | technical docs require Rep approval |
