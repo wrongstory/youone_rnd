@@ -1,2 +1,3 @@
 /** Public cross-module contracts for @youone/feature-vendor. */
-export {};
+export * from "./application/contracts.js";
+export * from "./domain/vendor.js";
