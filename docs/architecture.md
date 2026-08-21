@@ -130,6 +130,8 @@ sequenceDiagram
 - 각 mutable aggregate root는 `version_no`를 두고 optimistic concurrency를 적용한다.
 - 상태전이는 현재 상태와 `version_no`를 조건으로 갱신한다.
 - 전이와 `state_transition_history`, `audit_log`, notification outbox를 같은 트랜잭션에서 기록한다.
+- M02는 aggregate/action/event/state-machine/state/transition의 빈 registry 구조만 제공한다. 각 업무 migration이 자기 stable code를 등록하며 M02가 미래 업무 상태나 PostgreSQL enum을 임의로 선도입하지 않는다.
+- Audit은 stable reason/reference와 before/after hash만 저장하고 범용 JSON payload를 두지 않는다. Outbox JSON은 schema ID/version이 있는 최소 envelope만 허용하며 업무 원문, 전체 before/after row, token, URL, evidence bytes, SQL/stack을 복제하지 않는다.
 - 금액은 통화코드와 정밀 Decimal/Numeric으로 저장한다.
 - 업무 날짜와 타임스탬프를 구분한다. 타임스탬프는 UTC로 저장한다.
 - JSON은 DocumentVersion 편집기 콘텐츠, 공급자 응답 snapshot, 정책 파라미터 중 스키마가 명시된 부분에만 제한적으로 사용한다.

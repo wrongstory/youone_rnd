@@ -6,5 +6,10 @@
   "exports": {
     "./request": "./src/request.ts",
     "./worker": "./src/worker.ts"
+  },
+  "dependencies": {
+    "@youone/application-kernel": "workspace:*",
+    "@youone/core-audit": "workspace:*",
+    "@youone/shared-kernel": "workspace:*"
   }
 }

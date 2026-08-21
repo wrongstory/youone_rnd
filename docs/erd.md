@@ -937,6 +937,7 @@ erDiagram
   OFFLINE_COMMAND ||--o| SYNC_CONFLICT : may_conflict
   USER_ACCOUNT ||--o{ SYNC_CONFLICT : resolves
   AUDIT_LOG ||--o{ STATE_TRANSITION_HISTORY : correlates
+  AUDIT_LOG ||--o{ OUTBOX_MESSAGE : initiates
 
   AUDIT_LOG {
     uuid id PK
@@ -945,18 +946,39 @@ erDiagram
     string action_id
     string resource_type
     uuid resource_id
+    int resource_version
     enum result
     string correlation_id
+    uuid causation_id
     datetime occurred_at
   }
   STATE_TRANSITION_HISTORY {
     uuid id PK
     uuid audit_log_id FK
+    string aggregate_type
+    uuid aggregate_id
     string machine_id
     string event_id
     string from_state
     string to_state
+    int version_before
+    int version_after
+    uuid command_id
+    string correlation_id
+  }
+  OUTBOX_MESSAGE {
+    uuid id PK
+    uuid initiating_audit_log_id FK
+    string event_id
+    string aggregate_type
+    uuid aggregate_id
     int aggregate_version
+    string idempotency_key UK
+    string payload_schema_id
+    int payload_schema_version
+    enum delivery_state
+    int attempt_count
+    datetime available_at
   }
   NOTIFICATION {
     uuid id PK
@@ -984,6 +1006,8 @@ erDiagram
   }
 ```
 
+M02 physical tables keep actor/effective-actor UUID snapshots without a `USER_ACCOUNT` FK until M03 and never use cascading evidence deletion. Audit and transition rows are insert-only. Outbox identity, event body, schema, correlation, and idempotency fields are immutable after insert; protected worker operations may change only lease/retry/delivery fields. Business state/action/event definitions are registered by their owning feature migration, not pre-populated by M02.
+
 ## 10. Required Physical Constraints
 
 To be defined in migrations after approval:
@@ -995,6 +1019,9 @@ To be defined in migrations after approval:
 - partial unique constraints for active memberships/scopes as needed;
 - RLS on exposed tables and Storage metadata;
 - append-only protection for ApprovalAction, AuditLog, StateTransitionHistory, finalized ResearchNoteEntry, and accepted InspectionAttempt;
+- immutable Outbox envelope fields with separately controlled lease/retry/delivery updates;
+- unique state transition result `(aggregate_type, aggregate_id, version_after)` and outbox idempotency key;
+- registered stable-code FKs/checks for machine, event, from/to state, action, result, and delivery state;
 - indexes supporting exact vendor/project/contract scope checks and expiry scans;
 - exclusion or validation rules preventing overlapping contradictory grants;
 - idempotency uniqueness for background expiry, notification, and offline commands.
