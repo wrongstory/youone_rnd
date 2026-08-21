@@ -27,6 +27,8 @@ describe("M04 migration contract", () => {
     expect(sql).toContain("governing policy subject kind mismatch");
     expect(sql).toContain("approval step snapshot is immutable");
     expect(sql).toContain("approval participant snapshot is immutable");
+    expect(sql).toContain("if tg_table_name='approval_step' then");
+    expect(sql).not.toContain("elsif tg_table_name='approval_participant'");
     expect(sql).toContain("approval policy step owner is immutable");
     expect(sql).toContain("approval participant rule owner is immutable");
   });

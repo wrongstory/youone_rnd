@@ -200,13 +200,17 @@ create trigger approval_action_no_delete before delete on public.approval_action
 create or replace function app_private.protect_approval_snapshot_columns()
 returns trigger language plpgsql security definer set search_path=pg_catalog
 as $$ begin
-  if tg_table_name='approval_step' and (new.instance_id<>old.instance_id or new.policy_step_rule_id<>old.policy_step_rule_id or new.step_key<>old.step_key
-    or new.sequence_no<>old.sequence_no or new.step_role<>old.step_role or new.completion_mode<>old.completion_mode or new.required<>old.required) then
-    raise exception 'approval step snapshot is immutable' using errcode='55000';
-  elsif tg_table_name='approval_participant' and (new.step_id<>old.step_id or new.policy_participant_rule_id<>old.policy_participant_rule_id
+  if tg_table_name='approval_step' then
+    if new.instance_id<>old.instance_id or new.policy_step_rule_id<>old.policy_step_rule_id or new.step_key<>old.step_key
+      or new.sequence_no<>old.sequence_no or new.step_role<>old.step_role or new.completion_mode<>old.completion_mode or new.required<>old.required then
+      raise exception 'approval step snapshot is immutable' using errcode='55000';
+    end if;
+    return new;
+  end if;
+  if new.step_id<>old.step_id or new.policy_participant_rule_id<>old.policy_participant_rule_id
     or new.participant_user_id<>old.participant_user_id or new.position_id_snapshot is distinct from old.position_id_snapshot
     or new.role_id_snapshot is distinct from old.role_id_snapshot or new.assignment_evidence_id<>old.assignment_evidence_id
-    or new.participant_order<>old.participant_order or new.required_for_completion<>old.required_for_completion) then
+    or new.participant_order<>old.participant_order or new.required_for_completion<>old.required_for_completion then
     raise exception 'approval participant snapshot is immutable' using errcode='55000';
   end if;
   return new;
