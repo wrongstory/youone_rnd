@@ -729,5 +729,10 @@ revoke all on function app_private.m07_assert_direct_internal(timestamptz,text),
   app_private.append_m07_transition(uuid,uuid,uuid,text,uuid,text,text,text,text,bigint,bigint,text,timestamptz),app_private.m07_assert_approval_worker(timestamptz),app_private.approval_subject_snapshot(uuid)
 from public,youone_request,youone_privileged_writer;
 
+-- RLS policies evaluate this read-only security-definer predicate as the
+-- request role. No mutation helper or Vendor-scope projector is exposed.
+grant execute on function app_private.actor_has_contract_internal_scope(uuid,timestamptz)
+to youone_request;
+
 comment on table public.contract_version is 'Exact immutable negotiated snapshot. Preset and legal baseline are provenance, not statutory values.';
 comment on table public.warranty_issue is 'Acceptance and payment never waive professional, latent-defect, warranty, indemnity or other Vendor responsibility.';

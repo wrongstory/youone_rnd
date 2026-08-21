@@ -97,6 +97,7 @@ describe("M07 Vendor/Contract migration contract", () => {
     expect(sql).toContain("revoke all on public.vendor_contract");
     expect(sql).toContain("from public,youone_request,youone_privileged_writer");
     expect(sql).toContain("from public,youone_privileged_writer");
+    expect(sql).toContain("grant execute on function app_private.actor_has_contract_internal_scope(uuid,timestamptz)");
     expect(sql).not.toMatch(/grant execute on function public\.activate_vendor_contract[\s\S]*?to youone_privileged_writer/);
   });
 

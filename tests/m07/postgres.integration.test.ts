@@ -162,7 +162,7 @@ dbDescribe.sequential("M07 PostgreSQL Vendor/Contract boundary", () => {
 
   it("prevents request and privileged roles from bypassing guarded writes", () => {
     run(`begin; set local role youone_request; ${requestContext(vendorActor)} update public.vendor_contract set state='ACTIVE' where id='${otherContract}'; rollback;`, false);
-    expect(run("select has_function_privilege('youone_privileged_writer','public.transition_vendor_contract_and_revoke_scope(uuid,text,bigint,text,uuid,uuid,uuid,timestamptz)','execute');")).toBe("false");
-    expect(run("select has_table_privilege('youone_privileged_writer','public.vendor_contract','update');")).toBe("false");
+    expect(run("select has_function_privilege('youone_privileged_writer','public.transition_vendor_contract_and_revoke_scope(uuid,text,bigint,text,uuid,uuid,uuid,timestamptz)','execute');")).toBe("f");
+    expect(run("select has_table_privilege('youone_privileged_writer','public.vendor_contract','update');")).toBe("f");
   });
 });
