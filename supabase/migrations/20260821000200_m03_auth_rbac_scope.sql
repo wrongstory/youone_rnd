@@ -325,15 +325,15 @@ insert into public.permission(id,stable_code) values
   ('30000000-0000-4000-8000-000000000006','vendor.membership.manage');
 
 create or replace function app_private.request_time()
-returns timestamptz language sql stable security invoker set search_path=pg_catalog
+returns timestamptz language sql stable security definer set search_path=pg_catalog,app_private
 as $$ select app_private.required_setting('app.request_time')::timestamptz $$;
 
 create or replace function app_private.current_actor_user_id()
-returns uuid language sql stable security invoker set search_path=pg_catalog
+returns uuid language sql stable security definer set search_path=pg_catalog,app_private
 as $$ select app_private.required_setting('app.actor_user_id')::uuid $$;
 
 create or replace function app_private.current_effective_actor_user_id()
-returns uuid language sql stable security invoker set search_path=pg_catalog
+returns uuid language sql stable security definer set search_path=pg_catalog,app_private
 as $$ select app_private.required_setting('app.effective_actor_user_id')::uuid $$;
 
 create or replace function app_private.current_acting_authority_id()
@@ -574,6 +574,7 @@ create policy assigned_role_lookup on public.role for select to youone_request u
 create policy assigned_permission_lookup on public.permission for select to youone_request using(app_private.actor_is_active() and app_private.actor_has_permission(permission.stable_code));
 create policy assigned_role_permission_lookup on public.role_permission_assignment for select to youone_request using(app_private.actor_is_active() and revoked_at is null and valid_from<=app_private.request_time() and (valid_until is null or valid_until>app_private.request_time()) and exists(select 1 from public.user_role_assignment ur where ur.role_id=role_permission_assignment.role_id and ur.user_id=app_private.current_actor_user_id() and ur.revoked_at is null and ur.valid_from<=app_private.request_time() and (ur.valid_until is null or ur.valid_until>app_private.request_time())));
 
+revoke all on all functions in schema app_private from public;
 revoke all on function app_private.resolve_user_account(text,timestamptz) from public;
 revoke all on function app_private.resolve_actor_context_snapshot(text,timestamptz) from public;
 revoke all on function app_private.resolve_user_account(text,timestamptz) from youone_request,youone_privileged_writer;
@@ -586,6 +587,14 @@ revoke all on function app_private.grant_vendor_membership(uuid,uuid,uuid,timest
 revoke all on function app_private.revoke_vendor_membership(uuid,bigint,text,uuid,text,text,timestamptz) from public;
 grant execute on function app_private.resolve_user_account(text,timestamptz) to youone_identity_resolver;
 grant execute on function app_private.resolve_actor_context_snapshot(text,timestamptz) to youone_identity_resolver;
+grant execute on function app_private.request_time() to youone_request;
+grant execute on function app_private.current_actor_user_id() to youone_request;
+grant execute on function app_private.current_effective_actor_user_id() to youone_request;
+grant execute on function app_private.current_acting_authority_id() to youone_request;
+grant execute on function app_private.actor_is_active(timestamptz) to youone_request;
+grant execute on function app_private.actor_has_vendor_membership(uuid,uuid,timestamptz) to youone_request;
+grant execute on function app_private.actor_has_active_vendor(uuid,timestamptz) to youone_request;
+grant execute on function app_private.actor_has_permission(text,timestamptz) to youone_request;
 grant execute on function app_private.grant_user_role(uuid,uuid,uuid,timestamptz,timestamptz,text,uuid,text,timestamptz) to youone_request;
 grant execute on function app_private.revoke_user_role(uuid,bigint,text,uuid,text,text,timestamptz) to youone_request;
 grant execute on function app_private.disable_user_account(uuid,bigint,text,uuid,text,text,timestamptz) to youone_request;

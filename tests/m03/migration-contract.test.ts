@@ -38,6 +38,11 @@ describe("M03 migration contract",()=>{
     expect(sql).toContain("acting_authority_account_guard");
     expect(sql).toContain("user_position_primary_window_guard");
     expect(sql.match(/create or replace function app_private\.actor_has_permission/g)).toHaveLength(1);
+    for (const wrapper of ["request_time","current_actor_user_id","current_effective_actor_user_id"]) {
+      expect(sql).toMatch(new RegExp(`function app_private\\.${wrapper}\\(\\)[\\s\\S]*?security definer`));
+    }
+    expect(sql).toContain("revoke all on all functions in schema app_private from public");
+    expect(sql).toContain("grant execute on function app_private.request_time() to youone_request");
   });
   it("guards audited account and vendor lifecycle commands",()=>{
     for (const fn of ["disable_user_account","disable_vendor","grant_vendor_membership","revoke_vendor_membership"]) {
