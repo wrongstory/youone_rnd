@@ -180,7 +180,7 @@ M08 implementation notes:
 - An InspectionAttempt seals one exact DeliverableVersion, ChecklistVersion, criterion-result set, policy version, checksum and evidence manifest. Earlier attempts are append-only.
 - Checklist sealing requires normalized criterion weights totaling exactly 100. Critical failure is evaluated before score-band disposition and cannot be hidden by aggregate achievement.
 - `ACCEPTED`, `CONDITIONAL_ACCEPTANCE`, `PARTIAL_ACCEPTANCE` and `REJECTED` remain distinct persisted dispositions. Conditional and partial results require their typed residual/usable-part obligations.
-- AcceptancePaymentDecision preserves calculated achievement, system proposal, adjustment request and final approved rate separately. Approval completion also freezes the policy-rounded approved payable amount; any held amount/unpaid remainder must be equal and cannot exceed it. Completion does not mark external payment eligible or transfer funds.
+- AcceptancePaymentDecision preserves calculated achievement, system proposal, adjustment request and final approved rate separately. Approval completion also freezes the policy-rounded approved payable amount; any current held amount/unpaid remainder must be equal and cannot exceed it. Eligibility clears the current held/unpaid values to zero while retaining the approved amount and audit history. Completion and eligibility do not transfer funds.
 - Repeated critical failures create derived alert/review facts only. They do not transition the Contract automatically.
 
 ## 7. NCR and CAR

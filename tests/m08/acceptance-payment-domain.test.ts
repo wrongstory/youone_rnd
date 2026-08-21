@@ -129,7 +129,7 @@ describe("SM-ACCEPTANCE-PAYMENT-V1", () => {
     expect(() => AcceptancePaymentDecision.restore(held).markEligibleForExternalPayment(command(held.version))).toThrowError(expect.objectContaining({ code: "ACCEPTANCE_PAYMENT_RESIDUAL_CONDITIONS_OPEN" }));
     const satisfied = AcceptancePaymentDecision.restore(held).satisfyResidualCondition(command(held.version), { residualConditionId: ids[17]!, evidenceIds: [ids[18]!] }).snapshot;
     expect(satisfied.residualConditions[0]).toMatchObject({ state: "SATISFIED", satisfiedByUserId: managerId, satisfactionEvidenceIds: [ids[18]!] });
-    expect(AcceptancePaymentDecision.restore(satisfied).markEligibleForExternalPayment(command(satisfied.version)).snapshot.state).toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT");
+    expect(AcceptancePaymentDecision.restore(satisfied).markEligibleForExternalPayment(command(satisfied.version)).snapshot).toMatchObject({ state: "ELIGIBLE_FOR_EXTERNAL_PAYMENT", heldAmount: { amount: "0" }, unpaidRemainder: { amount: "0" } });
     expect(() => AcceptancePaymentDecision.restore(initial).holdForConditions(systemCommand(initial.version), {
       residualConditions: [{ residualConditionId: ids[17]!, sourceConditionCode: stableCode("COND.REMAINING.TEST"), description: "잔여 성능시험", dueDate: "2026-09-10", evidenceIds: [evidenceId], state: "OPEN" }],
       independentlyUsablePortions: [],
@@ -166,7 +166,7 @@ describe("SM-ACCEPTANCE-PAYMENT-V1", () => {
       unpaidRemainder: money("2500000", "KRW")
     }).snapshot;
     const eligible = AcceptancePaymentDecision.restore(held).markEligibleForExternalPayment(command(held.version)).snapshot;
-    expect(eligible).toMatchObject({ state: "ELIGIBLE_FOR_EXTERNAL_PAYMENT", unpaidRemainder: { amount: "2500000" }, responsibility: { externalTransferExecuted: false } });
+    expect(eligible).toMatchObject({ state: "ELIGIBLE_FOR_EXTERNAL_PAYMENT", heldAmount: { amount: "0" }, unpaidRemainder: { amount: "0" }, responsibility: { externalTransferExecuted: false } });
   });
 
   it("never makes a rejected attempt eligible and rejects stale transitions", () => {

@@ -598,8 +598,11 @@ export class AcceptancePaymentDecision {
       if (this.value.basis.disposition === "PARTIAL_ACCEPTANCE" && this.value.independentlyUsablePortions.some((portion) => !portion.releaseEligible)) fail("ACCEPTANCE_PAYMENT_PORTION_NOT_RELEASED", "Every included partial portion must be independently usable before release.");
     }
     const expectedVersion = this.value.version;
+    const releasedAmount = this.value.approvedPayableAmount ?? fail("ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_REQUIRED", "Eligibility requires the exact approved payable amount.");
     this.value = {
       ...this.value,
+      heldAmount: money("0", releasedAmount.currency),
+      unpaidRemainder: money("0", releasedAmount.currency),
       state: "ELIGIBLE_FOR_EXTERNAL_PAYMENT",
       version: nextVersion(this.value.version),
       updatedAt: command.at
