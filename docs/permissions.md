@@ -1,0 +1,284 @@
+# Permissions
+
+## 1. Authorization Model
+
+Authorization is the intersection of five dimensions, followed by explicit deny and field projection:
+
+```text
+allow = identity_active
+     AND role_permission
+     AND position_rule
+     AND resource_scope
+     AND security_level_rule
+     AND workflow_state_rule
+     AND NOT explicit_deny
+```
+
+An `allow` result grants only the fields and operations included in the decision. A permitted row is not permission to read every column or download every attachment.
+
+Decision ID: `AUTHZ-V1`.
+
+## 2. Trusted Actor Context
+
+Every server request builds an `ActorContext` from the verified session and server-side records:
+
+- `user_id`
+- activation/session state
+- internal organization or active vendor membership
+- department and position
+- assigned roles and permissions
+- active project/contract/document grants
+- delegations or acting-authority records
+- request time, assurance level/MFA state, and correlation ID
+
+The client may request a resource ID but may not assert its own vendor, role, position, approval authority, or scope.
+
+## 3. Stable Roles
+
+| Role ID | Purpose | Does not imply |
+|---|---|---|
+| `ROLE_RESEARCHER` | Internal research work | official approval |
+| `ROLE_PROJECT_MANAGER` | Project/WBS coordination | technical-document source access |
+| `ROLE_LAB_DIRECTOR` | Lab management and official approval | representative approval |
+| `ROLE_REPRESENTATIVE` | Executive view and representative approval | system administration |
+| `ROLE_HQ_VIEWER` | Approved purchase/payment-related read scope | payment mutation or approval |
+| `ROLE_VENDOR_USER` | Vendor portal within explicit scope | repository search or internal data |
+| `ROLE_SAFETY_MANAGER` | safety inspections, training, hazardous-material/waste and incident operations | general HR discipline or business approval |
+| `ROLE_ALLOWANCE_EVALUATOR` | authorized research-performance evaluation evidence | payroll/tax processing or self-approval |
+| `ADMIN_SYSTEM` | users, roles, modules, system settings | L3/L4 source content or business approval |
+| `ADMIN_SECURITY` | security policy, access grants, audit review | automatic business ownership |
+| `ADMIN_DOCUMENT` | templates, numbering, retention policy | delete approval or source-content access |
+| `ADMIN_APPROVAL` | approval policy configuration | approval of individual business cases |
+
+A person may hold multiple roles, but every role assignment is explicit and audited.
+
+## 4. Position Rules
+
+| Position ID | Default workflow capability |
+|---|---|
+| `POSITION_JUNIOR_RESEARCHER` | draft, submit, ordinary project creation |
+| `POSITION_SENIOR_RESEARCHER` | review/agreement; no official `APPROVE` action |
+| `POSITION_LAB_DIRECTOR` | first official approval, research-note finalization |
+| `POSITION_REPRESENTATIVE` | representative approval; default group `ANY_ONE` |
+
+Position participates in default approval-line resolution. It never replaces Permission or Scope checks.
+
+## 5. Permission Naming
+
+Format: `<resource>.<surface>.<action>`.
+
+Examples:
+
+- `project.record.create`
+- `project.research_designation.submit`
+- `project.wbs.update`
+- `contract.list.read`
+- `contract.detail.read`
+- `contract.detail.finance.read`
+- `deliverable.record.submit`
+- `inspection.record.decide`
+- `approval.instance.submit`
+- `approval.step.review`
+- `approval.step.approve`
+- `research_note.record.finalize`
+- `technical_document.repository.search`
+- `technical_document.content.preview`
+- `technical_document.content.download`
+- `technical_document.copy.render`
+- `technical_document.copy.handover`
+- `technical_document.copy.close`
+- `technical_document.access.grant`
+- `audit.security.read`
+
+`technical_document.repository.search` is never granted to a vendor. A vendor grant targets an exact document version and action.
+
+## 6. Scope Types
+
+| Scope ID | Resource boundary | Typical source |
+|---|---|---|
+| `SCOPE_ORGANIZATION` | internal organization | employment/role |
+| `SCOPE_DEPARTMENT` | department | internal assignment |
+| `SCOPE_PROJECT` | exact project | ProjectMember/ProjectScope |
+| `SCOPE_CONTRACT` | exact vendor contract | ContractScope |
+| `SCOPE_VENDOR` | exact vendor membership | VendorUser |
+| `SCOPE_DOCUMENT` | exact document/version | DocumentGrant |
+| `SCOPE_SELF` | actor-owned draft/action | ownership |
+
+For vendor data, `SCOPE_VENDOR` alone is insufficient. The action also requires the appropriate active Project or Contract scope.
+
+## 7. Deny by Default for Vendors
+
+Vendor authorization algorithm `AUTHZ-VENDOR-V1`:
+
+1. Verify an active user and active vendor membership.
+2. Reject if vendor account, membership, project scope, contract scope, or access grant is expired/revoked/disabled.
+3. Resolve the resource's owning vendor and project/contract relationships from the database.
+4. Require exact vendor match.
+5. Require exact active project or contract scope for the action.
+6. Apply resource action permission.
+7. Apply security level and workflow-state restrictions.
+8. Apply response field projection.
+9. Record sensitive success/failure audit events.
+
+No endpoint uses a caller-supplied `vendor_id` as proof of access. No query returns all vendors and filters them in browser code.
+
+## 8. Vendor Surface Matrix
+
+| Surface | Vendor access | Enforcement |
+|---|---|---|
+| Assigned project summary | read approved external projection | server scope + RLS |
+| Assigned vendor task | read/update/submit allowed fields | server transition + RLS |
+| Deliverable | submit own, read permitted status | server scope + storage policy |
+| Inspection/rework | read external verdict and requests | external DTO projection |
+| Contract list | list-safe metadata only | dedicated query/view; no finance columns |
+| Own contract detail | allowed details; finance fields only with `contract.detail.finance.read` | exact ContractScope + field projection |
+| Shared general document | exact grant | document/version scope |
+| Temporary technical document | exact active grant, no repository browsing | grant check + storage delivery policy |
+| Other vendors | always deny | RLS and application test |
+| Internal vendor evaluation/risk | always deny | separate schema/query/permission |
+| R&D budget/expenditure | always deny | no scope mapping |
+| Internal approval inbox | always deny | internal actor condition |
+| Internal purchase/payment | always deny | no permission/scope |
+
+## 9. Technical Security Levels
+
+| Level ID | Internal | Vendor | Approval | Delivery |
+|---|---|---|---|---|
+| `SEC_L1_PUBLIC_GENERAL` | job/scope | explicitly shared | Lab Director for external technical-information release | controlled download/preview |
+| `SEC_L2_INTERNAL` | job/scope | default deny; temporary exception | Lab Director | exact version, time-bound |
+| `SEC_L3_CONFIDENTIAL` | project/job scope and permission | digital source denied; exceptional controlled copy | Lab Director | internal watermarked print, numbered handover, return/destruction audit |
+| `SEC_L4_CORE_SECRET` | separately entitled users only | digital source denied; exceptional controlled copy | Lab Director + Representative | internally printed numbered copy only; strongest custody controls |
+
+`ADMIN_SYSTEM` does not satisfy content-read requirements for L3 or L4.
+
+L1 means the content is eligible for external sharing; it does not itself authorize external release. The superior operation regulation requires Lab Director approval for technical-information export.
+
+Technical access decision `AUTHZ-TECHDOC-V1` requires:
+
+- exact document version;
+- active grant and allowed operation;
+- current time within grant interval;
+- matching grantee user and vendor;
+- unchanged account/vendor/scope state;
+- required approval instance completed;
+- delivery constraints satisfied.
+
+For L3/L4 external delivery, the only allowed external operation is `CONTROLLED_PRINT_HANDOVER`. Rendering and printing are internal-only actions. Authorization additionally requires an unconsumed approval for the exact DocumentVersion, a unique copy number, recipient identity, purpose, and return/destruction plan. Vendors never receive `content.download` or `copy.render`.
+
+Expiry and revocation are evaluated at read time, not only by a background job.
+
+## 10. Approval Permissions
+
+- `approval.instance.submit`: author or authorized submitter.
+- `approval.step.review`: designated reviewer/agreement participant.
+- `approval.step.approve`: designated official approver with position/role capability.
+- `approval.instance.recall`: submitter while policy and current state permit.
+- `approval.policy.manage`: `ADMIN_APPROVAL`; does not authorize a case action.
+- `approval.instance.override`: not defined by default. Any future emergency override requires a new policy, dual control, reason, and audit.
+
+The Senior Researcher position fails `approval.step.approve` even if the person can review. A user holding another explicitly authorized acting role may approve only through a recorded delegation/acting-authority context, never by silently converting the Senior position.
+
+## 11. Project Creation and Formal Designation
+
+| Action | Active internal user | Project owner | Senior | Lab Director | Representative | Vendor |
+|---|---:|---:|---:|---:|---:|---:|
+| Create ordinary Project | allow | allow | allow | allow | allow | deny |
+| Edit owned Project draft | own/scope | allow | scope | scope | policy read | deny |
+| Submit designation application | own/scope | allow | scope | scope | deny | deny |
+| Review and approve designation | deny | deny | deny | final consent/review | deny | deny |
+| Set formal-research label directly | deny | deny | deny | deny | deny | deny |
+
+Formal status is derived only from a completed `research_project_designation`, never from Project edit permission.
+
+## 12. Research Note Permissions
+
+| Action | Author | Senior | Lab Director | Representative | Admin |
+|---|---:|---:|---:|---:|---:|
+| Draft own note | allow | allow | allow | policy read only | no content by default |
+| Submit review | own | own | own | deny | deny |
+| Senior review | if assigned | allow if assigned | optional view | deny | deny |
+| Finalize | deny | deny | allow | deny | deny |
+| Edit finalized original | deny | deny | deny | deny | deny |
+| Add correction/addendum | author/authorized | authorized | authorized | deny | deny |
+
+Representative approval must not be injected by the generic default line because ResearchNote uses the dedicated finalization workflow policy.
+
+## 13. Field-Level Projection
+
+Field projection policies are versioned server rules.
+
+Example contract projections:
+
+- `CONTRACT_LIST_INTERNAL_V1`: identity, vendor, title, period, state, risk badge as permitted.
+- `CONTRACT_LIST_VENDOR_V1`: title, contract number, assigned project, period, external state; excludes amount, payment, internal risk/evaluation.
+- `CONTRACT_DETAIL_VENDOR_BASIC_V1`: list fields plus external milestones/deliverables.
+- `CONTRACT_DETAIL_VENDOR_FINANCE_V1`: explicitly permitted contract amount and payment-status subset.
+
+The database may expose dedicated views/functions for these projections, but the application still verifies ActorContext and action.
+
+## 14. Application and Database Enforcement
+
+### Application server
+
+- Builds ActorContext.
+- Checks permission, position, scope, state, security level, and field projection.
+- Executes domain transition.
+- Uses service credentials only after authorization.
+- Emits business and security audit events.
+
+### PostgreSQL/RLS
+
+- Enables RLS on exposed business and storage metadata tables.
+- Prevents cross-vendor and unauthorized project/contract reads/writes.
+- Treats service-role bypass as infrastructure privilege, not user authorization.
+- Uses separate DB roles or guarded functions for background workers and audit writers.
+
+### Storage
+
+- Private buckets only for business/technical content.
+- Object path is not an authorization boundary by itself.
+- Upload requires a server-issued intent bound to subject, version, size/type constraints, and actor.
+- Download/preview requires a fresh authorization decision.
+
+## 15. Safety and Allowance Permissions
+
+- The Lab Director designates `ROLE_SAFETY_MANAGER`; designation is effective-dated and audited.
+- Safety Manager may schedule/record inspections, education, material/waste registers, incident investigation, and corrective verification.
+- A critical safety finding may place the affected work area/task into stop-work state; release requires the authorized safety/Lab Director transition and evidence.
+- Vendors/visitors see only applicable safety instructions, acknowledgements, and incidents/tasks within their scope.
+- Research allowance eligibility/evaluation data is restricted HR-like data. Project membership does not imply access.
+- The Lab Director evaluates contribution under the superior regulation; Representative-approved ratios/decisions are separate records.
+- Allowance calculation and tax classification require an approved project policy, exact calculation/tax-rule version, and HR-like restricted permission. No project role may self-approve or mark external payment complete.
+
+## 16. Audit Requirements
+
+Always audit:
+
+- login success/failure and account disablement;
+- role/permission/position/scope grant or revoke;
+- approval submit/action/recall/reject/complete;
+- technical-document preview/download/access failure and every L3/L4 render/print/handover/return/destruction event;
+- access request/grant/revoke/expire;
+- contract, inspection, purchase, research-note, warranty, ECR/ECO critical transitions;
+- technical-document delete request/approval/quarantine/purge;
+- field-protected vendor contract finance reads;
+- administrative use of service privilege.
+
+Audit records are append-only and must identify both the authenticated actor and effective delegated actor.
+
+## 17. Required Authorization Test Matrix
+
+For each protected use case, test:
+
+- internal permitted actor;
+- internal actor lacking role;
+- correct role but wrong project/contract scope;
+- vendor in exact vendor/project/contract scope;
+- vendor from another vendor;
+- expired scope;
+- disabled vendor user;
+- system administrator without business/content permission;
+- Senior Researcher attempting official approval;
+- Representative access where only Lab Director is allowed;
+- list response field absence, not merely null/hide;
+- direct DB/RLS access and trusted server path.
