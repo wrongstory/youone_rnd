@@ -998,7 +998,8 @@ returns text language sql stable security definer set search_path=pg_catalog,pub
 as $$ select app_private.canonical_json_sha256(jsonb_build_object('schema','ACCEPTANCE_PAYMENT_APPROVAL_POLICY_V1',
   'policyId',v.policy_id,'versionNo',v.version_no,'subjectKind',v.subject_kind,'recallAllowed',v.recall_allowed,
   'validFrom',v.valid_from,'validUntil',v.valid_until,
-  'selector',jsonb_build_object('minimumAmount',s.minimum_milestone_amount_inclusive,'maximumAmount',s.maximum_milestone_amount_exclusive,
+  'selector',jsonb_build_object('minimumAmount',trim_scale(s.minimum_milestone_amount_inclusive),
+    'maximumAmount',trim_scale(s.maximum_milestone_amount_exclusive),
     'currency',s.currency,'strengthenedRiskRequired',s.strengthened_risk_required,
     'representativeMode',s.representative_completion_mode,'coversUpwardAdjustment',s.covers_upward_adjustment,
     'checksum',s.selector_checksum),
@@ -1034,8 +1035,8 @@ as $$ declare v public.approval_policy_version%rowtype; s public.approval_policy
   select * into strict s from public.approval_policy_acceptance_payment_selector where policy_version_id=v.id for share;
   if v.state<>'DRAFT' or v.subject_kind<>'ACCEPTANCE_PAYMENT_DECISION' or v.checksum<>target_expected_checksum
     or s.selector_checksum<>app_private.canonical_json_sha256(jsonb_build_object('schema','ACCEPTANCE_PAYMENT_APPROVAL_SELECTOR_V1',
-      'policyVersionId',s.policy_version_id,'minimumAmount',s.minimum_milestone_amount_inclusive,
-      'maximumAmount',s.maximum_milestone_amount_exclusive,'currency',s.currency,
+      'policyVersionId',s.policy_version_id,'minimumAmount',trim_scale(s.minimum_milestone_amount_inclusive),
+      'maximumAmount',trim_scale(s.maximum_milestone_amount_exclusive),'currency',s.currency,
       'strengthenedRiskRequired',s.strengthened_risk_required,'representativeMode',s.representative_completion_mode,
       'coversUpwardAdjustment',s.covers_upward_adjustment))
     or (select count(*) from public.approval_policy_step_rule sr where sr.policy_version_id=v.id)
@@ -1250,8 +1251,9 @@ as $$ declare actual_checksum text; begin
     select app_private.canonical_json_sha256(jsonb_build_object('schema','ACCEPTANCE_SCORE_POLICY_V1','policyId',v.policy_id,
       'versionNo',v.version_no,'basisKind',v.basis_kind,'basisReferenceId',v.basis_reference_id,'basisVersion',v.basis_version,
       'roundingDecimalPlaces',v.rounding_decimal_places,'roundingMode',v.rounding_mode,'validFrom',v.valid_from,'validUntil',v.valid_until,
-      'bands',(select jsonb_agg(jsonb_build_object('sequenceNo',b.sequence_no,'minimum',b.minimum_achievement_inclusive,
-        'maximum',b.maximum_achievement_exclusive,'disposition',b.disposition,'rateKind',b.proposed_rate_kind,'fixedRate',b.proposed_fixed_rate)
+      'bands',(select jsonb_agg(jsonb_build_object('sequenceNo',b.sequence_no,'minimum',trim_scale(b.minimum_achievement_inclusive),
+        'maximum',trim_scale(b.maximum_achievement_exclusive),'disposition',b.disposition,'rateKind',b.proposed_rate_kind,
+        'fixedRate',trim_scale(b.proposed_fixed_rate))
         order by b.sequence_no) from public.acceptance_score_policy_band b where b.policy_version_id=v.id))) into actual_checksum
       from public.acceptance_score_policy_version v where v.id=target_policy_version_id;
     if actual_checksum<>target_expected_checksum then raise exception 'score policy canonical checksum mismatch' using errcode='23514'; end if;
@@ -1280,8 +1282,9 @@ as $$ declare actual_checksum text; begin
       'basisKind',v.basis_kind,'basisReferenceId',v.basis_reference_id,'basisVersion',v.basis_version,
       'amountRoundingDecimalPlaces',v.amount_rounding_decimal_places,'amountRoundingMode',v.amount_rounding_mode,
       'validFrom',v.valid_from,'validUntil',v.valid_until,
-      'rules',(select jsonb_agg(jsonb_build_object('sequenceNo',r.sequence_no,'minimum',r.minimum_achievement_inclusive,
-        'maximum',r.maximum_achievement_exclusive,'disposition',r.disposition,'rateKind',r.proposed_rate_kind,'fixedRate',r.proposed_fixed_rate)
+      'rules',(select jsonb_agg(jsonb_build_object('sequenceNo',r.sequence_no,'minimum',trim_scale(r.minimum_achievement_inclusive),
+        'maximum',trim_scale(r.maximum_achievement_exclusive),'disposition',r.disposition,'rateKind',r.proposed_rate_kind,
+        'fixedRate',trim_scale(r.proposed_fixed_rate))
         order by r.sequence_no) from public.acceptance_payment_rate_rule r where r.policy_version_id=v.id))) into actual_checksum
       from public.acceptance_payment_policy_version v where v.id=target_policy_version_id;
     if actual_checksum<>target_expected_checksum then raise exception 'payment policy canonical checksum mismatch' using errcode='23514'; end if;
