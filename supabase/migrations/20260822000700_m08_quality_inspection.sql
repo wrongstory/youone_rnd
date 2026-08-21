@@ -1039,7 +1039,7 @@ as $$ declare v public.approval_policy_version%rowtype; s public.approval_policy
       'strengthenedRiskRequired',s.strengthened_risk_required,'representativeMode',s.representative_completion_mode,
       'coversUpwardAdjustment',s.covers_upward_adjustment))
     or (select count(*) from public.approval_policy_step_rule sr where sr.policy_version_id=v.id)
-      <>case s.representative_completion_mode when 'NONE' then 1 else 2 end
+      <>(case s.representative_completion_mode when 'NONE' then 1 else 2 end)
     or not exists(select 1 from public.approval_policy_step_rule sr where sr.policy_version_id=v.id and sr.sequence_no=1
       and sr.step_role='APPROVAL' and sr.completion_mode='SEQUENTIAL' and sr.required
       and (select count(*) from public.approval_policy_participant_rule pr join public.position p on p.id=pr.position_id
