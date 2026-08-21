@@ -6,14 +6,14 @@ Build the mobile-first PWA 업무관리 system for (주)유원산업기술 기�
 
 ## Current Phase
 
-`DESIGN_REVIEW_ONLY`. Do not create product code, scaffold a framework, install dependencies, write database migrations, or deploy anything until the user explicitly approves the Development Gate.
+`IMPLEMENTATION_ACTIVE`. The user approved the Development Gate on 2026-08-21 (Asia/Seoul). Execute the approved P0 plan in `M00` through `M16` order; the active delivery wave starts with `M00` and `M01`.
 
-Allowed work in this phase:
+Implementation rules in this phase:
 
-- Read and audit source documents.
-- Edit the canonical design documents in this repository.
-- Record unresolved decisions without inventing answers.
-- Run read-only or documentation-consistency checks.
+- Keep canonical design documents synchronized with behavior changes.
+- Complete vertical slices through Domain, Application, Infrastructure, Interface, and Test where the merge item requires them.
+- Do not implement P1/P2-only modules, guessed company forms, or unresolved production policy defaults.
+- Do not write DB migrations outside the Platform/Security workstream or before the related ADR and public contracts are approved.
 
 ## Source Precedence
 

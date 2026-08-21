@@ -1,0 +1,20 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "tasks": {
+    "build": {
+      "description": "Build packages and deployable applications",
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "typecheck": {
+      "description": "Check TypeScript contracts without emitting",
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "dev": {
+      "description": "Run local development processes",
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

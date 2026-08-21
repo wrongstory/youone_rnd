@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "path": "packages/shared-kernel",
+      "name": "@youone/shared-kernel",
+      "layer": "shared",
+      "owner": "platform-security",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/application-kernel",
+      "name": "@youone/application-kernel",
+      "layer": "application",
+      "owner": "platform-security",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/core/identity",
+      "name": "@youone/core-identity",
+      "layer": "core",
+      "owner": "platform-security",
+      "delivery": "M03"
+    },
+    {
+      "path": "packages/core/authorization",
+      "name": "@youone/core-authorization",
+      "layer": "core",
+      "owner": "platform-security",
+      "delivery": "M03"
+    },
+    {
+      "path": "packages/core/approval",
+      "name": "@youone/core-approval",
+      "layer": "core",
+      "owner": "approval-evidence",
+      "delivery": "M04"
+    },
+    {
+      "path": "packages/core/document",
+      "name": "@youone/core-document",
+      "layer": "core",
+      "owner": "approval-evidence",
+      "delivery": "M05"
+    },
+    {
+      "path": "packages/core/file",
+      "name": "@youone/core-file",
+      "layer": "core",
+      "owner": "approval-evidence",
+      "delivery": "M05"
+    },
+    {
+      "path": "packages/core/audit",
+      "name": "@youone/core-audit",
+      "layer": "core",
+      "owner": "platform-security",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/core/notification",
+      "name": "@youone/core-notification",
+      "layer": "core",
+      "owner": "approval-evidence",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/core/sync",
+      "name": "@youone/core-sync",
+      "layer": "core",
+      "owner": "platform-security",
+      "delivery": "M15"
+    },
+    {
+      "path": "packages/core/codes",
+      "name": "@youone/core-codes",
+      "layer": "core",
+      "owner": "platform-security",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/features/project",
+      "name": "@youone/feature-project",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M06"
+    },
+    {
+      "path": "packages/features/vendor",
+      "name": "@youone/feature-vendor",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M07"
+    },
+    {
+      "path": "packages/features/contract",
+      "name": "@youone/feature-contract",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M07"
+    },
+    {
+      "path": "packages/features/quality",
+      "name": "@youone/feature-quality",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M08"
+    },
+    {
+      "path": "packages/features/change",
+      "name": "@youone/feature-change",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M10"
+    },
+    {
+      "path": "packages/features/purchase",
+      "name": "@youone/feature-purchase",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M11"
+    },
+    {
+      "path": "packages/features/rnd",
+      "name": "@youone/feature-rnd",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M11"
+    },
+    {
+      "path": "packages/features/research-note",
+      "name": "@youone/feature-research-note",
+      "layer": "feature",
+      "owner": "approval-evidence",
+      "delivery": "M12"
+    },
+    {
+      "path": "packages/features/safety",
+      "name": "@youone/feature-safety",
+      "layer": "feature",
+      "owner": "business-quality",
+      "delivery": "M13"
+    },
+    {
+      "path": "packages/features/tech-copy",
+      "name": "@youone/feature-tech-copy",
+      "layer": "feature",
+      "owner": "approval-evidence",
+      "delivery": "M14"
+    },
+    {
+      "path": "packages/processes/formal-research-designation",
+      "name": "@youone/process-formal-research-designation",
+      "layer": "process",
+      "owner": "business-quality",
+      "delivery": "M06"
+    },
+    {
+      "path": "packages/processes/vendor-acceptance-payment",
+      "name": "@youone/process-vendor-acceptance-payment",
+      "layer": "process",
+      "owner": "business-quality",
+      "delivery": "M08"
+    },
+    {
+      "path": "packages/processes/purchase-receipt-inspection",
+      "name": "@youone/process-purchase-receipt-inspection",
+      "layer": "process",
+      "owner": "business-quality",
+      "delivery": "M11"
+    },
+    {
+      "path": "packages/processes/controlled-copy-delivery",
+      "name": "@youone/process-controlled-copy-delivery",
+      "layer": "process",
+      "owner": "approval-evidence",
+      "delivery": "M14"
+    },
+    {
+      "path": "packages/infrastructure/postgres",
+      "name": "@youone/infra-postgres",
+      "layer": "infrastructure",
+      "owner": "platform-security",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/infrastructure/supabase-auth",
+      "name": "@youone/infra-supabase-auth",
+      "layer": "infrastructure",
+      "owner": "platform-security",
+      "delivery": "M03"
+    },
+    {
+      "path": "packages/infrastructure/supabase-storage",
+      "name": "@youone/infra-supabase-storage",
+      "layer": "infrastructure",
+      "owner": "approval-evidence",
+      "delivery": "M05"
+    },
+    {
+      "path": "packages/infrastructure/notification-adapters",
+      "name": "@youone/infra-notification-adapters",
+      "layer": "infrastructure",
+      "owner": "approval-evidence",
+      "delivery": "M02"
+    },
+    {
+      "path": "packages/infrastructure/pdf-renderer",
+      "name": "@youone/infra-pdf-renderer",
+      "layer": "infrastructure",
+      "owner": "approval-evidence",
+      "delivery": "M05"
+    },
+    {
+      "path": "packages/infrastructure/offline-dexie",
+      "name": "@youone/infra-offline-dexie",
+      "layer": "infrastructure",
+      "owner": "root-integration",
+      "delivery": "M15"
+    },
+    {
+      "path": "packages/ui",
+      "name": "@youone/ui",
+      "layer": "ui",
+      "owner": "root-integration",
+      "delivery": "M01"
+    },
+    {
+      "path": "packages/test-support",
+      "name": "@youone/test-support",
+      "layer": "test-support",
+      "owner": "root-integration",
+      "delivery": "M01"
+    }
+  ]
+}

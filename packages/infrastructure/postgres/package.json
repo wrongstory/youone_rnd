@@ -1,0 +1,10 @@
+{
+  "name": "@youone/infra-postgres",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./request": "./src/request.ts",
+    "./worker": "./src/worker.ts"
+  }
+}

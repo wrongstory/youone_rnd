@@ -193,6 +193,8 @@ sequenceDiagram
 
 사용자가 2026-08-21 추천 기술스택 진행을 승인했다. 의존성의 정확한 버전은 스캐폴딩 시 공식 지원범위와 lockfile로 고정한다.
 
+`M01` 초기 lock 기준은 Node.js `24.19.0` LTS, pnpm `11.19.0`, Next.js `16.3.2`, React `19.2.8`, TypeScript `5.9.3`, Turborepo `2.10.11`, Vitest `4.1.11`이다. ESLint는 Next.js 간접 플러그인의 선언된 peer 범위를 지키기 위해 `9.39.5`로 고정하며, 플러그인이 ESLint 10을 공식 지원한 뒤 별도 upgrade 검증을 수행한다.
+
 | 영역 | 채택 기준 | 이유 | 경계/조건 |
 |---|---|---|---|
 | Web/BFF | Next.js App Router + TypeScript | 반응형 UI와 trusted server boundary를 한 코드베이스에서 운영 가능 | React SPA + Fastify/NestJS는 API 조직 분리가 더 중요할 때 |
@@ -219,15 +221,16 @@ sequenceDiagram
 - [Dexie.js documentation](https://dexie.org/docs)
 - [Tiptap editor documentation](https://tiptap.dev/docs/editor/getting-started/overview)
 
-## 12. Architecture Decision Records to Create at Implementation Gate
+## 12. Accepted Architecture Decision Records
 
-- `ADR-001`: approved Next.js modular-monolith deployment structure.
-- `ADR-002`: SQL-first repository/query implementation details.
-- `ADR-003`: Tiptap canonical JSON schema and render versioning.
-- `ADR-004`: Dexie store and command-based sync protocol.
-- `ADR-005`: background jobs and notification outbox.
-- `ADR-006`: managed deployment and disaster recovery.
-- `ADR-007`: technical-document watermark/preview architecture.
+- `ADR-001`: workspace and module boundaries.
+- `ADR-002`: SQL-first repositories and migrations.
+- `ADR-003`: typed Approval subject links and adapters.
+- `ADR-004`: request DB principal and transaction-local ActorContext.
+- `ADR-005`: Tiptap editor schema and rendering versions.
+- `ADR-006`: worker runner and transactional outbox.
+- `ADR-007`: Dexie offline allowlist and conflict records.
+- `ADR-008`: L3/L4 controlled-copy watermark and custody.
 
 ## 13. Architecture Gate Checks
 

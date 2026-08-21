@@ -1,0 +1,2 @@
+-- Local and test fixtures only.
+-- Production policy/code versions belong in reviewed migrations, not this file.

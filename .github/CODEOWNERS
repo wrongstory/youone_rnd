@@ -1,0 +1,8 @@
+# Root integration review for workspace and architecture contracts.
+/package.json @wrongstory
+/pnpm-lock.yaml @wrongstory
+/turbo.json @wrongstory
+/docs/adr/ @wrongstory
+
+# Serialized Platform/Security migration ownership.
+/supabase/migrations/ @wrongstory
