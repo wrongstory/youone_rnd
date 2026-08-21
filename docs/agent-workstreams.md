@@ -2,7 +2,7 @@
 
 - 계획 ID: `DELIVERY-PLAN-P0-V1`
 - 전제: 최대 동시 슬롯은 Root 통합담당을 포함해 4개
-- 상태: 역할·병합계획 확정안, 제품 코드 착수 전
+- 상태: `APPROVED` — 2026-08-21 Development Gate 승인, Wave `W0` 활성
 
 ## 1. 운영 모델
 

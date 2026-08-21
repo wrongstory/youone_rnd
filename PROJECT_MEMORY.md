@@ -45,9 +45,11 @@
 
 ## Current Phase
 
-`DESIGN_REVIEW_ONLY`.
+`IMPLEMENTATION_ACTIVE` (`M00`/`M01`).
 
-Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 제품 코드, 스캐폴딩, 의존성 설치, DB migration은 시작하지 않았다.
+Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. 현재 `M00` ADR 확정과 `M01` 스캐폴딩을 진행한다.
+
+`M00`의 ADR-001~ADR-008을 Accepted로 기록했다. `M01`은 Node.js 24 LTS, pnpm workspace, Turborepo, Next.js App Router, 분리 worker, kernel package, CI와 architecture test 기반을 생성하는 중이다. DB migration과 Supabase 업무 연결은 아직 시작하지 않았다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
@@ -62,7 +64,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 ## Development Gate
 
-기술스택과 `P0-SCOPE-V1.0`은 승인됐다. 사용자가 Development Gate를 명시적으로 승인하기 전에는 구현하지 않는다.
+기술스택, `P0-SCOPE-V1.0`, `STRUCTURE-PROPOSAL-V1`, `DELIVERY-PLAN-P0-V1` 및 제품 코드·스캐폴딩·DB migration 착수가 2026-08-21 사용자 지시로 승인됐다.
 
 ## Next Work After Approval
 

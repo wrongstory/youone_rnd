@@ -2,7 +2,7 @@
 
 - 구조안 ID: `STRUCTURE-PROPOSAL-V1`
 - 기준 범위: `P0-SCOPE-V1.0`
-- 상태: 설계안 작성 완료, 실제 디렉터리·의존성·제품 코드는 아직 생성하지 않음
+- 상태: `APPROVED` — 2026-08-21 Development Gate 승인, `M00`/`M01` 착수
 
 ## 1. 구조 결정
 
@@ -258,4 +258,4 @@ P1/P2용 Port/typed link는 둘 수 있지만 빈 메뉴, 추측 table, 임시 J
 
 ## 10. 구조 승인과 실제 생성의 구분
 
-이 문서는 실제 scaffold가 아니라 scaffold 명세다. Development Gate가 승인되면 `M00`에서 ADR을 확정하고 `M01`에서 이 트리를 실제로 생성한다.
+이 문서는 승인된 scaffold 명세다. 2026-08-21 Development Gate 승인에 따라 `M00`에서 ADR을 확정하고 `M01`에서 이 트리를 실제로 생성한다.
