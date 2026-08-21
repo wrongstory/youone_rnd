@@ -365,13 +365,17 @@ Threaded business comment scoped to an authorized subject. Approval opinions rem
 
 User-facing delivery record generated from an outbox event. It is not the source of business truth.
 
+### `outbox_message`
+
+Transactional event envelope written in the same UnitOfWork as the aggregate change, AuditLog, and StateTransitionHistory. Its immutable body contains stable IDs, aggregate identity/version, correlation/causation, idempotency key, payload schema version, and a bounded redacted payload. Worker-owned lease, retry, delivery, and dead-letter fields are mutable through protected operations only. It never carries document/editor content, evidence bytes, tokens, signed URLs, whole request/response bodies, SQL, or exception stacks.
+
 ### `audit_log`
 
-Append-only event with actor, effective actor, action ID, resource, result, reason, request correlation, before/after summary or hash, IP/device context where allowed, and timestamp.
+Append-only event with actor, effective actor, action ID, resource, result, stable reason/reference, request correlation, before/after hash, IP/device context where allowed, and timestamp. M02 deliberately has no generic Audit JSON payload.
 
 ### `state_transition_history`
 
-Append-only domain transition record with machine ID, from/to state, event ID, actor, version, reason, and correlation to AuditLog.
+Append-only domain transition record with stateful resource type/ID, machine ID, from/to state, event ID, version before/after, reason code, correlation/causation, command ID, and correlation to AuditLog. A successful transition is unique for the resulting aggregate version.
 
 ### `offline_command`, `sync_conflict`
 

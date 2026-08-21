@@ -45,11 +45,13 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M01` 완료 검증, PR 병합 대기).
+`IMPLEMENTATION_ACTIVE` (`M02` DB/Audit Kernel 구현 및 Draft PR 검증).
 
-Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR 확정과 `M01` 스캐폴딩을 같은 초기 기반 PR에서 검증하고 있다.
+Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
-`M00`의 ADR-001~ADR-008을 Accepted로 기록했다. `M01`은 Node.js 24 LTS, pnpm workspace, Turborepo, Next.js App Router, 분리 worker, 전체 P0 package 공개계약 shell, request/worker 자격증명 경계, CI와 architecture test 기반을 생성하고 root 품질 명령을 통과했다. `config/package-boundaries.json`이 P0 package의 계층·소유자·최초 구현 merge item을 고정한다. DB migration과 Supabase 업무 연결은 아직 시작하지 않았다.
+`M00`의 ADR-001~ADR-008을 Accepted로 기록했다. `M01`은 Node.js 24 LTS, pnpm workspace, Turborepo, Next.js App Router, 분리 worker, 전체 P0 package 공개계약 shell, request/worker 자격증명 경계, CI와 architecture test 기반을 생성했다. `config/package-boundaries.json`이 P0 package의 계층·소유자·최초 구현 merge item을 고정한다.
+
+`M02`는 공통 value type, UnitOfWork/Audit/Transition/Outbox Port, 빈 stable-code registry, append-only Audit/Transition, immutable Outbox event와 분리 delivery state, idempotency ledger, NOBYPASSRLS request/worker capability role의 첫 SQL migration을 구현한다. 업무별 상태·Feature table·R&D Program machine은 선도입하지 않는다. 로컬 TypeScript/계약 테스트는 통과했으며 실제 PostgreSQL clean/upgrade/RLS/rollback/concurrency 검증은 M02 PR의 CI service에서 수행한다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
@@ -60,6 +62,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 - `P0-SCOPE-V1.0`으로 권장 범위를 확정했다. P0에는 연구노트 경량, 시험/성능, 검수 달성도/차등지급, NCR/CAR, ECR/ECO, 안전 경량, L3/L4 통제출력을 포함한다.
 - BOM, 연구수당, 연구장비/교정, 권한필터 검색은 P1이다. 특허/IP와 하이웍스/외부시스템은 P2다.
 - 실제 회사 양식, 역할별 KPI, 하이웍스 범위, 모바일 탭, 캘린더 위치, 검색 범위가 미확정이다.
+- `WF-RND-V1`의 `RND_PROGRAM` 정식 상태머신은 미확정이며 `OD-030`으로 기록했다. M11 전 결정하고 M02 registry에는 임의 등록하지 않는다.
 - 실제 회사 양식 업로드 전에는 범용 버전형 템플릿만 설계하고 인쇄 레이아웃을 추정하지 않는다.
 
 ## Development Gate
@@ -69,8 +72,9 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 ## Next Work After Approval
 
 1. `M00`: 구조/DB principal/typed Approval subject/editor/worker/offline/watermark ADR 확정.
-2. `M01`: 프로젝트 스캐폴딩과 import boundary 완료 검증 및 PR 병합.
-3. `M02~M05`: DB/Audit → Auth/RBAC/Scope → Approval → Document/File.
-4. `M06~M11`: Project/WBS → Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
-5. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
-6. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+2. `M01`: 프로젝트 스캐폴딩과 import boundary 완료 및 PR #19 병합.
+3. `M02`: DB/Audit Kernel 실제 PostgreSQL CI 검증과 Draft PR 검토.
+4. `M03~M05`: Auth/RBAC/Scope → Approval → Document/File.
+5. `M06~M11`: Project/WBS → Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
+6. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
+7. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.

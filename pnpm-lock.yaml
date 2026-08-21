@@ -58,7 +58,14 @@ importers:
 
   packages/core/approval: {}
 
-  packages/core/audit: {}
+  packages/core/audit:
+    dependencies:
+      '@youone/application-kernel':
+        specifier: workspace:*
+        version: link:../../application-kernel
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/core/authorization: {}
 
@@ -100,7 +107,17 @@ importers:
 
   packages/infrastructure/pdf-renderer: {}
 
-  packages/infrastructure/postgres: {}
+  packages/infrastructure/postgres:
+    dependencies:
+      '@youone/application-kernel':
+        specifier: workspace:*
+        version: link:../../application-kernel
+      '@youone/core-audit':
+        specifier: workspace:*
+        version: link:../../core/audit
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/infrastructure/supabase-auth: {}
 
