@@ -91,6 +91,23 @@ describe("M05 document/file migration contract", () => {
     expect(sql).not.toMatch(/target_document uuid:=case when tg_table_name='document'/);
   });
 
+  it("always gives successful document and attachment transition audits evidence", () => {
+    const documentTransition = sql.slice(
+      sql.indexOf("create or replace function app_private.append_document_transition"),
+      sql.indexOf("create or replace function app_private.enqueue_document_event"),
+    );
+    const attachmentTransition = sql.slice(
+      sql.indexOf("create or replace function app_private.append_attachment_transition"),
+      sql.indexOf("create or replace function app_private.enqueue_attachment_event"),
+    );
+    expect(sql).toContain("evidence_reason text:=coalesce(target_reason_code,target_event_id)");
+    expect(documentTransition).toContain("select v.content_checksum,v.sealed_snapshot_checksum into strict content_hash,sealed_hash");
+    expect(documentTransition).toContain("evidence_reason,null,evidence_before_hash,evidence_after_hash,null,target_occurred_at");
+    expect(attachmentTransition).toContain("select a.expected_sha256,a.detected_sha256 into strict expected_hash,detected_hash");
+    expect(attachmentTransition).toContain("evidence_reason,null,evidence_before_hash,evidence_after_hash,null,target_occurred_at");
+    expect(sql).toContain("if target_reason_code is null then raise exception 'attachment removal reason required'");
+  });
+
   it("bootstraps a private Supabase bucket when the provider schema exists", () => {
     expect(sql).toContain("to_regclass('storage.buckets')");
     expect(sql).toContain("values('PRIVATE_BUSINESS','PRIVATE_BUSINESS',false,50000000");

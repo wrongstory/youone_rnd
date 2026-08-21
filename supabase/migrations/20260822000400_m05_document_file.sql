@@ -665,8 +665,13 @@ create or replace function app_private.append_document_transition(
   target_audit_id uuid,target_transition_id uuid,target_action_id text,target_version_id uuid,target_resource_version bigint,
   target_event_id text,target_from_state text,target_to_state text,target_reason_code text,target_occurred_at timestamptz
 ) returns void language plpgsql security definer set search_path=pg_catalog,public,app_private
-as $$ begin
-  perform app_private.append_audit(target_audit_id,target_action_id,'DOCUMENT_VERSION',target_version_id,target_resource_version,'SUCCEEDED',target_reason_code,null,null,null,null,target_occurred_at);
+as $$ declare content_hash text; sealed_hash text; evidence_reason text:=coalesce(target_reason_code,target_event_id);
+  evidence_before_hash text; evidence_after_hash text; begin
+  select v.content_checksum,v.sealed_snapshot_checksum into strict content_hash,sealed_hash from public.document_version v where v.id=target_version_id;
+  evidence_before_hash:=case when target_from_state is null then null when target_from_state='DRAFT' then content_hash else coalesce(sealed_hash,content_hash) end;
+  evidence_after_hash:=case when target_to_state='DRAFT' then content_hash else coalesce(sealed_hash,content_hash) end;
+  perform app_private.append_audit(target_audit_id,target_action_id,'DOCUMENT_VERSION',target_version_id,target_resource_version,'SUCCEEDED',
+    evidence_reason,null,evidence_before_hash,evidence_after_hash,null,target_occurred_at);
   perform app_private.append_state_transition(target_transition_id,target_audit_id,'DOCUMENT_VERSION',target_version_id,'SM-DOCUMENT-V1',target_event_id,
     target_from_state,target_to_state,target_resource_version-1,target_resource_version,target_reason_code,null,
     app_private.required_setting('app.correlation_id'),app_private.optional_setting('app.causation_id'),target_occurred_at);
@@ -686,8 +691,13 @@ create or replace function app_private.append_attachment_transition(
   target_audit_id uuid,target_transition_id uuid,target_action_id text,target_attachment_id uuid,target_resource_version bigint,
   target_event_id text,target_from_state text,target_to_state text,target_reason_code text,target_occurred_at timestamptz
 ) returns void language plpgsql security definer set search_path=pg_catalog,public,app_private
-as $$ begin
-  perform app_private.append_audit(target_audit_id,target_action_id,'ATTACHMENT',target_attachment_id,target_resource_version,'SUCCEEDED',target_reason_code,null,null,null,null,target_occurred_at);
+as $$ declare expected_hash text; detected_hash text; evidence_reason text:=coalesce(target_reason_code,target_event_id);
+  evidence_before_hash text; evidence_after_hash text; begin
+  select a.expected_sha256,a.detected_sha256 into strict expected_hash,detected_hash from public.attachment a where a.id=target_attachment_id;
+  evidence_before_hash:=case when target_from_state is null then null when target_from_state='UPLOAD_INTENDED' then expected_hash else coalesce(detected_hash,expected_hash) end;
+  evidence_after_hash:=case when target_to_state='UPLOAD_INTENDED' then expected_hash else coalesce(detected_hash,expected_hash) end;
+  perform app_private.append_audit(target_audit_id,target_action_id,'ATTACHMENT',target_attachment_id,target_resource_version,'SUCCEEDED',
+    evidence_reason,null,evidence_before_hash,evidence_after_hash,null,target_occurred_at);
   perform app_private.append_state_transition(target_transition_id,target_audit_id,'ATTACHMENT',target_attachment_id,'SM-ATTACHMENT-V1',target_event_id,
     target_from_state,target_to_state,target_resource_version-1,target_resource_version,target_reason_code,null,
     app_private.required_setting('app.correlation_id'),app_private.optional_setting('app.causation_id'),target_occurred_at);
