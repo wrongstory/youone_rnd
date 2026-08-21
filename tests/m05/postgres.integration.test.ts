@@ -157,9 +157,9 @@ dbDescribe.sequential("M05 PostgreSQL document/file boundary", () => {
     expect(run(`select state||':'||(sealed_snapshot_checksum is not null) from public.document_version where id='${versionId}';`)).toBe("REVIEW_READY:true");
     expect(run(`begin; set local role youone_request; ${requestContext()} select allowed from public.request_attachment_delivery('${attachmentId}','${versionId}','DOWNLOAD',60,
       '59400000-0000-4000-8000-000000000017','${now}'); rollback;`).split("\n").at(-1)).toBe("t");
-    expect(run(`select count(*) from public.audit_log where aggregate_type='ATTACHMENT' and aggregate_id='${attachmentId}' and result='SUCCEEDED'
+    expect(run(`select count(*) from public.audit_log where resource_type='ATTACHMENT' and resource_id='${attachmentId}' and result='SUCCEEDED'
       and reason_code is null and reason_record_ref is null and before_hash is null and after_hash is null;`)).toBe("0");
-    expect(run(`select count(*) from public.audit_log where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and result='SUCCEEDED'
+    expect(run(`select count(*) from public.audit_log where resource_type='DOCUMENT_VERSION' and resource_id='${versionId}' and result='SUCCEEDED'
       and reason_code is null and reason_record_ref is null and before_hash is null and after_hash is null;`)).toBe("0");
     run(`delete from public.document_attachment where document_version_id='${versionId}' and attachment_id='${attachmentId}';`, false);
     run(`update public.document_version set editor_content='{\"forged\":true}' where id='${versionId}';`, false);
@@ -204,8 +204,8 @@ dbDescribe.sequential("M05 PostgreSQL document/file boundary", () => {
         '59500000-0000-4000-8000-000000000024',null,null,'${now}'); commit;`);
     expect(run(`select i.state||':'||v.state from public.approval_instance i join public.approval_subject_document_version l on l.instance_id=i.id
       join public.document_version v on v.id=l.document_version_id where i.id='${instance}';`)).toBe("COMPLETED:APPROVED");
-    expect(run(`select count(*) from public.audit_log where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and outcome='SUCCEEDED';`)).not.toBe("0");
-    expect(run(`select count(*) from public.outbox_event where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and event_id='EVT-DOCUMENT-APPROVED';`)).toBe("1");
+    expect(run(`select count(*) from public.audit_log where resource_type='DOCUMENT_VERSION' and resource_id='${versionId}' and result='SUCCEEDED';`)).not.toBe("0");
+    expect(run(`select count(*) from public.outbox_event where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and event_type='EVT-DOCUMENT-APPROVED';`)).toBe("1");
   });
 
   it("creates a strictly newer draft and atomically supersedes the approved predecessor", () => {
@@ -217,7 +217,7 @@ dbDescribe.sequential("M05 PostgreSQL document/file boundary", () => {
         '59600000-0000-4000-8000-000000000004','59600000-0000-4000-8000-000000000005','59600000-0000-4000-8000-000000000006','${now}'); commit;`);
     expect(run(`select old.state||':'||(old.superseded_by_version_id='${nextVersion}')||':'||fresh.state
       from public.document_version old join public.document_version fresh on fresh.prior_version_id=old.id where old.id='${versionId}';`)).toBe("SUPERSEDED:true:DRAFT");
-    expect(run(`select count(*) from public.outbox_event where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and event_id='EVT-DOCUMENT-SUPERSEDED';`)).toBe("1");
+    expect(run(`select count(*) from public.outbox_event where aggregate_type='DOCUMENT_VERSION' and aggregate_id='${versionId}' and event_type='EVT-DOCUMENT-SUPERSEDED';`)).toBe("1");
     run(`begin; set local role youone_request; ${requestContext()}
       select public.update_document_draft_security('${nextVersion}',1,6,'SEC_L1_PUBLIC_GENERAL','59600000-0000-4000-8000-000000000007','${now}'); commit;`);
     run(`update public.user_security_entitlement_assignment set revoked_at='${now}',revoked_by_user_id='${owner}',revoke_reason_code='M05_TEST_REVOKE',version_no=version_no+1
