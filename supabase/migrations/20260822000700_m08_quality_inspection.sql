@@ -1803,8 +1803,8 @@ as $$ declare decision_row public.acceptance_payment_decision%rowtype; next_vers
           and (not exists(select 1 from public.payment_rate_adjustment a where a.acceptance_payment_decision_id=decision_row.id and a.direction='UPWARD')
             or s.covers_upward_adjustment)
           and s.selector_checksum=app_private.canonical_json_sha256(jsonb_build_object('schema','ACCEPTANCE_PAYMENT_APPROVAL_SELECTOR_V1',
-            'policyVersionId',s.policy_version_id,'minimumAmount',s.minimum_milestone_amount_inclusive,
-            'maximumAmount',s.maximum_milestone_amount_exclusive,'currency',s.currency,
+            'policyVersionId',s.policy_version_id,'minimumAmount',trim_scale(s.minimum_milestone_amount_inclusive),
+            'maximumAmount',trim_scale(s.maximum_milestone_amount_exclusive),'currency',s.currency,
             'strengthenedRiskRequired',s.strengthened_risk_required,'representativeMode',s.representative_completion_mode,
             'coversUpwardAdjustment',s.covers_upward_adjustment))
           and (select count(*) from public.approval_policy_step_rule sr where sr.policy_version_id=pv.id)
