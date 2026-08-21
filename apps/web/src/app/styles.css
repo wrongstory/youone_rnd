@@ -20,6 +20,7 @@ body {
 }
 
 .hero,
+.pageDirectory,
 .principles {
   width: min(100%, 760px);
   margin-inline: auto;
@@ -27,6 +28,45 @@ body {
   border-radius: 20px;
   background: #ffffff;
   box-shadow: 0 18px 45px rgb(18 63 69 / 8%);
+}
+
+.pageDirectory {
+  margin-top: 18px;
+  padding: 24px;
+}
+
+.pageDirectory h2 {
+  font-size: 1.05rem;
+}
+
+.pageDirectory ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pageDirectory a {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #ccdcda;
+  border-radius: 14px;
+  padding: 16px;
+  color: #102a2e;
+  text-decoration: none;
+}
+
+.pageDirectory a:hover,
+.pageDirectory a:focus-visible {
+  border-color: #0f6b71;
+  outline: 3px solid rgb(15 107 113 / 16%);
+}
+
+.pageDirectory span {
+  color: #456268;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .hero {
@@ -117,6 +157,14 @@ h1 {
 
   .principles {
     padding: 30px 36px;
+  }
+
+  .pageDirectory {
+    padding: 30px 36px;
+  }
+
+  .pageDirectory ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .principles ul {

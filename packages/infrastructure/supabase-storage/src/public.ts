@@ -1,2 +1,1 @@
-/** Public cross-module contracts for @youone/infra-supabase-storage. */
-export {};
+export * from "./supabase-storage-adapter.js";

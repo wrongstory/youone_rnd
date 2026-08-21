@@ -5,8 +5,8 @@
 ## Current delivery
 
 - Phase: `IMPLEMENTATION_ACTIVE`
-- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, and `M03` trusted Auth/RBAC/Scope in PR #21
-- Active merge item: `M04` common Approval Engine and typed subject adapter
+- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, and `M04` common Approval Engine in PR #22
+- Active merge item: `M05` immutable Document/Template/File and private Storage boundary
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
 
 ## Local requirements

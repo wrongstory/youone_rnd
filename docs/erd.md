@@ -176,6 +176,8 @@ M03 physically creates Identity/RBAC, Vendor/VendorUser, acting-authority, norma
 
 M04 physically creates `APPROVAL_POLICY`, immutable/sealed `APPROVAL_POLICY_VERSION`, normalized step/participant policy rules, `APPROVAL_INSTANCE`, snapshotted `APPROVAL_STEP`/`APPROVAL_PARTICIPANT`, append-only `APPROVAL_ACTION`, and the bootstrap typed link `APPROVAL_SUBJECT_POLICY_VERSION`. The typed link uses exact version/checksum composite FKs; later subject adapters are added only with their real aggregate FKs. Policy-rule ownership cannot be reparented to bypass a sealed version, and resubmission requires the same subject root plus a strictly newer sealed version.
 
+M05 physically creates normalized `TEMPLATE`/`TEMPLATE_VERSION`, `DOCUMENT`/`DOCUMENT_VERSION`, `ATTACHMENT`, logical `DOCUMENT_ATTACHMENT` history, content-validation/seal/scan evidence, and `APPROVAL_SUBJECT_DOCUMENT_VERSION`. Exact composite FKs bind template snapshots, validation checksum, sealed manifest evidence, scan evidence and approval subject version/checksum/sealed-at. `DOCUMENT_VERSION.security_level_snapshot` prevents a later Document-head downgrade from weakening a historical L3/L4 version. FORCE RLS and column grants exclude raw editor content, object coordinates and evidence tables; SECURITY DEFINER commands are the only write/content-delivery path.
+
 ## 3. Document, File, Approval, and Technical Access
 
 ```mermaid

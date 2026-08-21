@@ -1,2 +1,2 @@
-/** Public cross-module contracts for @youone/core-document. */
-export {};
+export * from "./domain/document.js";
+export * from "./application/contracts.js";

@@ -198,6 +198,8 @@ The Senior Researcher position fails `approval.step.approve` even if the person 
 
 M04 revalidates the active account, exact participant, current Position assignment, selected acting-authority assignment, evidence, allowed action, revocation and `[valid_from, valid_to)` interval at command time. UI visibility is advisory only; application authorization and PostgreSQL command functions/RLS are authoritative. `Admin-System` policy administration and Vendor membership confer no case-action authority.
 
+M05 keeps Vendor access to Document/File denied until M06/M07 provide real Project/Contract parent FKs and reviewed grants. An owner may read metadata, while an active exact-version approval participant may read only the sealed subject needed for that approval. Raw editor content, private object coordinates and evidence tables are excluded from ordinary table projections and are returned only through audited SECURITY DEFINER commands. L3/L4 source access requires the canonical authorization action plus explicit `ENTITLEMENT_L3_SOURCE_READ` or `ENTITLEMENT_L4_SOURCE_READ`; the `ADMIN_SYSTEM` role alone is never sufficient.
+
 ## 11. Project Creation and Formal Designation
 
 | Action | Active internal user | Project owner | Senior | Lab Director | Representative | Vendor |
@@ -254,6 +256,8 @@ The database may expose dedicated views/functions for these projections, but the
 - Uses separate DB roles or guarded functions for background workers and audit writers.
 
 ### Storage
+
+M05 uses a private `PRIVATE_BUSINESS` bucket, server-issued object keys and an audited one-time delivery broker. Anonymous/authenticated direct object select/insert/update/delete is denied for that bucket. Each redemption is bound to the trusted authorization decision ID, actor, exact Attachment and short expiry; provider coordinates and signed/public URLs are never persisted or returned as durable application data.
 
 - Private buckets only for business/technical content.
 - Object path is not an authorization boundary by itself.

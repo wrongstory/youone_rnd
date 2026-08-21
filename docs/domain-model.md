@@ -423,4 +423,10 @@ The master list is covered as follows:
 - TechnicalDocumentAccessGrant: Technical access.
 - Attachment, Comment, Notification, AuditLog: shared Core.
 
+### M05 physical baseline
+
+M05는 `Template`/`TemplateVersion`, `Document`/`DocumentVersion`, `Attachment`, `DocumentAttachment`, content-validation evidence, sealed-manifest evidence, file-scan evidence를 각각 정규화한다. `DocumentVersion`은 template snapshot, editor schema/renderer, content checksum, security-level snapshot, active AVAILABLE attachment의 MIME/size/hash/scan evidence를 exact sealed manifest로 고정한다. 승인·반려·회수 후 수정은 동일 Document root의 strictly newer version이며 승인본 대체는 이전 version의 content를 바꾸지 않고 successor exact link만 기록한다.
+
+`DOCUMENT_VERSION` 결재 대상은 version number, sealed manifest checksum, sealed timestamp의 composite FK로 고정한다. Attachment 객체 위치는 private provider metadata일 뿐이며 URL/token은 엔티티에 저장하지 않는다. `AVAILABLE`은 FILE_INGEST 검증과 FILE_SCANNER CLEAN 결과를 모두 거친 상태로, 복원 시에도 MIME·크기·체크섬·scan evidence invariant를 다시 확인한다.
+
 Additional superior-regulation concepts are covered by Safety Management and Research Allowance Evidence. Research outcomes and notes carry ownership provenance: company ownership by default with explicit law/agreement/contract exception records.

@@ -12,6 +12,7 @@ Applied sequence:
 - `20260821000100_m02_database_audit_kernel.sql`: registry, Audit, Transition, Outbox, idempotency, request/worker capability roles.
 - `20260821000200_m03_auth_rbac_scope.sql`: Identity/RBAC, Vendor membership, acting authority, normalized action sets, actor/resource/action-bound field projections, request-time RLS helpers, and audited account/Vendor/membership/role lifecycle.
 - `20260822000300_m04_approval_engine.sql`: `SM-APPROVAL-V1`, immutable versioned policy/line snapshots, exact FK-backed typed subject link, participant/action evidence, optimistic commands, audit/transition/outbox atomicity, and deny-first RLS.
+- `20260822000400_m05_document_file.sql`: versioned Template/Document/File metadata, content/manifest/scan evidence, exact `DocumentVersion` approval subject links, private-storage broker boundaries, immutable history, and deny-first RLS.
 
 M03 intentionally does not create ProjectScope, ContractScope, or DocumentVersion grants before their typed FK targets exist.
 
