@@ -121,19 +121,19 @@ dbDescribe.sequential("M06 PostgreSQL Project/WBS boundary", () => {
     run(`begin; set local role youone_request; ${requestContext(internal)}
       select public.create_project('${otherProject}','M06-PROJECT-B','Project B','${organization}','Other objective','2026-08-22','2027-08-21','MEMBERS_ONLY',
         '61000000-0000-4000-8000-000000000013','61000000-0000-4000-8000-000000000014','61000000-0000-4000-8000-000000000015','${now}'); commit;`);
-    run(`begin; set local role youone_request; ${requestContext(vendor)} select public.create_project('61000000-0000-4000-8000-000000000099','FORGED','Forged','${organization}','x','2026-08-22','2026-08-23','MEMBERS_ONLY',extensions.gen_random_uuid(),extensions.gen_random_uuid(),extensions.gen_random_uuid(),'${now}'); rollback;`, false);
+    run(`begin; set local role youone_request; ${requestContext(vendor)} select public.create_project('61000000-0000-4000-8000-000000000099','FORGED','Forged','${organization}','x','2026-08-22','2026-08-23','MEMBERS_ONLY','60900000-0000-4000-8000-000000000090','60900000-0000-4000-8000-000000000091','60900000-0000-4000-8000-000000000092','${now}'); rollback;`, false);
     run(`begin; set local role youone_request; ${requestContext()} update public.project set state='ACTIVE' where id='${project}'; rollback;`, false);
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.project; rollback;`).split("\n").at(-1)).toBe("0");
   });
 
   it("enforces exact VendorMembership plus exact Project grants and immediate revoke", () => {
-    for (const [grantId, action] of [["61100000-0000-4000-8000-000000000001", "project.summary.read"], ["61100000-0000-4000-8000-000000000002", "project.wbs.read"], ["61100000-0000-4000-8000-000000000003", "project.wbs.update"]] as const) {
-      run(`begin; set local role youone_request; ${requestContext()} select public.grant_project_vendor_scope('${grantId}','${project}','${vendorUser}','${action}','${now}',null,'M06-GRANT',extensions.gen_random_uuid(),'${now}'); commit;`);
+    for (const [grantId, action, auditId] of [["61100000-0000-4000-8000-000000000001", "project.summary.read", "61100000-0000-4000-8000-000000000011"], ["61100000-0000-4000-8000-000000000002", "project.wbs.read", "61100000-0000-4000-8000-000000000012"], ["61100000-0000-4000-8000-000000000003", "project.wbs.update", "61100000-0000-4000-8000-000000000013"]] as const) {
+      run(`begin; set local role youone_request; ${requestContext()} select public.grant_project_vendor_scope('${grantId}','${project}','${vendorUser}','${action}','${now}',null,'M06-GRANT','${auditId}','${now}'); commit;`);
     }
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.read_project_vendor_summary('${project}','${now}'); rollback;`).split("\n").at(-1)).toBe("1");
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.read_project_vendor_summary('${otherProject}','${now}'); rollback;`).split("\n").at(-1)).toBe("0");
     expect(run(`begin; set local role youone_request; ${requestContext(otherVendor)} select count(*) from public.read_project_vendor_summary('${project}','${now}'); rollback;`).split("\n").at(-1)).toBe("0");
-    run(`begin; set local role youone_request; ${requestContext()} select public.revoke_project_vendor_scope('61100000-0000-4000-8000-000000000001',1,'M06-REVOKE',extensions.gen_random_uuid(),'${now}'); commit;`);
+    run(`begin; set local role youone_request; ${requestContext()} select public.revoke_project_vendor_scope('61100000-0000-4000-8000-000000000001',1,'M06-REVOKE','61100000-0000-4000-8000-000000000014','${now}'); commit;`);
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.read_project_vendor_summary('${project}','${now}'); rollback;`).split("\n").at(-1)).toBe("0");
   });
 
@@ -155,7 +155,7 @@ dbDescribe.sequential("M06 PostgreSQL Project/WBS boundary", () => {
     run(`begin; set local role youone_request; ${requestContext(vendor)} select public.transition_wbs_node('${wbs}','EVT-WBS-START',2,10,null,
       '61300000-0000-4000-8000-000000000007','61300000-0000-4000-8000-000000000008','61300000-0000-4000-8000-000000000009','${now}'); commit;`);
     run(`begin; set local role youone_request; ${requestContext(vendor)} select public.transition_wbs_node('${wbs}','EVT-WBS-ACCEPT',3,100,null,
-      extensions.gen_random_uuid(),extensions.gen_random_uuid(),extensions.gen_random_uuid(),'${now}'); rollback;`, false);
+      '61300000-0000-4000-8000-000000000010','61300000-0000-4000-8000-000000000011','61300000-0000-4000-8000-000000000012','${now}'); rollback;`, false);
     run(`update public.wbs_node set parent_id='${wbs}' where id='${wbs}';`, false);
   });
 
@@ -272,7 +272,7 @@ dbDescribe.sequential("M06 PostgreSQL Project/WBS boundary", () => {
   it("forces output/evidence RLS and denies direct request mutation", () => {
     expect(run("select count(*) from pg_class where relnamespace='public'::regnamespace and relname in ('research_project_application_output','research_project_application_evidence') and relrowsecurity and relforcerowsecurity;")).toBe("2");
     run(`begin; set local role youone_request; ${requestContext()} insert into public.research_project_application_output(application_version_id,output_id,output_type_id,title)
-      values('${applicationVersion}',extensions.gen_random_uuid(),'FORGED','Forged'); rollback;`, false);
+      values('${applicationVersion}','63900000-0000-4000-8000-000000000001','FORGED','Forged'); rollback;`, false);
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.research_project_application_output; rollback;`).split("\n").at(-1)).toBe("0");
     expect(run(`begin; set local role youone_request; ${requestContext(vendor)} select count(*) from public.research_project_application_evidence; rollback;`).split("\n").at(-1)).toBe("0");
   });
