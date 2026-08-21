@@ -428,7 +428,7 @@ dbDescribe.sequential("M08 PostgreSQL Quality/Inspection boundary", () => {
       select public.calculate_acceptance_payment_decision('80000000-0000-4000-8000-000000000087','80000000-0000-4000-8000-000000000087',1,null,
         '80000000-0000-4000-8000-000000000072','80000000-0000-4000-8000-000000000085',false,'RISK-NORMAL',
         '80000000-0000-4000-8000-000000000088','80000000-0000-4000-8000-000000000089','80000000-0000-4000-8000-000000000090','${now}'); commit;`);
-    expect(run("select state||':'||calculated_proposed_rate||':'||external_transfer_executed from public.acceptance_payment_decision where id='80000000-0000-4000-8000-000000000087';")).toBe("CALCULATED:100.000000:f");
+    expect(run("select state||':'||calculated_proposed_rate||':'||external_transfer_executed from public.acceptance_payment_decision where id='80000000-0000-4000-8000-000000000087';")).toBe("CALCULATED:100.000000:false");
     run(`begin; set local role youone_request; ${requestContext(manager)}
       select public.propose_payment_rate_adjustment('80000000-0000-4000-8000-000000000087','80000000-0000-4000-8000-000000000091',95,
         'ADJUST-EVIDENCE',array['80000000-0000-4000-8000-000000000076'::uuid],1,
@@ -548,7 +548,7 @@ dbDescribe.sequential("M08 PostgreSQL Quality/Inspection boundary", () => {
     run(`begin; set local role youone_request; ${requestContext(manager)}
       select public.mark_acceptance_payment_eligible('80000000-0000-4000-8000-000000000087',4,'EXTERNAL-ELIGIBILITY',
         '80000000-0000-4000-8000-000000000097','80000000-0000-4000-8000-000000000098','80000000-0000-4000-8000-000000000099','${now}'); commit;`);
-    expect(run("select state||':'||final_approved_rate||':'||external_transfer_executed from public.acceptance_payment_decision where id='80000000-0000-4000-8000-000000000087';")).toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT:95.000000:f");
+    expect(run("select state||':'||final_approved_rate||':'||external_transfer_executed from public.acceptance_payment_decision where id='80000000-0000-4000-8000-000000000087';")).toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT:95.000000:false");
     run(`begin; set local role youone_privileged_writer; ${systemContext("QUALITY_PAYMENT_ENGINE")}
       select public.calculate_acceptance_payment_decision('80000000-0000-4000-8000-000000000153','80000000-0000-4000-8000-000000000087',2,
         '80000000-0000-4000-8000-000000000087','80000000-0000-4000-8000-000000000072',
