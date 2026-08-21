@@ -107,6 +107,14 @@ States: `DRAFT`, `INTERNAL_REVIEW`, `NEGOTIATION`, `APPROVAL_PENDING`, `SIGNED`,
 
 Acceptance or payment does not change warranty responsibility.
 
+M07 implementation notes:
+
+- Contract creation and every lifecycle transition validate trusted actor, current state, expected version, exact immutable ContractVersion and required evidence before state/audit/outbox persistence.
+- `APPROVAL_PENDING → SIGNED` requires the exact approved ContractVersion plus signature evidence; an amendment is a strictly newer same-contract version and never overwrites the signed predecessor.
+- `SIGNED → ACTIVE` creates reviewed Vendor Contract grants in the same transaction. `CLOSED` or `TERMINATED` revokes them in the terminal transition transaction; expiry and disabled membership deny immediately.
+- Contract list-safe projection contains no finance/payment/internal-evaluation fields. Vendor finance detail is a separate exact-scope and explicit-permission projection.
+- Deliverable acceptance and payment eligibility are not decided in M07. No Contract or Deliverable transition waives Vendor professional, latent-defect, warranty or indemnity responsibility.
+
 ## 5. Deliverable
 
 Machine: `SM-DELIVERABLE-V1`.

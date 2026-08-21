@@ -435,4 +435,10 @@ M06는 `Project`, `ProjectMember`, `ProjectProductLink`, `WbsNode`, `ProjectVend
 
 `ResearchProjectApplicationRoot`와 immutable `ResearchProjectApplicationVersion`은 신청 목적·계획·방법·기간·예산·연구팀·예상 성과·보안·안전·연구수당 적용 및 증거 첨부를 exact snapshot으로 봉인한다. `APPROVAL_SUBJECT_RESEARCH_PROJECT_APPLICATION`은 application version/checksum/sealed-at과 정확히 결합된다. 정확히 한 명의 `POSITION_LAB_DIRECTOR` 동의가 완료된 경우에만 immutable `ResearchProjectDesignation`이 생기며, Project의 formal status는 이 지정에서 파생한다. 반려·재작성 또는 신청자 회수 후 변경은 동일 root의 strictly newer application version이다.
 
+### M07 physical baseline
+
+M07는 `VendorContract`, immutable/versioned `ContractVersion`, `ContractProject`, `ContractMilestone`, `Deliverable`, immutable `DeliverableVersion`, `Guarantee`, `WarrantyIssue` 기반을 각각 정규화한다. ContractVersion은 총부담액·통화·기간·SOW/조건·IP/보안·보증·하자·지체·책임한도와 법령 체크, 선택한 내부 preset version, 계약별 override/reason/approval/signature provenance를 exact snapshot으로 고정한다. 이 값은 법정 고정값이 아니라 계약별 확정값이다.
+
+Contract list-safe projection에는 amount/payment/internal evaluation 필드가 타입과 SQL 결과에 존재하지 않는다. 기본 상세과 금융 상세은 별도 projection이며 금융 상세은 exact VendorMembership + Project/Contract Scope + `contract.detail.finance.read`를 모두 요구한다. 계약 활성화·종료·해지와 Scope 부여·회수는 같은 transaction의 obligation이다. Deliverable 수락과 실제 지급 확인은 M08에서 다루며 Contract/Deliverable 자체의 전문책임·잠재하자 비면책 표시는 변경할 수 없는 정책 provenance로 유지한다.
+
 Additional superior-regulation concepts are covered by Safety Management and Research Allowance Evidence. Research outcomes and notes carry ownership provenance: company ownership by default with explicit law/agreement/contract exception records.

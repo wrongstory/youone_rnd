@@ -170,6 +170,8 @@ M05의 파일 전달은 `core.file`의 trusted authorization과 `infrastructure.
 
 M06는 `features.project`가 Project/WBS 순수 규칙과 application port를 소유하고, `processes.formal-research-designation`이 Project 신청본과 Approval Core의 exact typed subject를 조합한다. Approval Core는 Project 내부 엔티티나 저장소를 import하지 않으며 Project UI도 Supabase SDK나 table에 직접 접근하지 않는다. 일반 Project와 정식 연구과제 지정을 분리하고, formal status는 immutable designation query에서만 파생한다. query adapter가 아직 조립되지 않은 화면은 가짜 빈 목록이나 실행 가능한 명령 대신 명시적 unavailable 상태를 표시한다.
 
+M07는 `features.vendor`와 `features.contract`가 Vendor/Contract/Deliverable 규칙과 application port를 소유한다. ContractVersion은 Approval Core에 exact typed subject adapter로 연결되지만 Approval Core가 Contract 내부 저장소나 엔티티에 의존하지 않는다. Vendor 목록·기본 상세·금융 상세은 서로 다른 public DTO와 DB projection이며, 금융 상세은 기본 DTO에 optional 필드를 추가하는 방식으로 우회하지 않는다. Contract Scope의 생성·회수는 계약 application service가 요청하고 Platform transaction이 상태·감사·outbox와 원자적으로 저장한다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:
