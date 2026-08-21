@@ -6,7 +6,7 @@
 
 - Phase: `IMPLEMENTATION_ACTIVE`
 - Completed: `M00` architecture decisions and `M01` scaffold in PR #19
-- Active merge item: `M02` database/audit kernel
+- Active merge item: CI-verified `M02` database/audit kernel
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
 
 ## Local requirements

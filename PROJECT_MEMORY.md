@@ -45,13 +45,13 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M02` DB/Audit Kernel 구현 및 Draft PR 검증).
+`IMPLEMENTATION_ACTIVE` (`M02` DB/Audit Kernel 구현 및 Draft PR 검증 완료).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
 `M00`의 ADR-001~ADR-008을 Accepted로 기록했다. `M01`은 Node.js 24 LTS, pnpm workspace, Turborepo, Next.js App Router, 분리 worker, 전체 P0 package 공개계약 shell, request/worker 자격증명 경계, CI와 architecture test 기반을 생성했다. `config/package-boundaries.json`이 P0 package의 계층·소유자·최초 구현 merge item을 고정한다.
 
-`M02`는 공통 value type, UnitOfWork/Audit/Transition/Outbox Port, 빈 stable-code registry, append-only Audit/Transition, immutable Outbox event와 분리 delivery state, idempotency ledger, NOBYPASSRLS request/worker capability role의 첫 SQL migration을 구현한다. 업무별 상태·Feature table·R&D Program machine은 선도입하지 않는다. 로컬 TypeScript/계약 테스트는 통과했으며 실제 PostgreSQL clean/upgrade/RLS/rollback/concurrency 검증은 M02 PR의 CI service에서 수행한다.
+`M02`는 공통 value type, UnitOfWork/Audit/Transition/Outbox Port, 빈 stable-code registry, append-only Audit/Transition, immutable Outbox event와 분리 delivery state, idempotency ledger, NOBYPASSRLS request/worker capability role의 첫 SQL migration을 구현한다. 업무별 상태·Feature table·R&D Program machine은 선도입하지 않는다. 로컬 TypeScript/계약 테스트와 GitHub Actions PostgreSQL 16의 clean/upgrade/RLS/rollback/payload/idempotency/worker/concurrency 테스트를 포함한 총 50개 테스트가 통과했다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
