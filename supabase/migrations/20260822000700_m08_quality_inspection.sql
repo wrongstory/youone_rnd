@@ -1907,7 +1907,7 @@ as $$ declare policy_row public.approval_policy_version%rowtype; decision_row pu
       where previous_decision.id=decision_row.previous_decision_id and previous_decision.decision_root_id=decision_row.decision_root_id
         and previous_decision.revision_no+1=decision_row.revision_no and previous_instance.id=target_prior_instance_id
         and previous_instance.state in ('REJECTED','RECALLED','CANCELLED') and previous_instance.generation+1=target_generation
-        and previous_outcome.outcome in ('REJECTED','RECALLED','CANCELLED')) then
+        and previous_outcome.outcome in ('REJECTED','RECALLED','CANCELLED'))) then
     raise exception 'invalid payment Approval resubmission lineage' using errcode='23514';
   end if;
   insert into public.approval_instance(id,policy_version_id,policy_version_no,policy_checksum_snapshot,submitter_user_id,
