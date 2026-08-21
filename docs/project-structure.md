@@ -233,6 +233,8 @@ approval_subject_acceptance_payment_decision
 
 구체 subject adapter가 같은 transaction 안에서 봉인·상태전이·감사를 처리한다.
 
+M04의 최초 물리 adapter는 `approval_subject_policy_version`이다. 이는 ApprovalPolicyVersion의 SEALED→PUBLISHED 자체승인 bootstrap 용도이며 composite FK로 exact version/checksum을 고정한다. 이후 `approval_subject_document` 등은 해당 aggregate가 도입되는 migration에서 실제 typed FK와 함께 추가한다. 모든 adapter는 `assertExactVersion`, 같은 root의 더 높은 version을 확인하는 `assertResubmissionLineage`, `applyApprovalOutcome` 계약을 구현한다.
+
 ## 8. P0 물리 구현 경계
 
 | 모듈 | P0 물리 구현 |

@@ -45,7 +45,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M02` 병합 완료, `M03` Auth/RBAC/Scope 구현 및 Draft PR #21 CI 검증 완료).
+`IMPLEMENTATION_ACTIVE` (`M03` Auth/RBAC/Scope PR #21 병합 완료, `M04` Approval Engine 구현 중).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -53,7 +53,9 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M02`는 공통 value type, UnitOfWork/Audit/Transition/Outbox Port, 빈 stable-code registry, append-only Audit/Transition, immutable Outbox event와 분리 delivery state, idempotency ledger, NOBYPASSRLS request/worker capability role의 첫 SQL migration을 구현했고 PR #20으로 `main`에 병합됐다. 업무별 상태·Feature table·R&D Program machine은 선도입하지 않는다. 로컬 TypeScript/계약 테스트와 GitHub Actions PostgreSQL 16의 clean/upgrade/RLS/rollback/payload/idempotency/worker/concurrency 테스트를 포함한 총 50개 테스트가 통과했다.
 
-`M03`는 Supabase의 서버 검증 세션을 user-editable metadata와 분리하고, DB의 활성 계정·effective-dated assignment를 매 요청 재조회해 `TrustedActorContext`를 만든다. Actor/Resource/Projection은 WeakSet provenance와 immutable collection으로 caller 조립·spread clone을 거부한다. Authorization 결과는 effect/reason뿐 아니라 Scope evidence, action-bound versioned projection, 후속 audit/delivery obligation을 보존한다. DB에는 Identity/RBAC/VendorMembership, 정규화된 action-set과 projection registry를 만들되, 실제 Project/Contract/DocumentVersion FK가 없는 임시 Scope row는 만들지 않는다. 계정·업체·membership lifecycle은 optimistic update와 M02 Audit을 한 transaction에 기록하며, request/identity-resolver/service Auth 경계를 별도 export로 격리한다. Draft PR #21의 GitHub Actions에서 PostgreSQL 16 DB 통합 테스트를 포함한 테스트 80개, typecheck 4개 작업, build 2개 작업이 모두 통과했다.
+`M03`는 Supabase의 서버 검증 세션을 user-editable metadata와 분리하고, DB의 활성 계정·effective-dated assignment를 매 요청 재조회해 `TrustedActorContext`를 만든다. Actor/Resource/Projection은 WeakSet provenance와 immutable collection으로 caller 조립·spread clone을 거부한다. Authorization 결과는 effect/reason뿐 아니라 Scope evidence, action-bound versioned projection, 후속 audit/delivery obligation을 보존한다. DB에는 Identity/RBAC/VendorMembership, 정규화된 action-set과 projection registry를 만들되, 실제 Project/Contract/DocumentVersion FK가 없는 임시 Scope row는 만들지 않는다. 계정·업체·membership lifecycle은 optimistic update와 M02 Audit을 한 transaction에 기록하며, request/identity-resolver/service Auth 경계를 별도 export로 격리한다. PR #21은 PostgreSQL 16 DB 통합 테스트를 포함한 테스트 80개, typecheck 4개 작업, build 2개 작업 통과 후 `main`에 병합됐다.
+
+`M04` 구현 후보는 공통 Approval domain/application 계약, 정책·결재선·참여자 snapshot, `SEQUENTIAL`/`ANY_ONE`/`ALL`/`SPECIFIC`, REVIEW/AGREEMENT/APPROVAL/REFERENCE, 위임 재검증, 반려·회수·재상신 generation, append-only action과 M02 Audit/Transition/Outbox 원자성을 포함한다. 첫 물리 typed subject는 `APPROVAL_POLICY_VERSION`이며 exact version/checksum과 같은 root의 새 version 재상신을 강제한다. 개인 결재함·상세는 query/command adapter 미연결 시 명시적 unavailable·disabled 상태를 반환한다. 로컬 lint/typecheck/테스트 83개/Next.js·worker build가 통과했고, PostgreSQL 통합 29개는 GitHub Actions 전용 DB에서 검증한다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
@@ -76,8 +78,9 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 1. `M00`: 구조/DB principal/typed Approval subject/editor/worker/offline/watermark ADR 확정.
 2. `M01`: 프로젝트 스캐폴딩과 import boundary 완료 및 PR #19 병합.
 3. `M02`: DB/Audit Kernel 실제 PostgreSQL CI 검증 및 PR #20 병합.
-4. `M03`: Auth/RBAC/Scope와 trusted request/RLS/field projection 구현 및 Draft PR #21 CI 검증 완료.
-5. `M04~M05`: Approval → Document/File.
-6. `M06~M11`: Project/WBS → Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
-7. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
-8. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+4. `M03`: Auth/RBAC/Scope와 trusted request/RLS/field projection 구현 및 PR #21 병합 완료.
+5. `M04`: 공통 Approval Engine과 typed subject adapter 구현 진행.
+6. `M05`: Document/File.
+7. `M06~M11`: Project/WBS → Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
+8. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
+9. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.

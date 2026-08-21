@@ -230,6 +230,7 @@ Step states: `WAITING`, `ACTIVE`, `REVIEWED`, `AGREED`, `APPROVED`, `REJECTED`, 
 | `SUBMITTED` | `EVT-APPROVAL-ACTIVATE` | `IN_PROGRESS` | System | first steps activated atomically |
 | `IN_PROGRESS` | `EVT-APPROVAL-REVIEW` | `IN_PROGRESS` | designated reviewer | Senior allowed; not approval |
 | `IN_PROGRESS` | `EVT-APPROVAL-AGREE` | `IN_PROGRESS` | designated participant | step completion rule |
+| `IN_PROGRESS` | `EVT-APPROVAL-REFERENCE` | `IN_PROGRESS` | designated reference recipient | receipt evidence; `approval.step.reference` |
 | `IN_PROGRESS` | `EVT-APPROVAL-APPROVE` | `IN_PROGRESS` or `COMPLETED` | designated official approver | position/role; ANY_ONE/ALL rules |
 | `IN_PROGRESS` | `EVT-APPROVAL-REJECT` | `REJECTED` | designated authorized participant | reason required |
 | `SUBMITTED`,`IN_PROGRESS` | `EVT-APPROVAL-REQUEST-RECALL` | `RECALL_REQUESTED` | Author | policy permits |
@@ -237,6 +238,8 @@ Step states: `WAITING`, `ACTIVE`, `REVIEWED`, `AGREED`, `APPROVED`, `REJECTED`, 
 | `DRAFT`,`RECALLED`,`REJECTED` | `EVT-APPROVAL-CANCEL` | `CANCELLED` | Author/authorized | record retained |
 
 Completion freezes the subject version. Resubmission creates a new generation/instance linked to the prior one.
+
+Transition event IDs above describe state-machine commands. Append-only domain/outbox completion facts use the corresponding past-tense IDs such as `EVT-APPROVAL-SUBMITTED`, `EVT-APPROVAL-REFERENCE-RECEIVED`, and `EVT-APPROVAL-COMPLETED`; the mapping is explicit and both vocabularies are stable. Current state, exact participant, policy/subject snapshot, optimistic versions, action, audit transition, outbox event, and subject outcome are validated or persisted in one transaction.
 
 ## 10. Purchase
 

@@ -272,6 +272,9 @@ Invariants:
 - Required steps cannot be removed by the drafter.
 - Representative default completion mode is `ANY_ONE`.
 - Final completion freezes the exact subject version and approval-line snapshot.
+- `REFERENCE` completion uses the stable permission `approval.step.reference` and remains distinct from official approval.
+- Resubmission preserves the prior instance/action evidence and requires the same subject root with a strictly newer immutable version; a changed checksum cannot disguise the same version.
+- Position, permission, event, and policy identifiers use canonical stable IDs only; translated or legacy aliases are not persistent authority.
 
 ## 10. Technical Document Access
 

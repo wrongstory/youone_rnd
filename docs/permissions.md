@@ -185,13 +185,18 @@ Expiry and revocation are evaluated at read time, not only by a background job.
 ## 10. Approval Permissions
 
 - `approval.instance.submit`: author or authorized submitter.
-- `approval.step.review`: designated reviewer/agreement participant.
+- `approval.step.review`: designated reviewer.
+- `approval.step.agree`: designated agreement participant.
+- `approval.step.reference`: designated reference recipient; receipt is evidence, not official approval.
 - `approval.step.approve`: designated official approver with position/role capability.
+- `approval.step.reject`: currently active designated participant; reason required.
 - `approval.instance.recall`: submitter while policy and current state permit.
 - `approval.policy.manage`: `ADMIN_APPROVAL`; does not authorize a case action.
 - `approval.instance.override`: not defined by default. Any future emergency override requires a new policy, dual control, reason, and audit.
 
 The Senior Researcher position fails `approval.step.approve` even if the person can review. A user holding another explicitly authorized acting role may approve only through a recorded delegation/acting-authority context, never by silently converting the Senior position.
+
+M04 revalidates the active account, exact participant, current Position assignment, selected acting-authority assignment, evidence, allowed action, revocation and `[valid_from, valid_to)` interval at command time. UI visibility is advisory only; application authorization and PostgreSQL command functions/RLS are authoritative. `Admin-System` policy administration and Vendor membership confer no case-action authority.
 
 ## 11. Project Creation and Formal Designation
 

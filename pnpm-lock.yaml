@@ -38,6 +38,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@youone/core-approval':
+        specifier: workspace:*
+        version: link:../../packages/core/approval
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../packages/shared-kernel
+      '@youone/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       next:
         specifier: 16.3.2
         version: 16.3.2(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@24.13.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -56,7 +65,11 @@ importers:
         specifier: workspace:*
         version: link:../shared-kernel
 
-  packages/core/approval: {}
+  packages/core/approval:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/core/audit:
     dependencies:
@@ -126,12 +139,12 @@ importers:
       '@youone/application-kernel':
         specifier: workspace:*
         version: link:../../application-kernel
-      '@youone/core-authorization':
-        specifier: workspace:*
-        version: link:../../core/authorization
       '@youone/core-audit':
         specifier: workspace:*
         version: link:../../core/audit
+      '@youone/core-authorization':
+        specifier: workspace:*
+        version: link:../../core/authorization
       '@youone/core-identity':
         specifier: workspace:*
         version: link:../../core/identity
