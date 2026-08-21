@@ -182,6 +182,8 @@ M06 physically creates `PRODUCT`, `PROJECT`, `PROJECT_MEMBER`, `PROJECT_PRODUCT_
 
 M07 physically creates `VENDOR_CONTRACT`, immutable `CONTRACT_VERSION`, `CONTRACT_PROJECT`, structured `CONTRACT_MILESTONE`, `DELIVERABLE`/`DELIVERABLE_VERSION`, `GUARANTEE`, `WARRANTY_ISSUE`, exact-FK `CONTRACT_VENDOR_GRANT` and `APPROVAL_SUBJECT_CONTRACT_VERSION`. Contract list-safe, basic-detail and finance-detail projections are separate database contracts. The safe projections never select finance/payment/internal-evaluation columns; finance requires an exact active Vendor membership/grant and finance action. Activation and terminal Contract transitions update grants with audit/transition/outbox atomically.
 
+M08 physically creates `REQUIREMENT`/immutable `REQUIREMENT_REVISION`, versioned `TEST_PLAN` with exact revision coverage, immutable `TEST_RESULT` evidence, `INSPECTION`, immutable `INSPECTION_CHECKLIST_VERSION`/`INSPECTION_CRITERION`, numbered immutable `INSPECTION_ATTEMPT`/`INSPECTION_CRITERION_RESULT`, typed residual-condition/partial-usable-portion children, `ACCEPTANCE_PAYMENT_DECISION`, `PAYMENT_RATE_ADJUSTMENT`, and exact-FK `APPROVAL_SUBJECT_ACCEPTANCE_PAYMENT_DECISION`. Calculated, proposed, adjusted and final rates are separate columns. No payment-transfer or accounting table/function is introduced.
+
 ## 3. Document, File, Approval, and Technical Access
 
 ```mermaid
