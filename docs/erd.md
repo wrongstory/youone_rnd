@@ -15,15 +15,27 @@
 ```mermaid
 erDiagram
   ORGANIZATION ||--o{ DEPARTMENT : contains
-  ORGANIZATION ||--o{ USER_ACCOUNT : employs
-  DEPARTMENT ||--o{ USER_ACCOUNT : assigns
-  POSITION ||--o{ USER_ACCOUNT : holds
-  USER_ACCOUNT ||--o{ USER_ROLE : has
-  ROLE ||--o{ USER_ROLE : assigned
-  ROLE ||--o{ ROLE_PERMISSION : contains
-  PERMISSION ||--o{ ROLE_PERMISSION : grants
+  USER_ACCOUNT ||--o{ USER_ORGANIZATION_ASSIGNMENT : assigned
+  ORGANIZATION ||--o{ USER_ORGANIZATION_ASSIGNMENT : bounds
+  USER_ACCOUNT ||--o{ USER_DEPARTMENT_ASSIGNMENT : assigned
+  DEPARTMENT ||--o{ USER_DEPARTMENT_ASSIGNMENT : bounds
+  USER_ACCOUNT ||--o{ USER_POSITION_ASSIGNMENT : assigned
+  POSITION ||--o{ USER_POSITION_ASSIGNMENT : bounds
+  USER_ACCOUNT ||--o{ USER_ROLE_ASSIGNMENT : has
+  ROLE ||--o{ USER_ROLE_ASSIGNMENT : assigned
+  ROLE ||--o{ ROLE_PERMISSION_ASSIGNMENT : contains
+  PERMISSION ||--o{ ROLE_PERMISSION_ASSIGNMENT : grants
+  USER_ACCOUNT ||--o{ USER_SECURITY_ENTITLEMENT_ASSIGNMENT : has
+  SECURITY_ENTITLEMENT ||--o{ USER_SECURITY_ENTITLEMENT_ASSIGNMENT : grants
   VENDOR ||--o{ VENDOR_USER : has
   USER_ACCOUNT ||--o{ VENDOR_USER : joins
+  AUTHORIZATION_ACTION_SET ||--o{ AUTHORIZATION_ACTION_SET_VERSION : versions
+  AUTHORIZATION_ACTION_SET_VERSION ||--o{ AUTHORIZATION_ACTION_SET_PERMISSION : contains
+  PERMISSION ||--o{ AUTHORIZATION_ACTION_SET_PERMISSION : allows
+  FIELD_PROJECTION_PROFILE ||--o{ FIELD_PROJECTION_PROFILE_VERSION : versions
+  FIELD_PROJECTION_PROFILE_VERSION ||--o{ FIELD_PROJECTION_FIELD : includes
+  USER_ACCOUNT ||--o{ ACTING_AUTHORITY_ASSIGNMENT : authenticates
+  AUTHORIZATION_ACTION_SET_VERSION ||--o{ ACTING_AUTHORITY_ASSIGNMENT : limits
   USER_ACCOUNT ||--o{ PROJECT_SCOPE : granted
   PROJECT ||--o{ PROJECT_SCOPE : bounds
   USER_ACCOUNT ||--o{ CONTRACT_SCOPE : granted
@@ -48,10 +60,10 @@ erDiagram
   USER_ACCOUNT {
     uuid id PK
     string auth_subject UK
-    uuid organization_id FK
-    uuid department_id FK
-    uuid position_id FK
+    enum account_kind
     enum status
+    datetime valid_from
+    datetime valid_until
   }
   ROLE {
     uuid id PK
@@ -61,15 +73,35 @@ erDiagram
     uuid id PK
     string stable_code UK
   }
-  USER_ROLE {
+  USER_ROLE_ASSIGNMENT {
+    uuid id PK
     uuid user_id FK
     uuid role_id FK
     datetime valid_from
     datetime valid_until
+    datetime revoked_at
   }
-  ROLE_PERMISSION {
+  ROLE_PERMISSION_ASSIGNMENT {
+    uuid id PK
     uuid role_id FK
     uuid permission_id FK
+    datetime valid_from
+    datetime valid_until
+    datetime revoked_at
+  }
+  SECURITY_ENTITLEMENT {
+    uuid id PK
+    string stable_code UK
+    enum status
+  }
+  USER_SECURITY_ENTITLEMENT_ASSIGNMENT {
+    uuid id PK
+    uuid user_id FK
+    uuid entitlement_id FK
+    datetime valid_from
+    datetime valid_until
+    datetime revoked_at
+    bigint version_no
   }
   VENDOR {
     uuid id PK
@@ -81,25 +113,66 @@ erDiagram
     uuid vendor_id FK
     uuid user_id FK
     enum status
+    datetime valid_from
+    datetime valid_until
+    datetime revoked_at
+  }
+  AUTHORIZATION_ACTION_SET_VERSION {
+    uuid action_set_id FK
+    int version_no
+    datetime valid_from
+    datetime valid_until
+  }
+  AUTHORIZATION_ACTION_SET_PERMISSION {
+    uuid action_set_id FK
+    int action_set_version FK
+    uuid permission_id FK
+  }
+  FIELD_PROJECTION_PROFILE_VERSION {
+    uuid profile_id FK
+    int version_no
+    enum actor_kind
+    string resource_type
+    string action_id
+    datetime valid_from
+    datetime valid_until
+  }
+  FIELD_PROJECTION_FIELD {
+    uuid profile_id FK
+    int profile_version FK
+    string field_id
+  }
+  ACTING_AUTHORITY_ASSIGNMENT {
+    uuid id PK
+    uuid authenticated_user_id FK
+    uuid effective_actor_user_id FK
+    uuid role_id FK
+    uuid action_set_id FK
+    int action_set_version FK
+    datetime valid_from
     datetime valid_until
   }
   PROJECT_SCOPE {
     uuid id PK
-    uuid user_id FK
+    uuid vendor_user_id FK
     uuid project_id FK
-    string action_set_id
+    uuid action_set_id FK
+    int action_set_version FK
     datetime valid_until
     enum state
   }
   CONTRACT_SCOPE {
     uuid id PK
-    uuid user_id FK
+    uuid vendor_user_id FK
     uuid vendor_contract_id FK
-    string action_set_id
+    uuid action_set_id FK
+    int action_set_version FK
     datetime valid_until
     enum state
   }
 ```
+
+M03 physically creates Identity/RBAC, Vendor/VendorUser, acting-authority, normalized action-set, and named field-projection records. `PROJECT_SCOPE`, `CONTRACT_SCOPE`, and exact DocumentVersion grant records remain logical extension points until M06, M07, and M05 can create them with their real typed FK targets and RLS in the same migration. M03 must not substitute a generic `(resource_type, resource_id)` grant table.
 
 ## 3. Document, File, Approval, and Technical Access
 

@@ -124,6 +124,14 @@ sequenceDiagram
 
 목록 허용과 상세 허용을 분리한다. 특히 외주 계약 목록 DTO에는 금액·지급 필드가 존재하지 않는다. 상세 조회는 `contract.detail.finance.read` 권한과 정확한 vendor/contract Scope를 모두 만족할 때만 해당 필드를 투영한다.
 
+M03의 request composition은 Supabase가 서버에서 검증한 subject/expiry/session/AAL만 인증 증거로 사용하고, Role·Position·Vendor·Scope는 user metadata나 request body가 아니라 현재 DB 레코드에서 다시 구성한다. 검증된 subject의 서버 snapshot은 ordinary request role이 호출할 수 없는 전용 NOBYPASSRLS `youone_identity_resolver` 경계에서만 읽는다. 검증 팩토리가 만든 명목상 `TrustedActorContext`만 request PostgreSQL UnitOfWork에 전달할 수 있다. Supabase request adapter와 privileged service/secret adapter는 서로 다른 export이며, web request interface는 privileged adapter를 import할 수 없다.
+
+Authorization은 boolean만 반환하지 않는다. 결정에는 stable reason, 사용한 Scope/assignment evidence, 서버가 등록한 projection profile ID/version, audit·재인가·step-up 같은 obligation을 포함한다. 실제 Project/Contract/DocumentVersion FK가 생기기 전에는 generic resource UUID Scope table을 만들지 않으며, M05/M06/M07 migration이 typed FK와 RLS를 함께 추가한다.
+
+Actor, Resource Context, Projection은 모두 factory provenance를 런타임에 검증한다. Feature의 Resource loader가 DB에서 resource ID와 실제 Vendor/Project/Contract/DocumentVersion 관계, workflow/security 판정, Approval participant evidence를 함께 읽는다. 외주 조회는 exact Project/Contract Scope와 action-bound Vendor projection이 없으면 거부하며, owner 또는 Organization Scope를 우회 근거로 사용하지 않는다.
+
+Identity/RBAC 변경은 일반 table write로 열지 않는다. 계정·업체 비활성화와 Vendor membership 부여/회수는 trusted request time, 현재 권한, optimistic version을 검사하고 상태 변경과 M02 Audit을 같은 transaction에 기록하는 guarded function만 사용한다. Acting authority ID도 transaction context에 전달하고 DB가 authenticated/effective actor, 기간, 회수, action set, 공식 승인 role을 재검증한다.
+
 ## 6. 데이터와 트랜잭션
 
 - PostgreSQL이 업무 정본이다.

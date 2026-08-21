@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ActorEnvelope } from "../../packages/application-kernel/src/public.js";
-import { createRequestUnitOfWork, StaleVersionError, type SqlConnection, type SqlPool, type SqlQueryResult } from "../../packages/infrastructure/postgres/src/request.js";
+import { StaleVersionError, type SqlConnection, type SqlPool, type SqlQueryResult } from "../../packages/infrastructure/postgres/src/request.js";
+import { PostgresUnitOfWork } from "../../packages/infrastructure/postgres/src/transaction.js";
 import { correlationId, uuid, version } from "../../packages/shared-kernel/src/public.js";
 
 class RecordingConnection implements SqlConnection {
@@ -25,7 +26,7 @@ describe("M02 PostgreSQL UnitOfWork", () => {
   it("sets transaction-local context and commits", async () => {
     const connection = new RecordingConnection();
     const pool: SqlPool = { connect: async () => connection };
-    await expect(createRequestUnitOfWork(pool).execute(actor, async () => "ok")).resolves.toBe("ok");
+    await expect(new PostgresUnitOfWork(pool).execute(actor, async () => "ok")).resolves.toBe("ok");
     expect(connection.calls.map(({ sql }) => sql.trim().split("\n")[0])).toEqual(["begin", "select", "commit"]);
     expect(connection.calls[1]?.parameters).toEqual(["USER", actor.authenticatedActorId, actor.effectiveActorId, "", "", actor.correlationId, ""]);
     expect(connection.released).toBe(true);
@@ -34,7 +35,7 @@ describe("M02 PostgreSQL UnitOfWork", () => {
   it("rolls back and releases on failure", async () => {
     const connection = new RecordingConnection();
     const pool: SqlPool = { connect: async () => connection };
-    await expect(createRequestUnitOfWork(pool).execute(actor, async () => { throw new Error("domain failure"); })).rejects.toThrow("domain failure");
+    await expect(new PostgresUnitOfWork(pool).execute(actor, async () => { throw new Error("domain failure"); })).rejects.toThrow("domain failure");
     expect(connection.calls.at(-1)?.sql).toBe("rollback");
     expect(connection.released).toBe(true);
   });
@@ -42,7 +43,7 @@ describe("M02 PostgreSQL UnitOfWork", () => {
   it("maps an empty optimistic update to stale version", async () => {
     const connection = new RecordingConnection();
     const pool: SqlPool = { connect: async () => connection };
-    await expect(createRequestUnitOfWork(pool).execute(actor, (tx) => tx.optimisticUpdate("update x returning version_no", [], version(0))))
+    await expect(new PostgresUnitOfWork(pool).execute(actor, (tx) => tx.optimisticUpdate("update x returning version_no", [], version(0))))
       .rejects.toBeInstanceOf(StaleVersionError);
   });
 });

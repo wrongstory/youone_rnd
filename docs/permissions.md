@@ -33,6 +33,21 @@ Every server request builds an `ActorContext` from the verified session and serv
 
 The client may request a resource ID but may not assert its own vendor, role, position, approval authority, or scope.
 
+M03 trust rules:
+
+- Accept only a server-verified Auth subject, expiry, session ID, and assurance level; never derive authorization from user-editable Auth metadata.
+- Re-read account kind/status/validity, assignments, memberships, grants, and entitlements at the request time. A stale JWT claim is not proof of current authorization.
+- Keep authenticated and effective actor IDs separate and require an exact active acting-authority record before they differ.
+- Pass only the factory-produced nominal `TrustedActorContext` into the request database boundary; a raw actor envelope is not a request API.
+- Return stable deny reasons, Scope evidence, the named projection profile, and required obligations. A boolean `can()` is insufficient for protected delivery and audit.
+- Resolve projection fields from a versioned server registry. Request callers never provide an arbitrary column list.
+- Keep request Auth and privileged service/secret Auth clients in separate composition exports.
+- Treat ActorContext, resource lineage/state/security context, and projection profiles as factory-produced opaque evidence. Spread clones and caller-assembled lookalikes are rejected at runtime.
+- Require every Vendor `*.read` query to use a versioned projection bound to actor kind, resource type, and action.
+- Require exact external-release approval evidence for Vendor L1/L2 technical preview or download; L3/L4 digital preview/download/render/print remain hard-denied.
+- Official approval requires the exact participant evidence plus Lab Director/Representative position or an active official acting-authority record. Permission alone is never sufficient.
+- Account disablement, Vendor disablement, and Vendor membership grant/revoke use guarded optimistic functions that append Audit in the same transaction.
+
 ## 3. Stable Roles
 
 | Role ID | Purpose | Does not imply |

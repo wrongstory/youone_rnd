@@ -5,8 +5,8 @@
 ## Current delivery
 
 - Phase: `IMPLEMENTATION_ACTIVE`
-- Completed: `M00` architecture decisions and `M01` scaffold in PR #19
-- Active merge item: CI-verified `M02` database/audit kernel
+- Completed: `M00`/`M01` in PR #19 and `M02` database/audit kernel in PR #20
+- Active merge item: `M03` trusted Auth/RBAC/Scope, field projection, and RLS
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
 
 ## Local requirements
@@ -24,4 +24,4 @@ pnpm check
 
 `apps/web` is the Next.js App Router interface/composition boundary. `apps/worker` is the isolated background-job entry point. Domain and Application packages must not import Next.js, React, Supabase, Storage, or browser SDKs.
 
-The machine-readable P0 package inventory, layer, owner, and first delivery item live in `config/package-boundaries.json`. M01 packages intentionally contain public-contract shells only; database migrations and Supabase integration begin in M02.
+The machine-readable P0 package inventory, layer, owner, and first delivery item live in `config/package-boundaries.json`. PostgreSQL migrations are global and ordered; request Auth and privileged service Auth use separate infrastructure exports.
