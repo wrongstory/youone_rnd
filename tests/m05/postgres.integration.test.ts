@@ -289,7 +289,9 @@ dbDescribe.sequential("M05 PostgreSQL document/file boundary", () => {
       select public.remove_document_attachment('${thirdVersion}','${raceAttachment}',1,'RACE_REMOVE','59900000-0000-4000-8000-000000000016','${now}'); commit;`;
     const [sealStatus, removeStatus] = await Promise.all([runAsync(seal), runAsync(remove)]);
     expect(sealStatus).toBe(0);
-    expect([0, 1]).toContain(removeStatus);
+    // With ON_ERROR_STOP=1, psql exits 3 when the losing removal is rejected by the server SQL precondition.
+    const successfulOrExpectedSqlConflict = [0, 3];
+    expect(successfulOrExpectedSqlConflict).toContain(removeStatus);
     expect(run(`select state from public.document_version where id='${thirdVersion}';`)).toBe("REVIEW_READY");
     expect(run(`select link_state in ('ACTIVE','REMOVED') from public.document_attachment where document_version_id='${thirdVersion}' and attachment_id='${raceAttachment}';`)).toBe("t");
   }, 30_000);
