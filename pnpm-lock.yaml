@@ -41,6 +41,9 @@ importers:
       '@youone/core-approval':
         specifier: workspace:*
         version: link:../../packages/core/approval
+      '@youone/feature-project':
+        specifier: workspace:*
+        version: link:../../packages/features/project
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../packages/shared-kernel
@@ -126,7 +129,11 @@ importers:
 
   packages/features/contract: {}
 
-  packages/features/project: {}
+  packages/features/project:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/purchase: {}
 
@@ -186,7 +193,14 @@ importers:
 
   packages/processes/controlled-copy-delivery: {}
 
-  packages/processes/formal-research-designation: {}
+  packages/processes/formal-research-designation:
+    dependencies:
+      '@youone/core-approval':
+        specifier: workspace:*
+        version: link:../../core/approval
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/processes/purchase-receipt-inspection: {}
 

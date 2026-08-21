@@ -178,6 +178,8 @@ M04 physically creates `APPROVAL_POLICY`, immutable/sealed `APPROVAL_POLICY_VERS
 
 M05 physically creates normalized `TEMPLATE`/`TEMPLATE_VERSION`, `DOCUMENT`/`DOCUMENT_VERSION`, `ATTACHMENT`, logical `DOCUMENT_ATTACHMENT` history, content-validation/seal/scan evidence, and `APPROVAL_SUBJECT_DOCUMENT_VERSION`. Exact composite FKs bind template snapshots, validation checksum, sealed manifest evidence, scan evidence and approval subject version/checksum/sealed-at. `DOCUMENT_VERSION.security_level_snapshot` prevents a later Document-head downgrade from weakening a historical L3/L4 version. FORCE RLS and column grants exclude raw editor content, object coordinates and evidence tables; SECURITY DEFINER commands are the only write/content-delivery path.
 
+M06 physically creates `PRODUCT`, `PROJECT`, `PROJECT_MEMBER`, `PROJECT_PRODUCT_LINK`, self-referencing `WBS_NODE`, and exact-FK `PROJECT_VENDOR_GRANT`. Formal designation uses `RESEARCH_PROJECT_APPLICATION_ROOT`, immutable/versioned `RESEARCH_PROJECT_APPLICATION_VERSION`, normalized team/output/evidence children, exact `APPROVAL_SUBJECT_RESEARCH_PROJECT_APPLICATION`, and immutable `RESEARCH_PROJECT_DESIGNATION`. Formal status is a derived projection, never an editable Project column. RLS and command functions require active internal membership or the exact active Vendor membership + Project grant; Vendor projections omit unreviewed fields.
+
 ## 3. Document, File, Approval, and Technical Access
 
 ```mermaid
