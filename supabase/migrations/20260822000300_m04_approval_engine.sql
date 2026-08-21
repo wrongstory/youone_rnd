@@ -574,7 +574,7 @@ as $$ declare instance_row public.approval_instance%rowtype; next_version bigint
     where s.instance_id=target_instance_id and s.step_role='APPROVAL' and coalesce(p.approval_capability,'NONE') not in ('OFFICIAL','REPRESENTATIVE')) then
     raise exception 'approval participant is not an official position' using errcode='42501';
   end if;
-  select encode(extensions.digest(convert_to(string_agg(concat_ws(':',s.sequence_no,s.step_key,s.step_role,s.completion_mode,s.required,ap.participant_user_id,coalesce(ap.position_id_snapshot::text,''),coalesce(ap.role_id_snapshot::text,''),ap.assignment_evidence_id,ap.participant_order,ap.required_for_completion) order by s.sequence_no,s.step_key,ap.participant_order),'UTF8'),'sha256'),'hex')
+  select encode(extensions.digest(convert_to(string_agg(concat_ws(':',s.sequence_no,s.step_key,s.step_role,s.completion_mode,s.required,ap.participant_user_id,coalesce(ap.position_id_snapshot::text,''),coalesce(ap.role_id_snapshot::text,''),ap.assignment_evidence_id,ap.participant_order,ap.required_for_completion),'|' order by s.sequence_no,s.step_key,ap.participant_order),'UTF8'),'sha256'),'hex')
     into computed_line_checksum from public.approval_step s left join public.approval_participant ap on ap.step_id=s.id where s.instance_id=target_instance_id;
   update public.approval_instance set state='SUBMITTED',line_checksum=computed_line_checksum,version_no=next_version,submitted_at=target_occurred_at where id=target_instance_id;
   perform app_private.append_approval_audit_transition(target_audit_id,target_transition_id,'approval.instance.submit',target_instance_id,next_version,

@@ -17,6 +17,7 @@ describe("M04 migration contract", () => {
   it("seals the policy, line, participant and exact subject at submission", () => {
     expect(sql).toContain("policy_checksum_snapshot");
     expect(sql).toContain("line_checksum");
+    expect(sql).toContain("),'|' order by s.sequence_no,s.step_key,ap.participant_order)");
     expect(sql).toContain("policy_step_rule_id");
     expect(sql).toContain("policy_participant_rule_id");
     expect(sql).toContain("assignment_evidence_id");
