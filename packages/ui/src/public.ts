@@ -1,2 +1,1 @@
-/** Public cross-module contracts for @youone/ui. */
-export {};
+export * from "./approval/public";

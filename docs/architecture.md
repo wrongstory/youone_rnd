@@ -156,12 +156,15 @@ Identity/RBAC 변경은 일반 table write로 열지 않는다. 계정·업체 �
 
 ## 8. Approval과 Document 결합
 
-- 업무 모듈은 결재 대상의 `subject_type`, `subject_id`, `subject_version_id`를 Approval Engine에 전달한다.
+- 업무 모듈은 자유 문자열 subject를 전달하지 않는다. 공개 `TypedApprovalSubjectPort`를 구현하고 exact typed FK, version, checksum snapshot을 Approval Engine에 전달한다.
 - Approval Instance는 결재선 snapshot과 정책 version을 보존한다.
-- 최종 승인 시 `subject_version_id`가 immutable로 전환된다.
+- 결재 명령은 domain mutation, exact subject 재검증, optimistic save, append-only action/audit/outbox, subject outcome을 하나의 application UnitOfWork에서 처리한다.
+- 최종 승인 시 adapter가 exact subject version을 immutable outcome으로 전환한다.
 - 반려 후 수정은 새 DocumentVersion을 만든다.
-- 회수 후 재상신은 이전 Instance를 보존하고 새 Instance 또는 명시적 resubmission generation으로 연결한다.
+- 회수·반려 후 재상신은 이전 Instance를 보존하고 새 generation으로 연결한다. subject adapter는 같은 업무 root와 더 높은 새 immutable version을 검증한다.
 - Approval Engine은 계약·구매·기술자료 접근·기술문서 삭제 등 여러 업무가 재사용하지만 각 도메인의 전이조건을 대신하지 않는다.
+
+M04는 순환 의존 없이 엔진 자체를 승인하기 위한 최초 typed adapter로 `APPROVAL_POLICY_VERSION`을 물리 구현한다. M05 이후 각 feature가 자기 typed link와 adapter를 추가하며 Approval Core 내부나 generic polymorphic subject table을 확장하지 않는다. 개인 결재함·상세 화면은 query/command adapter가 연결되지 않으면 가짜 빈 결과나 실행 가능한 버튼을 만들지 않고 명시적 unavailable 상태를 반환한다.
 
 ## 9. PWA와 오프라인
 

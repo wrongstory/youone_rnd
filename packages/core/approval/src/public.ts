@@ -1,2 +1,2 @@
-/** Public cross-module contracts for @youone/core-approval. */
-export {};
+export * from "./domain/approval.js";
+export * from "./application/contracts.js";

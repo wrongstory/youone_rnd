@@ -174,6 +174,8 @@ erDiagram
 
 M03 physically creates Identity/RBAC, Vendor/VendorUser, acting-authority, normalized action-set, and named field-projection records. `PROJECT_SCOPE`, `CONTRACT_SCOPE`, and exact DocumentVersion grant records remain logical extension points until M06, M07, and M05 can create them with their real typed FK targets and RLS in the same migration. M03 must not substitute a generic `(resource_type, resource_id)` grant table.
 
+M04 physically creates `APPROVAL_POLICY`, immutable/sealed `APPROVAL_POLICY_VERSION`, normalized step/participant policy rules, `APPROVAL_INSTANCE`, snapshotted `APPROVAL_STEP`/`APPROVAL_PARTICIPANT`, append-only `APPROVAL_ACTION`, and the bootstrap typed link `APPROVAL_SUBJECT_POLICY_VERSION`. The typed link uses exact version/checksum composite FKs; later subject adapters are added only with their real aggregate FKs. Policy-rule ownership cannot be reparented to bypass a sealed version, and resubmission requires the same subject root plus a strictly newer sealed version.
+
 ## 3. Document, File, Approval, and Technical Access
 
 ```mermaid
