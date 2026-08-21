@@ -16,7 +16,7 @@ on conflict(stable_code) do nothing;
 
 insert into public.aggregate_type_definition(aggregate_type) values
   ('REQUIREMENT'),('TEST_PLAN'),('TEST_RESULT'),('INSPECTION'),('INSPECTION_ATTEMPT'),
-  ('ACCEPTANCE_PAYMENT_DECISION'),('ACCEPTANCE_PAYMENT_POLICY_VERSION')
+  ('ACCEPTANCE_SCORE_POLICY_VERSION'),('ACCEPTANCE_PAYMENT_DECISION'),('ACCEPTANCE_PAYMENT_POLICY_VERSION')
 on conflict do nothing;
 
 insert into public.action_definition(action_id) values
@@ -1291,7 +1291,9 @@ as $$ declare actual_checksum text; begin
     perform set_config('app.m08_publish_policy',target_policy_version_id::text,true);
     update public.acceptance_payment_policy_version set state='PUBLISHED' where id=target_policy_version_id;
   else raise exception 'unsupported policy kind' using errcode='22023'; end if;
-  perform app_private.append_audit(target_audit_id,'quality.policy.manage',target_policy_kind,target_policy_version_id,null,'SUCCEEDED',
+  perform app_private.append_audit(target_audit_id,'quality.policy.manage',
+    case target_policy_kind when 'ACCEPTANCE_SCORE' then 'ACCEPTANCE_SCORE_POLICY_VERSION' else 'ACCEPTANCE_PAYMENT_POLICY_VERSION' end,
+    target_policy_version_id,null,'SUCCEEDED',
     'VERSIONED-POLICY-PUBLISHED',null,null,null,null,target_occurred_at);
 end $$;
 
