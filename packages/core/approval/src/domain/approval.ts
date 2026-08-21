@@ -142,6 +142,27 @@ export function validateResearchProjectDesignationLine(line: readonly ResolvedSt
   if (participant.positionId !== "POSITION_LAB_DIRECTOR") fail("APPROVAL_RESEARCH_DESIGNATION_LINE_INVALID", "Senior and Representative are not part of designation.");
 }
 
+/**
+ * Subject-specific policy guard for formal-research designation. The resolved
+ * line alone is insufficient because a generic policy could resolve only its
+ * Director candidate while retaining Senior or Representative candidates in
+ * the immutable policy snapshot.
+ */
+export function validateResearchProjectDesignationPolicy(policy: ApprovalPolicyVersion, line: readonly ResolvedStep[]): void {
+  if (policy.selection.subjectKinds.length !== 1 || policy.selection.subjectKinds[0] !== "RESEARCH_PROJECT_APPLICATION") {
+    fail("APPROVAL_RESEARCH_DESIGNATION_POLICY_INVALID", "Formal research designation requires a dedicated subject policy.");
+  }
+  if (policy.steps.length !== 1) fail("APPROVAL_RESEARCH_DESIGNATION_POLICY_INVALID", "Formal research designation requires exactly one policy step.");
+  const step = present(policy.steps[0], "APPROVAL_RESEARCH_DESIGNATION_POLICY_INVALID", "Formal research designation requires one policy step.");
+  if (!step.required || step.sequenceNo !== 1 || step.role !== "APPROVAL" || step.completionMode !== "SEQUENTIAL") {
+    fail("APPROVAL_RESEARCH_DESIGNATION_POLICY_INVALID", "The Lab Director consent step must be required, first, APPROVAL, and SEQUENTIAL.");
+  }
+  if (step.allowedPositionIds.length !== 1 || step.allowedPositionIds[0] !== "POSITION_LAB_DIRECTOR" || step.allowedRoleIds.length !== 0 || step.specificUserId !== undefined) {
+    fail("APPROVAL_RESEARCH_DESIGNATION_POLICY_INVALID", "Only the Lab Director position may be selected; Senior, Representative, role, and specific-user selectors are forbidden.");
+  }
+  validateResearchProjectDesignationLine(line);
+}
+
 export interface ApprovalCommand { readonly actor: ApprovalActorSnapshot; readonly at: UtcInstant; readonly expectedVersion: Version; readonly actionId: Uuid; readonly eventId: Uuid; readonly completionEventId?: Uuid; readonly correlationId: CorrelationId; readonly idempotencyKey: IdempotencyKey }
 export interface ParticipantCommand extends ApprovalCommand { readonly stepId: Uuid; readonly participantId: Uuid; readonly kind: "REVIEW"|"AGREE"|"APPROVE"|"REFERENCE_RECEIPT"; readonly comment?: string }
 export interface RejectCommand extends ApprovalCommand { readonly stepId: Uuid; readonly participantId: Uuid; readonly reasonCode: StableCode; readonly comment?: string }
@@ -158,7 +179,7 @@ export class ApprovalInstance {
     this.guardDirectSubmitter(command.actor);
     if (this.value.resubmissionOfSubject && this.value.resubmissionOfSubject.subjectVersion === subject.subjectVersion && this.value.resubmissionOfSubject.checksum === subject.checksum) fail("APPROVAL_RESUBMISSION_EXACT_VERSION_REQUIRED", "Resubmission requires a new immutable subject version.");
     const policy = normalizePolicy(policyInput); if (command.at < policy.effectiveFrom || policy.effectiveTo && command.at >= policy.effectiveTo) fail("APPROVAL_POLICY_NOT_EFFECTIVE", "The policy is not effective at submission time."); if (!policyMatches(policy, { ...selectionInput, subjectKind: subject.subject.kind })) fail("APPROVAL_POLICY_SELECTION_MISMATCH", "The exact subject does not match the policy conditions."); validateResolvedLine(policy, line);
-    if (subject.subject.kind === "RESEARCH_PROJECT_APPLICATION") validateResearchProjectDesignationLine(line);
+    if (subject.subject.kind === "RESEARCH_PROJECT_APPLICATION") validateResearchProjectDesignationPolicy(policy, line);
     const submission = copy({ submittedAt: command.at, submittedBy: command.actor, subject, policy, policySelectionInput: selectionInput, line });
     this.value = { ...this.value, submission, state: "SUBMITTED", steps: line.map((s) => ({ ...copy(s), state: "WAITING", participants: s.participants.map((p) => ({ ...copy(p), state: "PENDING" })) })), version: this.next() };
     return this.record(command, { kind: "SUBMIT" }, "APPROVAL_SUBMITTED");

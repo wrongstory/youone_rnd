@@ -17,6 +17,11 @@ const availablePages = [
     href: "/documents",
     label: "내 문서",
     description: "M05 문서 엔진의 비공개·권한 우선 조회 경계를 확인합니다."
+  },
+  {
+    href: "/projects",
+    label: "프로젝트",
+    description: "M06 일반 프로젝트·자유계층 WBS·정식 연구과제 승격 경계를 확인합니다."
   }
 ] as const;
 
@@ -27,12 +32,12 @@ export default function HomePage() {
         <p className="eyebrow">YOUONE R&amp;D · P0 FOUNDATION</p>
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <p className="summary">
-          M00부터 M04까지 병합을 완료했고, 현재 M05 문서·양식·파일 기능을 개발하고 있습니다.
+          M00부터 M05까지 병합을 완료했고, 현재 M06 프로젝트·WBS·정식 연구과제 승격 기능을 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M05
+          IMPLEMENTATION_ACTIVE · M06
         </div>
       </section>
 

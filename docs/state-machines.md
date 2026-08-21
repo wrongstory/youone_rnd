@@ -373,12 +373,20 @@ M05 implementation notes:
 - `REJECTED`/`RECALLED` cannot be edited in place; resubmission requires a strictly newer same-root DocumentVersion.
 - `APPROVED` to `SUPERSEDED` changes only lifecycle/head linkage. Approved content, template, renderer, security and manifest fields remain immutable.
 - Attachment lifecycle is `UPLOAD_INTENDED → UPLOADED → SCANNING → AVAILABLE | QUARANTINED`; FILE_INGEST and FILE_SCANNER are distinct trusted system actors.
+
 | protected | `EVT-DOCUMENT-HOLD` | `RETENTION_HOLD` | document/security authority | disposal blocked |
 | eligible | `EVT-DOCUMENT-REQUEST-DISPOSAL` | `DISPOSAL_REQUESTED` | authorized requester | reason/retention check |
 | `DISPOSAL_REQUESTED` | `EVT-DOCUMENT-QUARANTINE` | `QUARANTINED` | authorized after required approval | technical docs require Rep approval |
 | `QUARANTINED` | `EVT-DOCUMENT-DISPOSE` | `DISPOSED` | retention worker/authorized | permanent audit/hash remains |
 
 Technical documents do not transition directly from approved to disposed. Superior regulation and legal-hold rules override the default retention policy.
+
+M06 implementation notes:
+
+- Project/WBS commands validate trusted actor, exact Project scope, current state, expected version and preconditions before mutation; transition, audit and outbox evidence commit atomically.
+- Project creation is available to every active internal user. Formal designation is a separate `APPLICATION_DRAFT → DIRECTOR_REVIEW_PENDING → APPROVED | RETURNED | REJECTED` machine bound to an exact sealed application version.
+- `APPROVED` requires exactly one `POSITION_LAB_DIRECTOR` approval step. Senior and Representative are not designation steps. Applicant recall maps to `RETURNED`; a Director return uses stable reason `RP-RETURNED-FOR-REVISION`, while a final rejection remains `REJECTED`.
+- Returned, rejected or recalled content is never edited in place; resubmission creates a strictly newer same-root application version. Project `CLOSING`/`CLOSED`/reopen commands remain disabled until `OD-014` is resolved.
 
 ## 15. Safety Inspection and Incident
 

@@ -168,6 +168,8 @@ M04는 순환 의존 없이 엔진 자체를 승인하기 위한 최초 typed ad
 
 M05의 파일 전달은 `core.file`의 trusted authorization과 `infrastructure.supabase-storage`의 일회성 broker를 통과한다. 브라우저는 Storage SDK, bucket/key 또는 provider signed URL을 직접 받지 않는다. PostgreSQL은 content hash와 봉인 manifest를 다시 계산하고, Supabase Storage 스키마가 존재할 때 `PRIVATE_BUSINESS` 비공개 bucket과 restrictive object policy를 설치한다. 일반 PostgreSQL CI에서는 이 conditional provider branch를 계약 검사하며 실제 Supabase 환경 smoke test는 별도 운영 Gate로 남긴다.
 
+M06는 `features.project`가 Project/WBS 순수 규칙과 application port를 소유하고, `processes.formal-research-designation`이 Project 신청본과 Approval Core의 exact typed subject를 조합한다. Approval Core는 Project 내부 엔티티나 저장소를 import하지 않으며 Project UI도 Supabase SDK나 table에 직접 접근하지 않는다. 일반 Project와 정식 연구과제 지정을 분리하고, formal status는 immutable designation query에서만 파생한다. query adapter가 아직 조립되지 않은 화면은 가짜 빈 목록이나 실행 가능한 명령 대신 명시적 unavailable 상태를 표시한다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:

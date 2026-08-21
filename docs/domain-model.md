@@ -429,4 +429,10 @@ M05는 `Template`/`TemplateVersion`, `Document`/`DocumentVersion`, `Attachment`,
 
 `DOCUMENT_VERSION` 결재 대상은 version number, sealed manifest checksum, sealed timestamp의 composite FK로 고정한다. Attachment 객체 위치는 private provider metadata일 뿐이며 URL/token은 엔티티에 저장하지 않는다. `AVAILABLE`은 FILE_INGEST 검증과 FILE_SCANNER CLEAN 결과를 모두 거친 상태로, 복원 시에도 MIME·크기·체크섬·scan evidence invariant를 다시 확인한다.
 
+### M06 physical baseline
+
+M06는 `Project`, `ProjectMember`, `ProjectProductLink`, `WbsNode`, `ProjectVendorGrant`를 각각 정규화한다. WBS는 같은 Project 안의 자기참조 자유계층이며 순환을 허용하지 않는다. 부모 완료는 자식 상태를 자동 변경하지 않고, Vendor 명령은 활성 VendorMembership·정확한 Project grant·할당 Vendor·허용 action과 유효기간을 모두 만족해야 한다. Project 종료·재개 명령은 `OD-014` 확정 전까지 제공하지 않는다.
+
+`ResearchProjectApplicationRoot`와 immutable `ResearchProjectApplicationVersion`은 신청 목적·계획·방법·기간·예산·연구팀·예상 성과·보안·안전·연구수당 적용 및 증거 첨부를 exact snapshot으로 봉인한다. `APPROVAL_SUBJECT_RESEARCH_PROJECT_APPLICATION`은 application version/checksum/sealed-at과 정확히 결합된다. 정확히 한 명의 `POSITION_LAB_DIRECTOR` 동의가 완료된 경우에만 immutable `ResearchProjectDesignation`이 생기며, Project의 formal status는 이 지정에서 파생한다. 반려·재작성 또는 신청자 회수 후 변경은 동일 root의 strictly newer application version이다.
+
 Additional superior-regulation concepts are covered by Safety Management and Research Allowance Evidence. Research outcomes and notes carry ownership provenance: company ownership by default with explicit law/agreement/contract exception records.

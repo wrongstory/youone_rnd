@@ -212,6 +212,8 @@ M05 keeps Vendor access to Document/File denied until M06/M07 provide real Proje
 
 Formal status is derived only from a completed `research_project_designation`, never from Project edit permission.
 
+M06 makes this Project scope physical. Internal Project access is evaluated from the current active account, owner/membership and action; Vendor access additionally requires the same active VendorMembership referenced by an unexpired, unrevoked Project grant with the requested action. A matching row alone does not widen field projection. Formal-research application review reads only the exact sealed application version bound to the active Approval participant, and only a direct or explicitly recorded acting `POSITION_LAB_DIRECTOR` may produce the designation outcome.
+
 ## 12. Research Note Permissions
 
 | Action | Author | Senior | Lab Director | Representative | Admin |

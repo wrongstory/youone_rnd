@@ -45,7 +45,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M04` Approval Engine PR #22 병합 완료, `M05` Document/File Draft PR 준비 및 CI 실DB 검증 대기).
+`IMPLEMENTATION_ACTIVE` (`M05` Document/File PR #23 병합 완료, `M06` Project/WBS 및 정식 연구과제 승격 구현 진행 중).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -57,7 +57,9 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M04`는 공통 Approval domain/application 계약, 정책·결재선·참여자 snapshot, `SEQUENTIAL`/`ANY_ONE`/`ALL`/`SPECIFIC`, REVIEW/AGREEMENT/APPROVAL/REFERENCE, 위임 재검증, 반려·회수·재상신 generation, append-only action과 M02 Audit/Transition/Outbox 원자성을 구현했다. 첫 물리 typed subject는 `APPROVAL_POLICY_VERSION`이며 exact version/checksum과 같은 root의 새 version 재상신을 강제한다. 개인 결재함·상세는 query/command adapter 미연결 시 명시적 unavailable·disabled 상태를 반환한다. PR #22는 GitHub Actions의 PostgreSQL 16 DB 통합 검증을 포함해 통과한 뒤 `main`에 병합됐다.
 
-`M05` 후보는 versioned Template/Document/DocumentVersion, content validation·sealed manifest·scan evidence, private Attachment metadata, 정확한 `DOCUMENT_VERSION` 결재 대상 FK, 반려·회수 후 strictly newer revision, 승인본 supersede, Vendor deny, exact participant read, L3/L4 entitlement, private Storage broker를 구현한다. DB가 canonical JSON/content와 full manifest hash를 재계산하며 승인본 내용·template·renderer·보안등급·봉인 첨부는 변경할 수 없다. raw editor content, private object key, signed/public URL, evidence table은 일반 projection으로 노출하지 않는다. 로컬 전체 검증은 통과했으나 M05 PostgreSQL 실DB 13개 시나리오는 로컬 DB 부재로 skip되어 Draft PR CI 통과 전 merge하지 않는다.
+`M05`는 versioned Template/Document/DocumentVersion, content validation·sealed manifest·scan evidence, private Attachment metadata, 정확한 `DOCUMENT_VERSION` 결재 대상 FK, 반려·회수 후 strictly newer revision, 승인본 supersede, Vendor deny, exact participant read, L3/L4 entitlement, private Storage broker를 구현했다. DB가 canonical JSON/content와 full manifest hash를 재계산하며 승인본 내용·template·renderer·보안등급·봉인 첨부는 변경할 수 없다. raw editor content, private object key, signed/public URL, evidence table은 일반 projection으로 노출하지 않는다. GitHub Actions PostgreSQL 16 실DB 검증까지 통과한 PR #23이 `main`에 병합됐다.
+
+`M06` 후보는 일반 Project, ProjectMember, Product 연결, 자유계층 WBS, 실제 Project FK를 가진 Vendor grant와 정식 연구과제 신청/지정을 구현한다. 모든 활성 내부사용자는 일반 Project를 만들 수 있으나 정식 연구과제 여부는 별도 immutable application version을 봉인하고 정확히 한 명의 연구소장이 검토·동의해 생성된 designation에서만 파생한다. 선임·대표 단계와 직접 플래그 변경은 허용하지 않는다. 신청 반려·재작성 및 신청자 회수는 원본을 수정하지 않고 strictly newer version으로 이어지며, Project 종료·재개는 `OD-014`가 확정될 때까지 명령을 제공하지 않는다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
@@ -82,7 +84,8 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 3. `M02`: DB/Audit Kernel 실제 PostgreSQL CI 검증 및 PR #20 병합.
 4. `M03`: Auth/RBAC/Scope와 trusted request/RLS/field projection 구현 및 PR #21 병합 완료.
 5. `M04`: 공통 Approval Engine과 typed subject adapter 구현 및 PR #22 병합 완료.
-6. `M05`: Document/File 구현 후보의 CI 실DB 검증과 리뷰.
-7. `M06~M11`: Project/WBS → Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
-8. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
-9. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+6. `M05`: Document/File CI 실DB 검증 및 PR #23 병합 완료.
+7. `M06`: Project/WBS, 실제 Project Scope, 정식 연구과제 승격 구현과 검증.
+8. `M07~M11`: Vendor/Contract → Quality/Payment → NCR/CAR → ECR/ECO → Purchase/R&D.
+9. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
+10. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.

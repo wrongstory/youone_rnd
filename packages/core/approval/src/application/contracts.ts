@@ -1,5 +1,22 @@
-import type { StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
-import { approvalPermissionForAction, type ApprovalAuditObligation, type ApprovalDomainEvent, type ApprovalInstanceSnapshot, type ApprovalMutation, type ApprovalSubject, type ApprovalSubjectSnapshot } from "../domain/approval.js";
+import type { CorrelationId, IdempotencyKey, StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
+import { approvalPermissionForAction, type ApprovalAction, type ApprovalActorSnapshot, type ApprovalAuditObligation, type ApprovalDomainEvent, type ApprovalInstanceSnapshot, type ApprovalMutation, type ApprovalSubject, type ApprovalSubjectSnapshot } from "../domain/approval.js";
+
+export interface ApprovalOutcomeProvenance {
+  readonly terminalAction: ApprovalAction;
+  readonly terminalReasonCode?: StableCode;
+  readonly actor: ApprovalActorSnapshot;
+  readonly actingAuthorityEvidenceId?: Uuid;
+  readonly occurredAt: UtcInstant;
+  readonly correlationId: CorrelationId;
+  readonly idempotencyKey: IdempotencyKey;
+}
+export interface ApprovalOutcomeInput {
+  readonly snapshot: ApprovalSubjectSnapshot;
+  readonly approvalInstanceId: Uuid;
+  readonly approvalVersion: Version;
+  readonly outcome: "COMPLETED"|"REJECTED"|"RECALLED"|"CANCELLED";
+  readonly provenance: ApprovalOutcomeProvenance;
+}
 
 export interface TypedApprovalSubjectPort<S extends ApprovalSubject = ApprovalSubject> {
   readonly kind: S["kind"];
@@ -7,7 +24,7 @@ export interface TypedApprovalSubjectPort<S extends ApprovalSubject = ApprovalSu
   assertExactVersion(snapshot: ApprovalSubjectSnapshot): Promise<void>;
   /** Resolves both exact version IDs server-side and rejects different roots, non-new versions, or checksum mismatch. */
   assertResubmissionLineage(input: { readonly previous: ApprovalSubjectSnapshot; readonly current: ApprovalSubjectSnapshot }): Promise<void>;
-  applyApprovalOutcome(input: { snapshot: ApprovalSubjectSnapshot; approvalInstanceId: Uuid; approvalVersion: Version; outcome: "COMPLETED"|"REJECTED"|"RECALLED"|"CANCELLED" }): Promise<void>;
+  applyApprovalOutcome(input: ApprovalOutcomeInput): Promise<void>;
 }
 export interface ApprovalSubjectPortRegistry { get<S extends ApprovalSubject>(kind: S["kind"]): TypedApprovalSubjectPort<S> }
 export interface ActingAuthorityValidationPort {
@@ -40,6 +57,34 @@ export interface ApprovalInboxQueryPort { listMine(): Promise<ApprovalInboxResul
 export interface ApprovalCommandPort { execute(input: { readonly approvalInstanceId: Uuid; readonly actionId: StableCode; readonly expectedVersion: Version; readonly idempotencyKey: string }): Promise<ApprovalInstanceSnapshot> }
 export class ApprovalConcurrencyError extends Error { readonly code = "APPROVAL_STALE_VERSION" as StableCode; }
 export class ApprovalSubjectLineageError extends Error { readonly code = "APPROVAL_RESUBMISSION_LINEAGE_INVALID" as StableCode; }
+export class ApprovalOutcomeProvenanceError extends Error { readonly code = "APPROVAL_OUTCOME_PROVENANCE_INVALID" as StableCode; }
+
+export function buildApprovalOutcomeProvenance(mutation: ApprovalMutation): ApprovalOutcomeProvenance {
+  const expectedAction: Readonly<Record<ApprovalOutcomeInput["outcome"], readonly ApprovalAction["kind"][]>> = {
+    COMPLETED: ["APPROVE", "COMPLETE"], REJECTED: ["REJECT"], RECALLED: ["RECALL"], CANCELLED: ["CANCEL"]
+  };
+  const state = mutation.instance.state;
+  if (!(state in expectedAction)) throw new ApprovalOutcomeProvenanceError("Approval mutation is not a terminal subject outcome.");
+  const outcome = state as ApprovalOutcomeInput["outcome"];
+  const action = mutation.appendedAction;
+  if (!expectedAction[outcome].includes(action.kind)) throw new ApprovalOutcomeProvenanceError("Terminal action does not match the approval outcome.");
+  const event = mutation.events[0];
+  if (!event || mutation.events.some((item) => item.aggregateId !== mutation.instance.approvalInstanceId || item.aggregateVersion !== mutation.instance.version || item.correlationId !== mutation.audit.correlationId || item.idempotencyKey !== event.idempotencyKey || item.occurredAt !== action.at)) {
+    throw new ApprovalOutcomeProvenanceError("Terminal audit and event envelopes do not share trusted command provenance.");
+  }
+  if (mutation.audit.aggregateId !== mutation.instance.approvalInstanceId || mutation.audit.actionId !== action.actionId || mutation.audit.actor.authenticatedUserId !== action.actor.authenticatedUserId || mutation.audit.actor.effectiveUserId !== action.actor.effectiveUserId || mutation.audit.actor.actingAuthority?.assignmentId !== action.actor.actingAuthority?.assignmentId || mutation.audit.actor.actingAuthority?.evidenceId !== action.actor.actingAuthority?.evidenceId || mutation.audit.occurredAt !== action.at) {
+    throw new ApprovalOutcomeProvenanceError("Terminal audit actor or occurrence time differs from the appended action.");
+  }
+  return Object.freeze({
+    terminalAction: structuredClone(action),
+    ...(action.reasonCode === undefined ? {} : { terminalReasonCode: action.reasonCode }),
+    actor: structuredClone(action.actor),
+    ...(action.actor.actingAuthority === undefined ? {} : { actingAuthorityEvidenceId: action.actor.actingAuthority.evidenceId }),
+    occurredAt: action.at,
+    correlationId: mutation.audit.correlationId,
+    idempotencyKey: event.idempotencyKey
+  });
+}
 export async function persistApprovalMutation(context: ApprovalTransactionContext, mutation: ApprovalMutation): Promise<void> {
   if (!await context.approvals.save(mutation.instance, mutation.expectedVersion)) throw new ApprovalConcurrencyError("Concurrent approval action lost optimistic lock.");
   await context.evidence.appendAction(mutation.appendedAction);
@@ -71,7 +116,7 @@ export async function commitApprovalMutation(unitOfWork: ApprovalUnitOfWork, mut
     }
     await persistApprovalMutation(context, mutation);
     if (submission && ["COMPLETED", "REJECTED", "RECALLED", "CANCELLED"].includes(mutation.instance.state)) {
-      await context.subjects.get(submission.subject.subject.kind).applyApprovalOutcome({ snapshot: submission.subject, approvalInstanceId: mutation.instance.approvalInstanceId, approvalVersion: mutation.instance.version, outcome: mutation.instance.state as "COMPLETED"|"REJECTED"|"RECALLED"|"CANCELLED" });
+      await context.subjects.get(submission.subject.subject.kind).applyApprovalOutcome({ snapshot: submission.subject, approvalInstanceId: mutation.instance.approvalInstanceId, approvalVersion: mutation.instance.version, outcome: mutation.instance.state as ApprovalOutcomeInput["outcome"], provenance: buildApprovalOutcomeProvenance(mutation) });
     }
   });
 }
