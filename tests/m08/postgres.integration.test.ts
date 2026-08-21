@@ -583,7 +583,7 @@ dbDescribe.sequential("M08 PostgreSQL Quality/Inspection boundary", () => {
     expect(run(`select count(*) from public.audit_log a join public.state_transition_history t on t.audit_log_id=a.id
       join public.outbox_event o on o.initiating_audit_log_id=a.id
       where a.id in ('${liveId(1070)}','${liveId(1075)}','${liveId(1078)}');`)).toBe("3");
-    expect(run(`select count(*) from public.audit_log where id='${liveId(1074)}' and outcome='SUCCEEDED';`)).toBe("1");
+    expect(run(`select count(*) from public.audit_log where id='${liveId(1074)}' and result='SUCCEEDED';`)).toBe("1");
 
     const partial = createAcceptanceFixture("PARTIAL_ACCEPTANCE", 1200);
     const partialDecision = liveId(1220);
