@@ -54,6 +54,7 @@ describe("M06 Project/WBS migration contract", () => {
 
   it("uses immutable versioned structured research applications", () => {
     expect(sql).toContain("create table public.research_project_application_version");
+    expect(sql).toContain("unique(id,application_id,project_id,version_no)");
     expect(sql).toContain("budget_amount numeric(20,2)");
     expect(sql).toContain("create table public.research_project_application_member");
     expect(sql).toContain("create table public.research_project_application_output");

@@ -243,6 +243,7 @@ create table public.research_project_application_version (
   created_by_user_id uuid not null references public.user_account(id),
   created_at timestamptz not null,
   unique(application_id,version_no),
+  unique(id,application_id,project_id,version_no),
   unique(id,application_id,project_id,version_no,sealed_snapshot_checksum,sealed_at),
   foreign key(prior_version_id) references public.research_project_application_version(id),
   check(research_end>=research_start),
