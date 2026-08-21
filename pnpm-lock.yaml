@@ -67,7 +67,17 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/core/authorization: {}
+  packages/core/authorization:
+    dependencies:
+      '@youone/application-kernel':
+        specifier: workspace:*
+        version: link:../../application-kernel
+      '@youone/core-identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/core/codes: {}
 
@@ -75,7 +85,11 @@ importers:
 
   packages/core/file: {}
 
-  packages/core/identity: {}
+  packages/core/identity:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/core/notification: {}
 
@@ -112,14 +126,27 @@ importers:
       '@youone/application-kernel':
         specifier: workspace:*
         version: link:../../application-kernel
+      '@youone/core-authorization':
+        specifier: workspace:*
+        version: link:../../core/authorization
       '@youone/core-audit':
         specifier: workspace:*
         version: link:../../core/audit
+      '@youone/core-identity':
+        specifier: workspace:*
+        version: link:../../core/identity
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/infrastructure/supabase-auth: {}
+  packages/infrastructure/supabase-auth:
+    dependencies:
+      '@youone/core-identity':
+        specifier: workspace:*
+        version: link:../../core/identity
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/infrastructure/supabase-storage: {}
 

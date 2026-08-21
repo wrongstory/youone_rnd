@@ -140,7 +140,7 @@ composition root → infrastructure adapters
 - UI에는 Aggregate/Repository가 아니라 직렬화된 Presenter DTO만 전달한다.
 - ESLint boundary 규칙과 `tests/architecture`가 금지 import와 SDK 누수를 검사한다.
 - 다른 package는 `package.json`의 공개 export만 사용할 수 있고 `src/**` deep import는 금지한다.
-- `infrastructure/postgres`는 request용 `./request`와 worker용 `./worker` export를 분리하며, worker 자격증명을 web composition에 주입하지 않는다.
+- `infrastructure/postgres`는 verified-subject bootstrap용 `./identity-resolver`, 업무 request용 `./request`, background job용 `./worker` export를 분리한다. Identity resolver와 worker 자격증명을 web interface에 주입하지 않는다.
 
 ## 5. App Router 구조
 

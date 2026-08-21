@@ -5,6 +5,12 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./public": "./src/public.ts"
+    "./public": "./src/public.ts",
+    "./request": "./src/request.ts",
+    "./service": "./src/service.ts"
+  },
+  "dependencies": {
+    "@youone/core-identity": "workspace:*",
+    "@youone/shared-kernel": "workspace:*"
   }
 }

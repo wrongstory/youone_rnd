@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./identity-resolver": "./src/identity-resolver.ts",
     "./request": "./src/request.ts",
     "./worker": "./src/worker.ts"
   },
   "dependencies": {
     "@youone/application-kernel": "workspace:*",
+    "@youone/core-authorization": "workspace:*",
     "@youone/core-audit": "workspace:*",
+    "@youone/core-identity": "workspace:*",
     "@youone/shared-kernel": "workspace:*"
   }
 }

@@ -138,7 +138,8 @@ function validatePackageImport(source: Boundary, specifier: string): string | un
   if (
     suffix &&
     suffix !== "/public" &&
-    !(dependencyName === "@youone/infra-postgres" && ["/request", "/worker"].includes(suffix))
+    !(dependencyName === "@youone/infra-postgres" && ["/identity-resolver", "/request", "/worker"].includes(suffix)) &&
+    !(dependencyName === "@youone/infra-supabase-auth" && ["/request", "/service"].includes(suffix))
   ) {
     return `${source.name} deep-imports ${specifier}`;
   }
@@ -186,8 +187,16 @@ describe("workspace package inventory", () => {
 
       if (boundary.name === "@youone/infra-postgres") {
         expect(packageJson.exports).toEqual({
+          "./identity-resolver": "./src/identity-resolver.ts",
           "./request": "./src/request.ts",
           "./worker": "./src/worker.ts"
+        });
+      } else if (boundary.name === "@youone/infra-supabase-auth") {
+        expect(packageJson.exports).toEqual({
+          ".": "./src/index.ts",
+          "./public": "./src/public.ts",
+          "./request": "./src/request.ts",
+          "./service": "./src/service.ts"
         });
       } else {
         expect(packageJson.exports).toEqual({
@@ -318,8 +327,10 @@ describe("web and worker composition isolation", () => {
         ) {
           violations.push(`${path} imports ${specifier}`);
         }
+        const isRequestInterface =
+          path.startsWith("apps/web/src/interface/") || path.startsWith("apps/web/src/app/");
         if (
-          path.startsWith("apps/web/src/interface/") &&
+          isRequestInterface &&
           (specifier.startsWith("@youone/infra-") ||
             specifier.startsWith("@supabase/") ||
             specifier === "dexie")
@@ -339,10 +350,24 @@ describe("web and worker composition isolation", () => {
           (specifier) =>
             specifier.startsWith("@youone/web") ||
             specifier.startsWith("@youone/ui") ||
-            specifier === "@youone/infra-postgres/request"
+            specifier === "@youone/infra-postgres/identity-resolver" ||
+            specifier === "@youone/infra-postgres/request" ||
+            specifier === "@youone/infra-supabase-auth/request"
         )
         .map((specifier) => `${normalized(relative(root, file))} imports ${specifier}`)
     );
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps privileged Supabase Auth service adapters inside the composition root", () => {
+    const violations = sourceFiles(resolve(root, "apps/web/src")).flatMap((file) => {
+      const path = normalized(relative(root, file));
+      if (path.startsWith("apps/web/src/composition/")) return [];
+      return importSpecifiers(readFileSync(file, "utf8"))
+        .filter((specifier) => specifier === "@youone/infra-supabase-auth/service")
+        .map((specifier) => `${path} imports ${specifier}`);
+    });
 
     expect(violations).toEqual([]);
   });
