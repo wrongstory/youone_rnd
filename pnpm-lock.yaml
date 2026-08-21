@@ -56,7 +56,69 @@ importers:
         specifier: workspace:*
         version: link:../shared-kernel
 
+  packages/core/approval: {}
+
+  packages/core/audit: {}
+
+  packages/core/authorization: {}
+
+  packages/core/codes: {}
+
+  packages/core/document: {}
+
+  packages/core/file: {}
+
+  packages/core/identity: {}
+
+  packages/core/notification: {}
+
+  packages/core/sync: {}
+
+  packages/features/change: {}
+
+  packages/features/contract: {}
+
+  packages/features/project: {}
+
+  packages/features/purchase: {}
+
+  packages/features/quality: {}
+
+  packages/features/research-note: {}
+
+  packages/features/rnd: {}
+
+  packages/features/safety: {}
+
+  packages/features/tech-copy: {}
+
+  packages/features/vendor: {}
+
+  packages/infrastructure/notification-adapters: {}
+
+  packages/infrastructure/offline-dexie: {}
+
+  packages/infrastructure/pdf-renderer: {}
+
+  packages/infrastructure/postgres: {}
+
+  packages/infrastructure/supabase-auth: {}
+
+  packages/infrastructure/supabase-storage: {}
+
+  packages/processes/controlled-copy-delivery: {}
+
+  packages/processes/formal-research-designation: {}
+
+  packages/processes/purchase-receipt-inspection: {}
+
+  packages/processes/vendor-acceptance-payment: {}
+
   packages/shared-kernel: {}
+
+  packages/test-support: {}
+
+  packages/ui: {}
 
 packages:
 

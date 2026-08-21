@@ -14,6 +14,7 @@
 - Supabase/Postgres/Auth/Storage/PDF/Dexie SDK는 Infrastructure package에만 둔다.
 - DB 변경의 유일한 정본은 `supabase/migrations`의 전역 순서 SQL이다.
 - P1/P2 전용 package/table/route/menu는 해당 단계 전에는 생성하지 않는다.
+- 실제 P0 package 목록, 계층, 주 소유자와 최초 구현 merge item은 `config/package-boundaries.json`을 기계 판독 정본으로 사용한다.
 
 ## 2. 권장 최상위 구조
 
@@ -138,6 +139,8 @@ composition root → infrastructure adapters
 - `apps/web/src/composition`과 `apps/worker`만 구체 Adapter를 조립한다.
 - UI에는 Aggregate/Repository가 아니라 직렬화된 Presenter DTO만 전달한다.
 - ESLint boundary 규칙과 `tests/architecture`가 금지 import와 SDK 누수를 검사한다.
+- 다른 package는 `package.json`의 공개 export만 사용할 수 있고 `src/**` deep import는 금지한다.
+- `infrastructure/postgres`는 request용 `./request`와 worker용 `./worker` export를 분리하며, worker 자격증명을 web composition에 주입하지 않는다.
 
 ## 5. App Router 구조
 
@@ -258,4 +261,4 @@ P1/P2용 Port/typed link는 둘 수 있지만 빈 메뉴, 추측 table, 임시 J
 
 ## 10. 구조 승인과 실제 생성의 구분
 
-이 문서는 승인된 scaffold 명세다. 2026-08-21 Development Gate 승인에 따라 `M00`에서 ADR을 확정하고 `M01`에서 이 트리를 실제로 생성한다.
+이 문서는 승인된 scaffold 명세다. 2026-08-21 Development Gate 승인에 따라 `M00`에서 ADR을 확정하고 `M01`에서 이 트리를 실제로 생성했다. M01의 업무 package는 공개 계약 shell만 제공하며 실제 Domain/Application 구현은 각 package의 지정 merge item에서 시작한다. DB migration과 Supabase 연결은 M02 이후에만 추가한다.

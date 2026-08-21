@@ -28,7 +28,8 @@
 | `packages/core/identity`, `authorization`, `audit` | Platform/Security | 다른 모듈은 `public.ts`만 사용 |
 | `packages/core/approval`, `document`, `file`, `notification` | Approval/Evidence | DB 요구사항은 Platform에 전달 |
 | `packages/features/research-note`, `tech-copy` | Approval/Evidence | PDF/Storage 구현은 Infrastructure Port 사용 |
-| 나머지 `packages/features/**`와 `processes/**` | Business/Quality | cross-feature direct import 금지 |
+| 나머지 `packages/features/**`와 `processes/**` | Business/Quality | cross-feature direct import 금지; `processes/controlled-copy-delivery`는 아래 예외 |
+| `packages/processes/controlled-copy-delivery` | Approval/Evidence | Vendor/Project/Contract Scope는 Business 공개 Port 사용, Platform 보안검토, Root 계약 승인 |
 | `packages/infrastructure/postgres`, `supabase-auth` | Platform/Security | request/service-role adapter 분리 |
 | `packages/infrastructure/supabase-storage`, `pdf-renderer` | Approval/Evidence | security review는 Platform 필수 |
 | `supabase/migrations/**` | Platform/Security 단일 작성자 | 전역 번호·RLS 포함; 병렬 migration 파일 생성 금지 |

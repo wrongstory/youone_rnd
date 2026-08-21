@@ -1,11 +1,6 @@
-type WorkerState = Readonly<{
-  service: "youone-worker";
-  status: "ready";
-}>;
+import { getWorkerState } from "./composition/runtime.js";
 
-export function getWorkerState(): WorkerState {
-  return { service: "youone-worker", status: "ready" };
-}
+export { getWorkerState } from "./composition/runtime.js";
 
 if (process.env.NODE_ENV !== "test") {
   process.stdout.write(`${JSON.stringify(getWorkerState())}\n`);

@@ -14,7 +14,8 @@ The product has one small operating organization but many policy-heavy domains. 
 - Use one modular-monolith deployment boundary. Core, Feature, Process, Infrastructure, Interface, and Composition remain separate code boundaries.
 - Domain packages import only their own domain and the shared kernel. Feature packages expose cross-module contracts only through `public.ts`.
 - Root owns workspace configuration and the composition root. `supabase/migrations` has one serialized owner.
-- Enforce dependency rules through package exports, TypeScript project references, lint rules, and architecture tests.
+- Keep the reviewed package inventory and ownership in `config/package-boundaries.json`.
+- Enforce dependency rules through package exports, a workspace-wide strict TypeScript check, lint rules, and architecture tests.
 - P1/P2-only packages and routes are not scaffolded during P0.
 
 ## Consequences
