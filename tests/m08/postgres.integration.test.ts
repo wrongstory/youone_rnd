@@ -608,7 +608,7 @@ dbDescribe.sequential("M08 PostgreSQL Quality/Inspection boundary", () => {
         '${liveId(1279)}','${liveId(1280)}','${liveId(1281)}','${now}'); commit;`);
     expect(run(`select d.state||':'||u.release_eligible||':'||d.held_amount||':'||d.unpaid_remainder
       from public.acceptance_payment_decision d join public.acceptance_payment_usable_portion u on u.acceptance_payment_decision_id=d.id
-      where d.id='${partialDecision}';`)).toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT:t:0.00:0.00");
+      where d.id='${partialDecision}';`)).toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT:true:0.00:0.00");
   });
 
   it("serializes direct-next Requirement revisions to one winner", async () => {
