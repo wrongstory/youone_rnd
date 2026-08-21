@@ -42,7 +42,7 @@ describe("M08 Quality/Inspection/Acceptance migration contract", () => {
 
   it("uses an exact typed Approval subject and freezes approval basis without creating eligibility", () => {
     expect(sql).toContain("create table public.approval_subject_acceptance_payment_decision");
-    expect(sql).toContain("references public.acceptance_payment_decision(id,decision_root_id,revision_no,version_no,sealed_snapshot_checksum,sealed_at)");
+    expect(sql).toContain("references public.acceptance_payment_decision(id,decision_root_id,revision_no,approval_subject_version,sealed_snapshot_checksum,sealed_at)");
     expect(sql).toContain("create trigger approval_action_acceptance_payment_path_guard");
     expect(sql).toContain("function public.create_acceptance_payment_approval_instance");
     expect(sql).toContain("function public.bind_acceptance_payment_approval_subject");
