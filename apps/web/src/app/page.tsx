@@ -12,6 +12,11 @@ const availablePages = [
     href: "/approvals",
     label: "내 결재함",
     description: "M04 공통 결재 엔진의 안전한 조회 경계와 미연결 상태를 확인합니다."
+  },
+  {
+    href: "/documents",
+    label: "내 문서",
+    description: "M05 문서 엔진의 비공개·권한 우선 조회 경계를 확인합니다."
   }
 ] as const;
 

@@ -94,9 +94,23 @@ importers:
 
   packages/core/codes: {}
 
-  packages/core/document: {}
+  packages/core/document:
+    dependencies:
+      '@youone/core-approval':
+        specifier: workspace:*
+        version: link:../approval
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
-  packages/core/file: {}
+  packages/core/file:
+    dependencies:
+      '@youone/core-authorization':
+        specifier: workspace:*
+        version: link:../authorization
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/core/identity:
     dependencies:
@@ -161,7 +175,14 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/infrastructure/supabase-storage: {}
+  packages/infrastructure/supabase-storage:
+    dependencies:
+      '@youone/core-file':
+        specifier: workspace:*
+        version: link:../../core/file
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/processes/controlled-copy-delivery: {}
 
