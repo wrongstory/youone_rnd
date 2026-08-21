@@ -68,6 +68,8 @@ export interface AcceptancePaymentPolicyVersionSnapshot {
     readonly referenceId: StableCode;
     readonly version: number;
   };
+  readonly amountRoundingDecimalPlaces: 0 | 1 | 2;
+  readonly amountRoundingMode: "HALF_UP" | "DOWN";
   readonly rateRules: readonly AcceptanceRateRule[];
 }
 
@@ -170,6 +172,7 @@ export interface AcceptancePaymentDecisionSnapshot {
   readonly calculatedProposedRate: Percentage;
   readonly adjustedRequestedRate?: Percentage;
   readonly finalApprovedRate?: Percentage;
+  readonly approvedPayableAmount?: Money;
   readonly adjustment?: PaymentRateAdjustmentSnapshot;
   readonly approvalInstanceId?: Uuid;
   readonly approvalSubjectVersion?: Version;
@@ -253,6 +256,28 @@ function percentageMicros(value: Percentage, code: string): bigint {
   return parsed;
 }
 
+function formatMicros(value: bigint): string {
+  const whole = value / 1_000_000n;
+  const fraction = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function calculateApprovedPayableAmount(
+  milestoneAmount: Money,
+  finalApprovedRate: Percentage,
+  policy: AcceptancePaymentPolicyVersionSnapshot
+): Money {
+  const amountMicros = decimalMicros(milestoneAmount.amount, "ACCEPTANCE_PAYMENT_MILESTONE_AMOUNT_INVALID");
+  const rateMicros = percentageMicros(finalApprovedRate, "ACCEPTANCE_PAYMENT_FINAL_RATE_INVALID");
+  const quantumMicros = 10n ** BigInt(6 - policy.amountRoundingDecimalPlaces);
+  const denominator = 100_000_000n * quantumMicros;
+  const numerator = amountMicros * rateMicros;
+  let quantumCount = numerator / denominator;
+  const remainder = numerator % denominator;
+  if (policy.amountRoundingMode === "HALF_UP" && remainder * 2n >= denominator) quantumCount += 1n;
+  return money(formatMicros(quantumCount * quantumMicros), milestoneAmount.currency);
+}
+
 function requireText(value: string, code: string): void {
   if (!value.trim()) fail(code, "A non-empty value is required.");
 }
@@ -280,6 +305,8 @@ function validatePolicy(policy: AcceptancePaymentPolicyVersionSnapshot, at: UtcI
     !Number.isSafeInteger(policy.version) || policy.version < 1 ||
     !Number.isSafeInteger(policy.basis.version) || policy.basis.version < 1 ||
     policy.rateRules.length === 0 ||
+    ![0, 1, 2].includes(policy.amountRoundingDecimalPlaces) ||
+    !["HALF_UP", "DOWN"].includes(policy.amountRoundingMode) ||
     at < policy.effectiveFrom ||
     (policy.effectiveTo !== undefined && at >= policy.effectiveTo)
   ) fail("ACCEPTANCE_PAYMENT_POLICY_INVALID", "An effective published versioned policy is required.");
@@ -330,6 +357,7 @@ export class AcceptancePaymentDecision {
       | "calculatedProposedRate"
       | "adjustedRequestedRate"
       | "finalApprovedRate"
+      | "approvedPayableAmount"
       | "adjustment"
       | "approvalInstanceId"
       | "approvalSubjectVersion"
@@ -454,9 +482,11 @@ export class AcceptancePaymentDecision {
       fail("ACCEPTANCE_PAYMENT_APPROVED_RATE_MISMATCH", "Final approval cannot create an unrequested rate; a different rate requires a new evidence-backed adjustment decision.");
     }
     const expectedVersion = this.value.version;
+    const approvedPayableAmount = calculateApprovedPayableAmount(this.value.milestoneAmount, approval.finalApprovedRate, this.value.policy);
     this.value = {
       ...this.value,
       finalApprovedRate: approval.finalApprovedRate,
+      approvedPayableAmount,
       approvalSnapshot: clone(approval),
       state: "APPROVED",
       version: nextVersion(this.value.version),
@@ -516,8 +546,9 @@ export class AcceptancePaymentDecision {
       requireText(condition.dueDate, "ACCEPTANCE_PAYMENT_RESIDUAL_DUE_DATE_REQUIRED");
     }
     for (const portion of input.independentlyUsablePortions) requireText(portion.description, "ACCEPTANCE_PAYMENT_PORTION_DESCRIPTION_REQUIRED");
-    validateMoneyWithin(input.heldAmount, this.value.milestoneAmount, "ACCEPTANCE_PAYMENT_HELD_AMOUNT_INVALID");
-    validateMoneyWithin(input.unpaidRemainder, this.value.milestoneAmount, "ACCEPTANCE_PAYMENT_UNPAID_REMAINDER_INVALID");
+    const approvedPayableAmount = this.value.approvedPayableAmount ?? fail("ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_REQUIRED", "The exact approved payable amount is required before a hold decision.");
+    validateMoneyWithin(input.heldAmount, approvedPayableAmount, "ACCEPTANCE_PAYMENT_HELD_AMOUNT_INVALID");
+    validateMoneyWithin(input.unpaidRemainder, approvedPayableAmount, "ACCEPTANCE_PAYMENT_UNPAID_REMAINDER_INVALID");
     if (input.heldAmount.currency !== input.unpaidRemainder.currency || decimalMicros(input.heldAmount.amount, "ACCEPTANCE_PAYMENT_HELD_AMOUNT_INVALID") !== decimalMicros(input.unpaidRemainder.amount, "ACCEPTANCE_PAYMENT_UNPAID_REMAINDER_INVALID")) {
       fail("ACCEPTANCE_PAYMENT_HOLD_REMAINDER_MISMATCH", "The held amount and unpaid remainder must preserve the same exact monetary basis.");
     }
@@ -597,7 +628,13 @@ export class AcceptancePaymentDecision {
     if (snapshot.finalApprovedRate !== undefined) percentageMicros(snapshot.finalApprovedRate, "ACCEPTANCE_PAYMENT_FINAL_RATE_INVALID");
     if (snapshot.achievementPercent !== snapshot.basis.achievementPercent) fail("ACCEPTANCE_PAYMENT_BASIS_REWRITTEN", "Achievement must remain identical to the sealed attempt basis.");
     if (snapshot.state === "APPROVAL_PENDING" && (!snapshot.approvalInstanceId || !snapshot.approvalSubjectVersion || !snapshot.sealedSnapshotChecksum || !snapshot.sealedAt)) fail("ACCEPTANCE_PAYMENT_EXACT_SUBJECT_REQUIRED", "Approval pending decisions require an exact sealed subject.");
-    if (["APPROVED", "HELD_FOR_CONDITIONS", "ELIGIBLE_FOR_EXTERNAL_PAYMENT"].includes(snapshot.state) && (!snapshot.approvalSnapshot || snapshot.finalApprovedRate === undefined)) fail("ACCEPTANCE_PAYMENT_OFFICIAL_APPROVAL_REQUIRED", "Approved and release states require an official Approval snapshot.");
+    if (["APPROVED", "HELD_FOR_CONDITIONS", "ELIGIBLE_FOR_EXTERNAL_PAYMENT"].includes(snapshot.state) && (!snapshot.approvalSnapshot || snapshot.finalApprovedRate === undefined || snapshot.approvedPayableAmount === undefined)) fail("ACCEPTANCE_PAYMENT_OFFICIAL_APPROVAL_REQUIRED", "Approved and release states require an official Approval snapshot and exact payable amount.");
+    if (snapshot.finalApprovedRate !== undefined && snapshot.approvedPayableAmount !== undefined) {
+      const expectedAmount = calculateApprovedPayableAmount(snapshot.milestoneAmount, snapshot.finalApprovedRate, snapshot.policy);
+      if (snapshot.approvedPayableAmount.currency !== expectedAmount.currency || decimalMicros(snapshot.approvedPayableAmount.amount, "ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_INVALID") !== decimalMicros(expectedAmount.amount, "ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_INVALID")) {
+        fail("ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_MISMATCH", "Approved payable amount must equal the exact policy-rounded milestone amount and final rate.");
+      }
+    }
     if (snapshot.responsibility.acceptanceWaivesVendorResponsibility || snapshot.responsibility.paymentEligibilityWaivesVendorResponsibility || !snapshot.responsibility.warrantyAndLatentDefectResponsibilitySurvives || !snapshot.responsibility.professionalResponsibilitySurvives || snapshot.responsibility.externalTransferExecuted) fail("ACCEPTANCE_PAYMENT_NON_WAIVER_REQUIRED", "Acceptance and payment eligibility cannot waive Vendor responsibility or claim transfer execution.");
   }
 

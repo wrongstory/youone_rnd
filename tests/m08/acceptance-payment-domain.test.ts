@@ -29,6 +29,8 @@ function policy(): AcceptancePaymentPolicyVersionSnapshot {
     state: "PUBLISHED",
     effectiveFrom: utcInstant("2026-01-01T00:00:00Z"),
     basis: { kind: "INTERNAL_PRESET", referenceId: stableCode("BASELINE.ACCEPTANCE.V1"), version: 1 },
+    amountRoundingDecimalPlaces: 2,
+    amountRoundingMode: "HALF_UP",
     rateRules: [
       { ruleId: stableCode("RATE.ACCEPTED"), minimumAchievementInclusive: "100", disposition: "ACCEPTED", proposedRate: { kind: "FIXED", value: "100" } },
       { ruleId: stableCode("RATE.CONDITIONAL"), minimumAchievementInclusive: "90", maximumAchievementExclusive: "100", disposition: "CONDITIONAL_ACCEPTANCE", proposedRate: { kind: "ACHIEVEMENT_PERCENT" } },
@@ -89,7 +91,7 @@ describe("SM-ACCEPTANCE-PAYMENT-V1", () => {
 
   it("preserves calculated, requested adjustment, and final approved rates separately", () => {
     const snapshot = approved({}, "97.5");
-    expect(snapshot).toMatchObject({ state: "APPROVED", calculatedProposedRate: "95", adjustedRequestedRate: "97.5", finalApprovedRate: "97.5", adjustment: { direction: "UPWARD", reason: "증빙에 따른 조정" } });
+    expect(snapshot).toMatchObject({ state: "APPROVED", calculatedProposedRate: "95", adjustedRequestedRate: "97.5", finalApprovedRate: "97.5", approvedPayableAmount: { amount: "9750000", currency: "KRW" }, adjustment: { direction: "UPWARD", reason: "증빙에 따른 조정" } });
     expect(snapshot.state).not.toBe("ELIGIBLE_FOR_EXTERNAL_PAYMENT");
   });
 
@@ -134,6 +136,25 @@ describe("SM-ACCEPTANCE-PAYMENT-V1", () => {
       heldAmount: money("500000", "KRW"),
       unpaidRemainder: money("400000", "KRW")
     })).toThrowError(expect.objectContaining({ code: "ACCEPTANCE_PAYMENT_HOLD_REMAINDER_MISMATCH" }));
+    expect(() => AcceptancePaymentDecision.restore(initial).holdForConditions(systemCommand(initial.version), {
+      residualConditions: [{ residualConditionId: ids[17]!, sourceConditionCode: stableCode("COND.REMAINING.TEST"), description: "잔여 성능시험", dueDate: "2026-09-10", evidenceIds: [evidenceId], state: "OPEN" }],
+      independentlyUsablePortions: [],
+      heldAmount: money("9500001", "KRW"),
+      unpaidRemainder: money("9500001", "KRW")
+    })).toThrowError(expect.objectContaining({ code: "ACCEPTANCE_PAYMENT_HELD_AMOUNT_INVALID" }));
+  });
+
+  it("seals the policy-rounded payable amount and rejects a rewritten amount", () => {
+    const roundedPolicy = { ...policy(), amountRoundingDecimalPlaces: 0 as const, amountRoundingMode: "HALF_UP" as const };
+    const calculatedSnapshot = AcceptancePaymentDecision.calculate({ acceptancePaymentDecisionId: decisionId, decisionRootId: rootId, revisionNo: 1, basis: basis(), policy: roundedPolicy, milestoneAmount: money("101", "KRW") }, systemBase()).snapshot;
+    const pending = AcceptancePaymentDecision.restore(calculatedSnapshot).submitForApproval(command(calculatedSnapshot.version), { approvalInstanceId: approvalId, checksum: sha256("c".repeat(64)) }).snapshot;
+    const approvedSnapshot = AcceptancePaymentDecision.restore(pending).applyApprovedOutcome(systemCommand(pending.version), {
+      approvalInstanceId: approvalId, approvalVersion: version(4), subjectDecisionId: decisionId,
+      subjectVersion: pending.approvalSubjectVersion!, subjectChecksum: pending.sealedSnapshotChecksum!, outcome: "APPROVED",
+      finalApprovedRate: "95", approvedAt: at
+    }).snapshot;
+    expect(approvedSnapshot.approvedPayableAmount).toEqual(money("96", "KRW"));
+    expect(() => AcceptancePaymentDecision.restore({ ...approvedSnapshot, approvedPayableAmount: money("95", "KRW") })).toThrowError(expect.objectContaining({ code: "ACCEPTANCE_PAYMENT_APPROVED_AMOUNT_MISMATCH" }));
   });
 
   it("releases only independently usable partial portions while preserving unpaid remainder", () => {
