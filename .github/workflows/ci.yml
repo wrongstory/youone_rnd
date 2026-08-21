@@ -93,3 +93,40 @@ jobs:
 
       - name: Verify M07 PostgreSQL boundary
         run: pnpm exec vitest run tests/m07/postgres.integration.test.ts
+
+  m08-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: youone_m08_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d youone_m08_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      M08_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/youone_m08_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/setup@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify M08 PostgreSQL boundary
+        run: pnpm exec vitest run tests/m08/postgres.integration.test.ts

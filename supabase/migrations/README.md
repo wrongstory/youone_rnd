@@ -15,6 +15,7 @@ Applied sequence:
 - `20260822000400_m05_document_file.sql`: versioned Template/Document/File metadata, content/manifest/scan evidence, exact `DocumentVersion` approval subject links, private-storage broker boundaries, immutable history, and deny-first RLS.
 - `20260822000500_m06_project_wbs.sql`: Product/Project/ProjectMember, free-hierarchy WBS, exact VendorMembership-bound Project grants, and immutable Lab-Director-only formal-research designation.
 - `20260822000600_m07_vendor_contract.sql`: normalized VendorContract/immutable ContractVersion, exact ContractProject and ContractMilestone finance, Deliverable evidence manifests, Guarantee/Warranty bases, exact VendorMembership-bound ContractScope, typed ContractVersion approval subject, separate safe/basic/finance projections, and atomic activation/close/termination scope obligations.
+- `20260822000700_m08_quality_inspection.sql`: direct-next Requirement revisions, sealed TestPlan/TestResult evidence, exact Inspection checklist/attempt/result/evidence snapshots, versioned score/payment policies, immutable AcceptancePaymentDecision/adjustment bases, exact typed approval links, Vendor-safe projections, separate finance permission, and evidence-backed eligibility without transfer/accounting execution.
 
 M03 intentionally does not create ProjectScope, ContractScope, or DocumentVersion grants before their typed FK targets exist.
 
@@ -23,3 +24,5 @@ M04 initially supports `ApprovalPolicyVersion` as a real typed subject. Each lat
 M06 intentionally does not create `project_rnd_program`: M11 owns the real `rnd_program` target and must add the typed N:M table with its actual FK in that migration. A placeholder UUID, generic resource link, or fake registry row is prohibited.
 
 M07 intentionally does not implement M08 Inspection, acceptance, conditional-payment calculation, or payment execution. Contract preset/legal-baseline fields record reviewed provenance and per-contract overrides; they are not statutory values.
+
+M08 stores policy thresholds and rounding only in immutable published versions and links payment policy to the exact score-policy version sealed into the InspectionAttempt. Approval freezes the final rate; residual-condition satisfaction and external-payment eligibility remain separate audited transitions. No M08 function transfers money, posts accounting entries, or weakens Vendor responsibility.
