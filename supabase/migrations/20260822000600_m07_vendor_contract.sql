@@ -128,6 +128,7 @@ create table public.contract_version (
   created_by_user_id uuid not null references public.user_account(id),
   created_at timestamptz not null,
   unique(contract_id,version_no),
+  unique(id,contract_id,version_no),
   unique(id,contract_id,version_no,sealed_snapshot_checksum,sealed_at),
   check(effective_to is null or effective_to>=effective_from),
   check((sealed_snapshot_checksum is null)=(sealed_at is null)),

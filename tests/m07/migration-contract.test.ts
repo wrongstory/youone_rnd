@@ -19,6 +19,8 @@ describe("M07 Vendor/Contract migration contract", () => {
     expect(sql).toContain("vat_included boolean not null check(vat_included)");
     expect(sql).toContain("planned_amount numeric(20,2)");
     expect(sql).toContain("planned_ratio numeric(7,4)");
+    expect(sql).toContain("unique(id,contract_id,version_no)");
+    expect(sql).toContain("foreign key(current_signed_version_id,id,current_signed_version_no)");
     expect(sql).toContain("milestones must total exact VAT-inclusive burden and 100 percent");
   });
 
