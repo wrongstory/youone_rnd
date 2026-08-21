@@ -287,12 +287,17 @@ dbDescribe.sequential("M08 PostgreSQL Quality/Inspection boundary", () => {
       update public.inspection_checklist_version set state='SEALED',total_weight_percent=100,checksum=repeat('d',64),sealed_at='${now}',sealed_by_user_id='${manager}'
         where id='80000000-0000-4000-8000-000000000068';
       commit;
+      begin;
       insert into public.attachment(id,storage_provider,bucket_code,storage_key,declared_mime_type,declared_size_bytes,expected_sha256,
         detected_mime_type,detected_size_bytes,detected_sha256,signature_validation,scanner_id,scanner_version,scan_evidence_id,scan_verdict,
         security_level,uploader_user_id,state,row_version,intent_expires_at,created_at,verified_at,scanned_at)
       values('80000000-0000-4000-8000-000000000070','SUPABASE_PRIVATE','PRIVATE_BUSINESS','m08/private/evidence/0001','application/pdf',10,repeat('e',64),
         'application/pdf',10,repeat('e',64),'MATCH','FILE-SCANNER','V1','80000000-0000-4000-8000-000000000071','CLEAN',
         'SEC_L2_INTERNAL','${manager}','AVAILABLE',1,'2026-08-23','${now}','${now}','${now}');
+      insert into public.file_scan_evidence(id,attachment_id,detected_sha256,scanner_id,scanner_version,verdict,scanned_at)
+      values('80000000-0000-4000-8000-000000000071','80000000-0000-4000-8000-000000000070',repeat('e',64),
+        'FILE-SCANNER','V1','CLEAN','${now}');
+      commit;
     `);
   }, 30_000);
 
