@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@youone/core-approval": "workspace:*",
+    "@youone/feature-contract": "workspace:*",
     "@youone/feature-project": "workspace:*",
     "@youone/shared-kernel": "workspace:*",
     "@youone/ui": "workspace:*",

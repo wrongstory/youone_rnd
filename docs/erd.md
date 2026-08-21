@@ -180,6 +180,8 @@ M05 physically creates normalized `TEMPLATE`/`TEMPLATE_VERSION`, `DOCUMENT`/`DOC
 
 M06 physically creates `PRODUCT`, `PROJECT`, `PROJECT_MEMBER`, `PROJECT_PRODUCT_LINK`, self-referencing `WBS_NODE`, and exact-FK `PROJECT_VENDOR_GRANT`. Formal designation uses `RESEARCH_PROJECT_APPLICATION_ROOT`, immutable/versioned `RESEARCH_PROJECT_APPLICATION_VERSION`, normalized team/output/evidence children, exact `APPROVAL_SUBJECT_RESEARCH_PROJECT_APPLICATION`, and immutable `RESEARCH_PROJECT_DESIGNATION`. Formal status is a derived projection, never an editable Project column. RLS and command functions require active internal membership or the exact active Vendor membership + Project grant; Vendor projections omit unreviewed fields.
 
+M07 physically creates `VENDOR_CONTRACT`, immutable `CONTRACT_VERSION`, `CONTRACT_PROJECT`, structured `CONTRACT_MILESTONE`, `DELIVERABLE`/`DELIVERABLE_VERSION`, `GUARANTEE`, `WARRANTY_ISSUE`, exact-FK `CONTRACT_VENDOR_GRANT` and `APPROVAL_SUBJECT_CONTRACT_VERSION`. Contract list-safe, basic-detail and finance-detail projections are separate database contracts. The safe projections never select finance/payment/internal-evaluation columns; finance requires an exact active Vendor membership/grant and finance action. Activation and terminal Contract transitions update grants with audit/transition/outbox atomically.
+
 ## 3. Document, File, Approval, and Technical Access
 
 ```mermaid

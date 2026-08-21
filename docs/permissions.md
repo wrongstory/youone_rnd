@@ -214,6 +214,8 @@ Formal status is derived only from a completed `research_project_designation`, n
 
 M06 makes this Project scope physical. Internal Project access is evaluated from the current active account, owner/membership and action; Vendor access additionally requires the same active VendorMembership referenced by an unexpired, unrevoked Project grant with the requested action. A matching row alone does not widen field projection. Formal-research application review reads only the exact sealed application version bound to the active Approval participant, and only a direct or explicitly recorded acting `POSITION_LAB_DIRECTOR` may produce the designation outcome.
 
+M07 makes `SCOPE_CONTRACT` physical with a real Contract FK and active VendorMembership. Vendor list access uses only `CONTRACT_LIST_VENDOR_V1`; it cannot return amount, payment schedule/status, guarantee amount or internal evaluation/risk fields. `CONTRACT_DETAIL_VENDOR_BASIC_V1` requires exact Contract Scope. `CONTRACT_DETAIL_VENDOR_FINANCE_V1` additionally requires `contract.detail.finance.read` and is a separate projection/result type, so omission cannot be bypassed by requesting optional fields. Contract close/termination or membership/grant expiry/revoke removes access immediately at application and RLS layers.
+
 ## 12. Research Note Permissions
 
 | Action | Author | Senior | Lab Director | Representative | Admin |

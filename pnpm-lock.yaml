@@ -41,6 +41,9 @@ importers:
       '@youone/core-approval':
         specifier: workspace:*
         version: link:../../packages/core/approval
+      '@youone/feature-contract':
+        specifier: workspace:*
+        version: link:../../packages/features/contract
       '@youone/feature-project':
         specifier: workspace:*
         version: link:../../packages/features/project
@@ -127,7 +130,14 @@ importers:
 
   packages/features/change: {}
 
-  packages/features/contract: {}
+  packages/features/contract:
+    dependencies:
+      '@youone/core-approval':
+        specifier: workspace:*
+        version: link:../../core/approval
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/project:
     dependencies:
@@ -147,7 +157,11 @@ importers:
 
   packages/features/tech-copy: {}
 
-  packages/features/vendor: {}
+  packages/features/vendor:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/infrastructure/notification-adapters: {}
 

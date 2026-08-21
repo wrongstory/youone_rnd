@@ -10,10 +10,12 @@
 
 `tests/m06/postgres.integration.test.ts` is the executable M06 Project/WBS/RLS harness. It applies M02 → M03 → M04 → M05 → M06 to the separate `M06_TEST_DATABASE_URL` and requires a clean database.
 
+`tests/m07/postgres.integration.test.ts` is the executable M07 Vendor/Contract/RLS harness. It applies M02 → M03 → M04 → M05 → M06 → M07 to the separate `M07_TEST_DATABASE_URL` and requires a clean database.
+
 - Without its matching database URL, that PostgreSQL suite is explicitly skipped.
 - The URL must point to an empty, dedicated database whose name contains `test`.
 - `PSQL_BIN` may override the `psql` executable.
-- CI provides `TEST_DATABASE_URL`, `M03_TEST_DATABASE_URL`, `M04_TEST_DATABASE_URL`, `M05_TEST_DATABASE_URL`, and `M06_TEST_DATABASE_URL`, so no PostgreSQL suite may skip.
+- CI provides `TEST_DATABASE_URL`, `M03_TEST_DATABASE_URL`, `M04_TEST_DATABASE_URL`, `M05_TEST_DATABASE_URL`, `M06_TEST_DATABASE_URL`, and `M07_TEST_DATABASE_URL`, so no PostgreSQL suite may skip.
 
 It validates an upgrade fixture, clean migration, append-only evidence, direct
 request-role denial, transaction rollback, forbidden payload keys, and concurrent
@@ -26,3 +28,5 @@ The M04 suite validates clean ordered migration, exact policy/subject/line/parti
 The M05 suite validates clean ordered migration, exact composite evidence constraints, FORCE RLS, request/worker capability separation, forbidden direct table writes, and denial of raw editor/private-object/evidence columns.
 
 The M06 suite validates ordinary Project creation by active internal users, Product/member/WBS relational integrity, exact VendorMembership plus Project-grant isolation, Vendor transition restrictions, OD-014 close fail-closed behavior, immutable exact research-application approval subjects, Lab-Director-only consent, typed recall, atomic designation/audit/outbox persistence, and optimistic concurrency.
+
+The M07 suite validates ordered clean migration, normalized Contract/Version/Milestone and Deliverable evidence tables, exact typed ContractVersion approval constraints, FORCE RLS, forbidden-field-free list projection metadata, cross-Vendor isolation, immediate disabled/expired/revoked denial, atomic close/termination Scope revocation with rollback on outbox failure, and request/privileged-writer bypass denial.
