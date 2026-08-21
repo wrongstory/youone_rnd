@@ -581,7 +581,7 @@ create table public.acceptance_payment_decision (
   unique(id,inspection_attempt_id,inspection_id),
   unique(id,inspection_attempt_id),
   unique(id,inspection_id),
-  unique(id,decision_root_id,revision_no,version_no,sealed_snapshot_checksum,sealed_at),
+  unique(id,decision_root_id,revision_no,approval_subject_version,sealed_snapshot_checksum,sealed_at),
   foreign key(previous_decision_id,decision_root_id) references public.acceptance_payment_decision(id,decision_root_id) deferrable initially deferred,
   foreign key(inspection_attempt_id,inspection_id,inspection_attempt_no,inspection_attempt_checksum)
     references public.inspection_attempt(id,inspection_id,attempt_no,checksum),
@@ -690,7 +690,7 @@ create table public.approval_subject_acceptance_payment_decision (
   unique(instance_id,acceptance_payment_decision_id,subject_version_no,subject_checksum),
   foreign key(instance_id,subject_kind) references public.approval_subject_binding(instance_id,subject_kind) deferrable initially deferred,
   foreign key(acceptance_payment_decision_id,decision_root_id,decision_revision_no,subject_version_no,subject_checksum,subject_sealed_at)
-    references public.acceptance_payment_decision(id,decision_root_id,revision_no,version_no,sealed_snapshot_checksum,sealed_at),
+    references public.acceptance_payment_decision(id,decision_root_id,revision_no,approval_subject_version,sealed_snapshot_checksum,sealed_at),
   foreign key(inspection_attempt_id,inspection_attempt_checksum) references public.inspection_attempt(id,checksum)
 );
 alter table public.approval_action add constraint approval_action_m08_exact_unique unique(id,instance_id);
