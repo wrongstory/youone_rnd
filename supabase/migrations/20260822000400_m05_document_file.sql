@@ -403,7 +403,14 @@ $$;
 
 create or replace function app_private.assert_document_head_consistency()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public
-as $$ declare target_document uuid:=case when tg_table_name='document' then coalesce(new.id,old.id) else coalesce(new.document_id,old.document_id) end; begin
+as $$ declare target_document uuid; begin
+  if tg_table_name='document' then
+    target_document:=coalesce(new.id,old.id);
+  elsif tg_table_name='document_version' then
+    target_document:=coalesce(new.document_id,old.document_id);
+  else
+    raise exception 'unsupported document head consistency trigger table: %',tg_table_name using errcode='23514';
+  end if;
   if not exists(select 1 from public.document d join public.document_version v on v.id=d.current_version_id and v.document_id=d.id and v.version_no=d.current_version_no
     where d.id=target_document and d.lifecycle_state=v.state) then
     raise exception 'document head and lifecycle state diverged' using errcode='23514';

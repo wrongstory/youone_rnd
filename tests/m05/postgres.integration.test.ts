@@ -171,11 +171,12 @@ dbDescribe.sequential("M05 PostgreSQL document/file boundary", () => {
     run(`
       insert into public.approval_policy(id,stable_code,status) values('${policyId}','M05_DOCUMENT_APPROVAL','ACTIVE');
       insert into public.approval_policy_version(id,policy_id,version_no,state,subject_kind,checksum,valid_from,created_by_user_id)
-        values('${policyVersion}','${policyId}',1,'PUBLISHED','DOCUMENT_VERSION','${policyChecksum}','2026-01-01','${owner}');
+        values('${policyVersion}','${policyId}',1,'DRAFT','DOCUMENT_VERSION','${policyChecksum}','2026-01-01','${owner}');
       insert into public.approval_policy_step_rule(id,policy_version_id,step_key,sequence_no,step_role,completion_mode,required)
         values('${stepRule}','${policyVersion}','LAB_DIRECTOR_APPROVAL',1,'APPROVAL','ANY_ONE',true);
       insert into public.approval_policy_participant_rule(id,step_rule_id,selector_kind,position_id)
         values('${participantRule}','${stepRule}','POSITION','10000000-0000-4000-8000-000000000003');
+      update public.approval_policy_version set state='PUBLISHED' where id='${policyVersion}';
     `);
     run(`begin; set local role youone_request; ${requestContext()}
       select public.create_document_approval_instance('${instance}','${policyVersion}','${policyChecksum}','${versionId}',null,1,

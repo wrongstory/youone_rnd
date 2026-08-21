@@ -85,6 +85,12 @@ describe("M05 document/file migration contract", () => {
     expect(sql).toContain("'EVT-DOCUMENT-REVISE','APPROVED','SUPERSEDED'");
   });
 
+  it("resolves deferred head checks without cross-table NEW field access", () => {
+    expect(sql).toContain("if tg_table_name='document' then");
+    expect(sql).toContain("elsif tg_table_name='document_version' then");
+    expect(sql).not.toMatch(/target_document uuid:=case when tg_table_name='document'/);
+  });
+
   it("bootstraps a private Supabase bucket when the provider schema exists", () => {
     expect(sql).toContain("to_regclass('storage.buckets')");
     expect(sql).toContain("values('PRIVATE_BUSINESS','PRIVATE_BUSINESS',false,50000000");
