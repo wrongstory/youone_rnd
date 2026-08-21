@@ -1454,7 +1454,7 @@ as $$ declare deliverable_row public.deliverable%rowtype; policy_row public.acce
   insert into public.inspection_checklist_version(id,inspection_id,version_no,policy_version_id,policy_id,policy_version_no,policy_checksum,state)
   values(target_checklist_version_id,target_inspection_id,1,policy_row.id,policy_row.policy_id,policy_row.version_no,policy_row.checksum,'DRAFT');
   perform app_private.append_m08_transition(target_audit_id,target_transition_id,target_outbox_id,'inspection.record.request','INSPECTION',target_inspection_id,
-    'SM-INSPECTION-V1','EVT-INSPECTION-REQUEST','INSPECTION_EVENT_REF',null,'REQUESTED',null,1,null,target_occurred_at);
+    'SM-INSPECTION-V1','EVT-INSPECTION-REQUEST','INSPECTION_EVENT_REF',null,'REQUESTED',0,1,null,target_occurred_at);
   return target_inspection_id;
 end $$;
 
@@ -1638,7 +1638,7 @@ as $$ declare attempt_row public.inspection_attempt%rowtype; inspection_row publ
     select extensions.gen_random_uuid(),target_decision_id,p.id,attempt_row.id,false from public.inspection_partial_usable_portion p where p.inspection_attempt_id=attempt_row.id;
   perform app_private.append_m08_transition(target_audit_id,target_transition_id,target_outbox_id,'acceptance_payment.record.manage',
     'ACCEPTANCE_PAYMENT_DECISION',target_decision_id,'SM-ACCEPTANCE-PAYMENT-V1','EVT-ACCEPTANCE-PAYMENT-CALCULATE',
-    'ACCEPTANCE_PAYMENT_EVENT_REF',null,'CALCULATED',null,1,'VERSIONED-POLICY-CALCULATION',target_occurred_at);
+    'ACCEPTANCE_PAYMENT_EVENT_REF',null,'CALCULATED',0,1,'VERSIONED-POLICY-CALCULATION',target_occurred_at);
 end $$;
 
 create or replace function app_private.protect_residual_condition_satisfaction()
