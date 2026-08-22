@@ -1,16 +1,29 @@
 import { describe, expect, it } from "vitest";
 
+import { engineeringChangeQuery } from "../../apps/web/src/app/engineering-changes/query.js";
 import {
   availableEngineeringChangeList,
   unavailableEngineeringChangeList
 } from "../../packages/ui/src/change/public.js";
 
 describe("M10 ECR/ECO UI security boundary", () => {
-  it("does not represent a missing query adapter as an empty change list", () => {
+  it("does not represent a missing query adapter as an empty change list", async () => {
+    await expect(engineeringChangeQuery(false).listMineExternal()).resolves.toEqual({
+      availability: "UNAVAILABLE",
+      items: [],
+      reason: "QUERY_ADAPTER_NOT_CONFIGURED"
+    });
     expect(unavailableEngineeringChangeList()).toEqual({
       availability: "UNAVAILABLE",
       items: [],
       message: "ECR/ECO 조회 서비스가 아직 연결되지 않았습니다. 변경 건이 없다는 뜻이 아닙니다."
+    });
+  });
+
+  it("keeps internal deliberation behind a distinct query method", async () => {
+    await expect(engineeringChangeQuery(true).getInternalDetail("ecr-1")).resolves.toEqual({
+      availability: "FORBIDDEN",
+      detail: null
     });
   });
 
