@@ -414,9 +414,13 @@ returns trigger language plpgsql set search_path=pg_catalog as $$ begin raise ex
 create or replace function app_private.protect_m11_purchase()
 returns trigger language plpgsql set search_path=pg_catalog,app_private as $$ begin
  if tg_op='DELETE' then raise exception 'Purchase aggregate/version is retained' using errcode='55000'; end if;
- if app_private.optional_setting('app.m11_purchase_command') is distinct from
-   case tg_table_name when 'purchase_request' then old.id::text else old.purchase_request_id::text end then
-  raise exception 'Purchase update requires trusted command' using errcode='42501'; end if;
+ if tg_table_name='purchase_request' then
+  if app_private.optional_setting('app.m11_purchase_command') is distinct from old.id::text then
+   raise exception 'Purchase update requires trusted command' using errcode='42501'; end if;
+ else
+  if app_private.optional_setting('app.m11_purchase_command') is distinct from old.purchase_request_id::text then
+   raise exception 'Purchase update requires trusted command' using errcode='42501'; end if;
+ end if;
  if tg_table_name='purchase_request_version' and old.state<>'DRAFT' and
    (to_jsonb(new)-array['state','approval_instance_id']::text[]) is distinct from (to_jsonb(old)-array['state','approval_instance_id']::text[]) then
   raise exception 'sealed PurchaseRequestVersion snapshot is immutable' using errcode='55000'; end if;
