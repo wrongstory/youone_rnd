@@ -18,7 +18,7 @@ insert into public.action_definition(action_id) values
  ('safety.training.manage'),('safety.training.acknowledge'),('safety.incident.report'),('safety.incident.investigate'),
  ('safety.incident.close'),('safety.record.read'),('safety.recurrence.submit'),('safety.alert.emit')
 on conflict do nothing;
-insert into public.aggregate_type_definition(aggregate_type) values ('SAFETY_ASSIGNMENT'),('SAFETY_INSPECTION'),('SAFETY_INCIDENT'),('SAFETY_TRAINING') on conflict do nothing;
+insert into public.aggregate_type_definition(aggregate_type) values ('SAFETY_ASSIGNMENT'),('SAFETY_VENDOR_ALLOWLIST'),('SAFETY_INSPECTION'),('SAFETY_INCIDENT'),('SAFETY_TRAINING') on conflict do nothing;
 insert into public.domain_event_definition(event_id,payload_schema_id,payload_schema_version) values
  ('EVT-SAFETY-MANAGER-ASSIGN','SAFETY_EVENT_REF',1),('EVT-SAFETY-INSPECTION-PLAN','SAFETY_EVENT_REF',1),('EVT-SAFETY-INSPECTION-START','SAFETY_EVENT_REF',1),
  ('EVT-SAFETY-INSPECTION-CLOSE-CLEAR','SAFETY_EVENT_REF',1),('EVT-SAFETY-INSPECTION-CANCEL','SAFETY_EVENT_REF',1),
