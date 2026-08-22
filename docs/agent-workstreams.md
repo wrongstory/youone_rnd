@@ -70,7 +70,7 @@
 | W4 | PWA shell/integration | offline authorization/RLS | `M12/M14` 완료 | `M13` 완료 |
 | W5 | `M15/M16` 통합 | penetration/RLS/audit | evidence/immutability E2E | business lifecycle E2E |
 
-병렬로 준비해도 DB migration과 main 병합은 `M00 → M16` 순서를 지킨다.
+병렬로 준비해도 DB migration과 `dev` 통합 병합은 `M00 → M16` 순서를 지킨다. `main`은 릴리즈 승격 PR만 받는다.
 
 ## 5. 반드시 직렬화할 작업
 

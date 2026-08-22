@@ -5,9 +5,15 @@
 ## Current delivery
 
 - Phase: `IMPLEMENTATION_ACTIVE`
-- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, and `M08` Requirement/Test/Inspection in PR #26
-- Active merge item: `M09` NCR/CAR nonconformance, corrective action, and independent effectiveness verification
+- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, `M08` Requirement/Test/Inspection in PR #26, and `M09` NCR/CAR in PR #27
+- Active merge item: `M10` ECR/ECO change request, change order, implementation, and reverification
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
+
+## Branch model
+
+- `dev` is the default integration branch. Create feature and fix branches from `dev` and target their pull requests to `dev`.
+- `main` contains release versions only. Promote a reviewed release from `dev` to `main` with a dedicated release pull request.
+- Do not merge an ordinary feature branch directly into `main`.
 
 ## Local requirements
 

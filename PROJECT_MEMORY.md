@@ -42,10 +42,11 @@
 - 연구수당은 수당이 부여된 과제별 버전 정책에서 종류·대상·예산·평가기준·지급주기를 결정한다. 여러 과제의 월 비과세 후보액은 사람별로 합산하며, 적격요건과 월 20만원 한도를 재검증한다.
 - 부분합격/조건부합격은 가중치 체크리스트 달성도로 평가하고 기본 지급률을 달성도에 연동한다. 지급률 조정은 사유와 별도 승인을 요구한다.
 - 계약 수치, 법령 체크, 금액/보안등급별 결재선은 `docs/legal-policy-baseline.md`의 버전형 내부 프리셋으로 시작한다.
+- GitHub 기본 통합 브랜치는 `dev`다. 기능·수정 PR은 `dev`를 대상으로 하고, `main`에는 검토 완료된 릴리즈 승격 PR만 병합한다.
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M08` Requirement/Test/Inspection 및 달성도·차등지급 PR #26 병합 완료, `M09` NCR/CAR 구현 진행 중).
+`IMPLEMENTATION_ACTIVE` (`M09` NCR/CAR 및 화면 검토용 Preview PR #27 병합 완료, `M10` ECR/ECO 구현 진행 중).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -65,7 +66,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M08`은 Requirement/Revision, TestPlan/Result, weighted InspectionChecklistVersion/Criterion, immutable InspectionAttempt/CriterionResult 및 AcceptancePaymentDecision/PaymentRateAdjustment를 구현했고 PR #26으로 `main`에 병합됐다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률을 별도 보존하며, critical 실패는 점수만으로 완전합격될 수 없다. 조건부합격은 잔여조건·기한·보류액, 부분합격은 독립 사용가능분·미지급 잔액을 exact snapshot으로 가진다. 조정은 사유·증거·공식 결재 snapshot이 필요하며 지급 가능 상태는 외부 송금이나 회계 실행을 뜻하지 않는다.
 
-`M09` PR #27은 exact source와 evidence를 가진 NCR, 복수 CAR, containment, root-cause/action plan, 독립 효과검증, ineffective 재작업, close/reopen 이력을 구현한다. 책임 평가는 `PRELIMINARY`/`DISPUTED`/`FINAL`을 분리하고, 외주업체는 정확한 활성 VendorMembership 및 Project/Contract Scope와 책임 할당이 있을 때만 허용된 수행 명령을 사용할 수 있다. NCR/CAR의 검토·종료가 계약 책임을 면제하거나 계약 상태를 자동 변경하지 않는다.
+`M09`는 PR #27로 `main`에 병합됐다. exact source와 evidence를 가진 NCR, 복수 CAR, containment, root-cause/action plan, 독립 효과검증, ineffective 재작업, close/reopen 이력을 구현한다. 책임 평가는 `PRELIMINARY`/`DISPUTED`/`FINAL`을 분리하고, 외주업체는 정확한 활성 VendorMembership 및 Project/Contract Scope와 책임 할당이 있을 때만 허용된 수행 명령을 사용할 수 있다. NCR/CAR의 검토·종료가 계약 책임을 면제하거나 계약 상태를 자동 변경하지 않는다.
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다.
 
@@ -97,7 +98,8 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 7. `M06`: Project/WBS, 실제 Project Scope, 정식 연구과제 승격 구현 및 PR #24 병합 완료.
 8. `M07`: Vendor/Contract/Deliverable, 실제 Contract Scope와 finance field denial 구현 및 PR #25 병합 완료.
 9. `M08`: Requirement/Test/Inspection, 달성도·조건부/부분합격·승인된 지급률 조정 구현 및 PR #26 병합 완료.
-10. `M09`: NCR/CAR 부적합·시정조치·독립 효과검증 구현.
-11. `M10~M11`: ECR/ECO → Purchase/R&D.
-12. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
-13. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+10. `M09`: NCR/CAR 부적합·시정조치·독립 효과검증 구현 및 PR #27 병합 완료.
+11. `M10`: ECR/ECO 변경요청·변경지시·재검증 구현.
+12. `M11`: Purchase/R&D 구현.
+13. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
+14. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
