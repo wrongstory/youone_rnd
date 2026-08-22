@@ -15,6 +15,12 @@ Implementation rules in this phase:
 - Do not implement P1/P2-only modules, guessed company forms, or unresolved production policy defaults.
 - Do not write DB migrations outside the Platform/Security workstream or before the related ADR and public contracts are approved.
 
+## Branch Workflow
+
+- `dev` is the default integration branch. Start ordinary feature/fix branches from `dev` and target their pull requests to `dev`.
+- `main` is release-only. Update it only through an explicit release promotion pull request from `dev` after the release gate is approved.
+- Never merge an ordinary feature or workstream branch directly into `main`.
+
 ## Source Precedence
 
 1. Latest explicit user decision.
@@ -121,7 +127,7 @@ When a stable decision changes, update every affected canonical document in the 
 - Feature agents submit table/constraint/RLS requirements to Platform/Security; they do not create independently numbered migration files.
 - Cross-feature behavior uses a public Application Port or domain event. An agent must not import another module's internal entities or repositories.
 - Every handoff includes requirement IDs, public contracts, data/RLS needs, state/audit rules, tests run, changed files, and remaining risks as defined in `docs/agent-workstreams.md`.
-- Parallel preparation is allowed, but merges follow `M00` through `M16` order.
+- Parallel preparation is allowed, but development merges into `dev` follow `M00` through `M16` order. Release promotion into `main` is a separate gate.
 
 ## Verification Gates
 
