@@ -308,6 +308,14 @@ Always audit:
 - field-protected vendor contract finance reads;
 - administrative use of service privilege.
 
+ECR/ECO authorization additionally requires:
+
+- trusted internal review and official Approval to remain separate actions; Senior review never satisfies `APPROVE`;
+- Vendor access to require active membership, exact Project/Contract grants and explicit ECR/ECO assignment on every request;
+- Vendor list/detail projections to omit internal impact deliberation, approval participants, contract amounts, legal notes and security findings not assigned for action;
+- ECO verification to be internal and independent from every implementation actor;
+- emergency exception creation, use and retrospective approval to emit append-only audit events and fail closed when the versioned policy is unavailable.
+
 Audit records are append-only and must identify both the authenticated actor and effective delegated actor.
 
 ## 17. Required Authorization Test Matrix

@@ -1,5 +1,5 @@
 import type { CorrelationId, IdempotencyKey, StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
-import { approvalPermissionForAction, type ApprovalAction, type ApprovalActorSnapshot, type ApprovalAuditObligation, type ApprovalDomainEvent, type ApprovalInstanceSnapshot, type ApprovalMutation, type ApprovalSubject, type ApprovalSubjectSnapshot } from "../domain/approval.js";
+import { approvalPermissionForAction, type ApprovalAction, type ApprovalActorSnapshot, type ApprovalAuditObligation, type ApprovalDomainEvent, type ApprovalInstanceSnapshot, type ApprovalMutation, type ApprovalSubject, type ApprovalSubjectSnapshot } from "../domain/approval";
 
 export interface ApprovalOutcomeProvenance {
   readonly terminalAction: ApprovalAction;

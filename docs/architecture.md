@@ -178,6 +178,12 @@ M09는 같은 `features.quality` 안에서 NCR/CAR aggregate와 application port
 
 NCR/CAR 명령은 trusted ActorContext, exact VendorMembership 및 Project/Contract Scope, 책임 할당, 현재 상태와 optimistic version을 검증한다. 상태 변경, append-only transition/audit/outbox, evidence link는 한 transaction에 기록한다. 독립 효과검증은 CAR owner·실행자와 다른 내부 검증자만 수행하며, 종료·재개방은 과거 검증과 전이를 수정하지 않는다. M09는 계약 상태를 직접 변경하지 않고 M10 ECR/ECO 또는 계약구제 검토가 필요한 사실만 typed event/port로 전달한다.
 
+M10은 `features.change`가 ECR/ECO aggregate, impact snapshot, exact typed target, implementation 및 reverification application port를 소유한다. Approval Core에는 `CHANGE_REQUEST_VERSION`과 `CHANGE_ORDER_VERSION` exact subject adapter만 연결하며, Approval Core가 Change 저장소나 내부 엔티티를 import하지 않는다. ECR의 Senior/technical review는 review evidence일 뿐 공식 Approval action이 아니다.
+
+ECO는 승인된 ECR의 exact version 또는 감사 가능한 EmergencyException version 중 하나를 근거로 생성한다. 대상은 generic `type/id`나 JSON으로 쓰지 않고 DocumentVersion, RequirementRevision, DeliverableVersion, InspectionChecklistVersion, TestPlan, ContractVersion별 typed target relation으로 연결한다. 적용 결과는 항상 새 after-version이며 before-version을 수정하지 않는다. 비용·일정·품질·안전·보안·규제 영향은 모두 명시적으로 분석하거나 `NO_IMPACT` 근거를 남긴다.
+
+계약 범위·금액·납기·검수기준에 영향을 주는 ECO는 별도 서명·발효된 ContractVersion/변경계약 snapshot 없이는 `EFFECTIVE`가 될 수 없다. 적용자와 독립된 내부 검증자가 exact serial/lot/equipment scope와 재시험·재검수 evidence를 확인한다. Vendor 명령은 활성 VendorMembership 및 exact Project/Contract Scope와 할당을 재검증하며, 외주 projection에는 내부 영향검토·결재선·계약금액·법무메모를 포함하지 않는다. BOM은 P1 public extension port만 두고 M10 물리 table/UI를 만들지 않는다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:

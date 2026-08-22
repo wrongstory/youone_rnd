@@ -14,6 +14,8 @@ export type ApprovalSubject =
   | { kind: "TECHNICAL_ACCESS_REQUEST"; technicalAccessRequestId: Uuid }
   | { kind: "TECHNICAL_COPY_REQUEST"; technicalCopyRequestId: Uuid }
   | { kind: "ACCEPTANCE_PAYMENT_DECISION"; acceptancePaymentDecisionId: Uuid }
+  | { kind: "CHANGE_REQUEST_VERSION"; changeRequestVersionId: Uuid }
+  | { kind: "CHANGE_ORDER_VERSION"; changeOrderVersionId: Uuid }
   | { kind: "APPROVAL_POLICY_VERSION"; approvalPolicyVersionId: Uuid };
 
 /** Stable business event IDs. eventId remains the unique envelope/outbox UUID. */

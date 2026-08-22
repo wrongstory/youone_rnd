@@ -39,6 +39,11 @@ const availablePages = [
     href: "/non-conformances",
     label: "NCR/CAR",
     description: "부적합·즉시조치·CAR 수행과 외주 안전 조회를 확인합니다."
+  },
+  {
+    href: "/engineering-changes",
+    label: "ECR/ECO",
+    description: "영향분석·정확한 변경버전·적용·독립 재검증 진행을 확인합니다."
   }
 ] as const;
 
@@ -50,12 +55,12 @@ export default function HomePage() {
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <PreviewNotice />
         <p className="summary">
-          M00부터 M08까지 병합을 완료했고, 현재 M09 NCR/CAR 부적합·시정조치·효과검증 기반을 개발하고 있습니다.
+          M00부터 M09까지 병합을 완료했고, 현재 M10 ECR/ECO 변경요청·변경지시·재검증 기반을 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M09
+          IMPLEMENTATION_ACTIVE · M10
         </div>
       </section>
 

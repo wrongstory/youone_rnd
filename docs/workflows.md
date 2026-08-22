@@ -122,6 +122,16 @@ Workflow ID: `WF-ECR-ECO-V1`.
 
 Approval of change scope does not transfer the Vendor's professional design/implementation responsibility. Emergency changes require prompt retrospective documentation and cannot become an unaudited shortcut.
 
+M10 implementation rules:
+
+- Analyze cost, schedule, quality, safety, security and regulatory impact separately; `NO_IMPACT` is a reasoned recorded outcome, not an omitted field.
+- Bind ECR approval and ECO release to exact immutable version/checksum/sealed-time subjects. Senior review remains non-approving evidence.
+- Use typed target relations for DocumentVersion, RequirementRevision, DeliverableVersion, InspectionChecklistVersion, TestPlan and ContractVersion. Each implementation creates a new after-version and retains the before-version.
+- For an emergency, capture a sealed exception under a versioned policy before execution and obtain retrospective approval by that policy's deadline. If the policy is absent, the emergency route is unavailable.
+- A contract-affecting ECO cannot become effective until the separately approved, signed and effective change ContractVersion is linked.
+- Reverification records exact applied serial/lot/equipment scope and is performed by an internal verifier independent from implementation actors.
+- BOM is exposed only through an optional extension port in P0 and has no M10 table or screen.
+
 ## 8. Purchase
 
 Workflow ID: `WF-PURCHASE-V1`.

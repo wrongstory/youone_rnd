@@ -241,6 +241,17 @@ ECO machine `SM-ECO-V1`: `DRAFT`, `APPROVAL_PENDING`, `RELEASED`, `IMPLEMENTING`
 | ECO | `EVT-ECO-CLOSE` | `EFFECTIVE` → `CLOSED` | change manager |
 | ECO | `EVT-ECO-SUSPEND` | `RELEASED`,`IMPLEMENTING` → `SUSPENDED` | authorized owner; reason |
 
+Additional M10 gates:
+
+- `EVT-ECR-SUBMIT-REVIEW` requires all six impact dimensions to have a structured assessment, evidence or an explicit reasoned `NO_IMPACT` result.
+- `EVT-ECR-REVIEWED` records Senior/technical review only. It cannot complete official Approval or authorize ECO release.
+- `EVT-ECR-APPROVE` and `EVT-ECO-RELEASE` require a completed ApprovalInstance bound to the exact immutable subject version/checksum/sealed timestamp.
+- `EVT-ECR-CREATE-ECO` requires the exact approved ECR version. The only alternative is a versioned EmergencyException with policy-selected authority, reason, risk, evidence and retrospective approval deadline; no default authority or deadline is guessed.
+- `EVT-ECO-SUBMIT` requires at least one exact typed before target and proposed after revision. `EVT-ECO-SUBMIT-VERIFY` requires applied after-version evidence and exact serial/lot/equipment scope.
+- `EVT-ECO-VERIFY` requires an internal verifier independent of every implementation actor and all required retest/reinspection evidence. Contract-affecting orders additionally require an executed signed change-contract snapshot.
+- No transition mutates an approved ECR, released ECO, before-version artifact, signed ContractVersion, or prior verification record.
+- `SM-ECO-V1` currently defines no event for an Approval `REJECTED`, `RECALLED`, or `CANCELLED` outcome even though `CANCELLED` is a listed state. `OD-033-ECO-APPROVAL-NEGATIVE-OUTCOME` blocks an invented state transition; M10 retains the exact Approval outcome evidence and fails closed until the transition is decided.
+
 ## 9. Approval
 
 Machine: `SM-APPROVAL-V1`.

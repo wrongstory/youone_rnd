@@ -666,19 +666,49 @@ erDiagram
     uuid ncr_id FK
     string ecr_no UK
     enum state
+    int version_no
+    string sealed_checksum
+  }
+  CHANGE_IMPACT_ASSESSMENT {
+    uuid id PK
+    uuid change_request_id FK
+    enum dimension
+    enum finding
+    uuid evidence_id FK
+  }
+  EMERGENCY_CHANGE_EXCEPTION {
+    uuid id PK
+    uuid policy_version_id FK
+    string sealed_checksum
+    timestamptz retrospective_due_at
+    uuid evidence_id FK
   }
   CHANGE_ORDER {
     uuid id PK
     uuid change_request_id FK
+    uuid emergency_exception_id FK
     string eco_no UK
     enum state
+    int version_no
+    string sealed_checksum
   }
   CHANGE_TARGET {
     uuid id PK
     uuid change_order_id FK
     enum target_kind
-    string before_revision
-    string after_revision
+  }
+  CHANGE_IMPLEMENTATION {
+    uuid id PK
+    uuid change_order_id FK
+    uuid implemented_by_user_id FK
+    uuid evidence_id FK
+  }
+  CHANGE_VERIFICATION {
+    uuid id PK
+    uuid change_order_id FK
+    uuid verifier_user_id FK
+    uuid evidence_id FK
+    enum result
   }
   GUARANTEE {
     uuid id PK
@@ -699,7 +729,9 @@ erDiagram
 
 M09 physical constraints require at least one exact typed NCR source, but do not use a generic `subject_type + subject_id` fallback. The first physical slice requires an exact sealed `INSPECTION_ATTEMPT` lineage and may additionally bind its exact RequirementRevision and criterion result; all source columns resolve to the same scoped Contract/Project/Deliverable context. Responsibility status and responsible party are separate append-only assessments. `CAR_VERIFICATION.verifier_account_id` must differ from the CAR owner and every `CAR_ACTION_EXECUTION.performed_by_user_id`; this is revalidated in the guarded transition transaction. Evidence, verification, ineffective/rework, close and reopen records are append-only. NCR close is rejected unless every required non-cancelled CAR has a retained effective verification and is effective or closed. Reopen references the exact prior `NCR_CLOSE_EVENT`; `OD-031` leaves it without an exit transition.
 
-`CHANGE_TARGET` is a controlled change index, not permission to store all changed entities in JSON. Physical design should add typed target join tables where FK enforcement is required.
+`CHANGE_TARGET` is a controlled change index, not permission to store all changed entities in JSON. M10 adds exact typed target relations such as `CHANGE_TARGET_DOCUMENT_VERSION`, `CHANGE_TARGET_REQUIREMENT_REVISION`, `CHANGE_TARGET_DELIVERABLE_VERSION`, `CHANGE_TARGET_INSPECTION_CHECKLIST_VERSION`, `CHANGE_TARGET_TEST_PLAN`, and `CHANGE_TARGET_CONTRACT_VERSION`. Each relation references an immutable before-version and, after implementation, a distinct after-version. A constraint requires exactly one typed relation per target and rejects equal before/after IDs.
+
+`CHANGE_IMPACT_ASSESSMENT` has one row per required dimension (`COST`, `SCHEDULE`, `QUALITY`, `SAFETY`, `SECURITY`, `REGULATORY`) and stores structured finding, rationale and evidence rather than an impact JSON blob. `CHANGE_ORDER` references exactly one approved ChangeRequestVersion or sealed EmergencyChangeException version. Contract-affecting targets require a separately signed/effective ContractVersion snapshot before effectiveness. Implementation, applied-scope, verification, retest/reinspection and emergency history are append-only. BOM persistence remains P1 and is not added by M10.
 
 ## 6. Purchase, Supplier, Item, BOM, Receipt, and Inspection
 

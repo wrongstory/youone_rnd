@@ -173,6 +173,12 @@ Invariants:
 - An ECO cannot exist without a reviewed ECR or a documented emergency exception.
 - Approval of an ECR/ECO does not transfer the vendor's professional responsibility.
 - Contract scope, price, deadline, or acceptance criteria change only through an effective signed change record.
+- Every ECR impact dimension (`COST`, `SCHEDULE`, `QUALITY`, `SAFETY`, `SECURITY`, `REGULATORY`) is explicitly assessed with evidence or a reasoned `NO_IMPACT` finding before review.
+- Approval binds an immutable ECR/ECO version, checksum, and sealed timestamp. A rejected or recalled subject is corrected as a newer version, never overwritten.
+- An ECO target uses an exact typed before-version relation. Implementation produces a distinct after-version relation and cannot replace or mutate the before-version.
+- Emergency execution requires an immutable exception version with reason, risk, temporary authority, evidence, policy-selected retrospective approval deadline, and complete audit. Missing policy or evidence fails closed.
+- ECO effectiveness requires independent verification, exact applied serial/lot/equipment scope, and required retest/reinspection evidence.
+- BOM integration is a public extension port in P0; BOM persistence and UI remain P1.
 
 ## 6. Purchase and BOM
 

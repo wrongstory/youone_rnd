@@ -1,4 +1,5 @@
 export * from "./approval/public";
+export * from "./change/public";
 export * from "./contract/public";
 export * from "./document/public";
 export * from "./inspection/public";

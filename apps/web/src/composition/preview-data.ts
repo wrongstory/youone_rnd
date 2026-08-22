@@ -1,4 +1,9 @@
 import type { ApprovalDetailView, ApprovalInboxItem } from "@youone/core-approval/public";
+import {
+  projectVendorChangeListItem,
+  type VendorChangeDetailView,
+  type VendorChangeListItemView
+} from "@youone/feature-change/public";
 import type {
   VendorContractBasicDetail,
   VendorContractFinanceDetail,
@@ -23,7 +28,9 @@ export const PREVIEW_IDS = Object.freeze({
   inspectionController: "d0000000-0000-4000-8000-000000000001",
   inspectionJig: "d0000000-0000-4000-8000-000000000002",
   ncrController: "e0000000-0000-4000-8000-000000000001",
-  ncrJig: "e0000000-0000-4000-8000-000000000002"
+  ncrJig: "e0000000-0000-4000-8000-000000000002",
+  changeController: "91000000-0000-4000-8000-000000000001",
+  changeJig: "91000000-0000-4000-8000-000000000002"
 } as const);
 
 export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
@@ -350,3 +357,65 @@ export const previewNcrs: readonly NcrVendorDetailView[] = Object.freeze([
 
 export const previewNcrList: readonly NcrVendorListItemView[] = previewNcrs;
 
+export const previewChanges: readonly VendorChangeDetailView[] = Object.freeze([
+  {
+    changeRequestId: PREVIEW_IDS.changeController,
+    ecrNo: "ECR-2026-006",
+    title: "제어기 EMI 재검증 Gate 및 납품증빙 책임 변경",
+    priority: "HIGH",
+    state: "CONVERTED_TO_ECO",
+    changeOrderId: "92000000-0000-4000-8000-000000000001",
+    ecoNo: "ECO-2026-003",
+    ecoState: "IMPLEMENTING",
+    projectId: PREVIEW_IDS.projectBattery,
+    contractId: PREVIEW_IDS.contractController,
+    impactSummary: {
+      cost: "NO_IMPACT",
+      schedule: "AFFECTED",
+      quality: "AFFECTED",
+      safety: "NO_IMPACT",
+      security: "AFFECTED",
+      regulatory: "NO_IMPACT"
+    },
+    exactTargetDisplayRefs: [
+      { kind: "DOCUMENT_VERSION", targetId: "target-controller-drawing", displayRef: "제어기 회로도 v3 → v4" },
+      { kind: "TEST_PLAN", targetId: "target-controller-emi-plan", displayRef: "EMI 시험계획 v2 → v3" },
+      { kind: "DELIVERABLE_VERSION", targetId: "target-controller-deliverable", displayRef: "DLV-001 v3 → v4" }
+    ],
+    progress: { implementedTargets: 2, totalTargets: 3, verification: "NOT_READY" },
+    nextAction: stableCode("change.order.implementation.evidence.submit"),
+    assignedImplementationEvidenceIds: ["evidence-eco-controller-drawing", "evidence-eco-controller-test-plan"],
+    appliedScope: {
+      serialNumbers: ["CTRL-PROT-004", "CTRL-PROT-005"],
+      lotNumbers: ["LOT-2608-A"],
+      equipmentIds: ["emi-chamber-02"]
+    }
+  },
+  {
+    changeRequestId: PREVIEW_IDS.changeJig,
+    ecrNo: "ECR-2026-007",
+    title: "검사 지그 보정 라벨 발행절차 개정",
+    priority: "NORMAL",
+    state: "REVIEW_PENDING",
+    projectId: PREVIEW_IDS.projectSensor,
+    contractId: PREVIEW_IDS.contractJig,
+    impactSummary: {
+      cost: "NO_IMPACT",
+      schedule: "NO_IMPACT",
+      quality: "AFFECTED",
+      safety: "NO_IMPACT",
+      security: "NO_IMPACT",
+      regulatory: "NO_IMPACT"
+    },
+    exactTargetDisplayRefs: [
+      { kind: "DOCUMENT_VERSION", targetId: "target-jig-label-procedure", displayRef: "보정 라벨 발행절차 v1 → v2(제안)" }
+    ],
+    progress: { implementedTargets: 0, totalTargets: 1, verification: "NOT_READY" },
+    nextAction: stableCode("change.request.review"),
+    assignedImplementationEvidenceIds: []
+  }
+]);
+
+export const previewChangeList: readonly VendorChangeListItemView[] = Object.freeze(
+  previewChanges.map(projectVendorChangeListItem)
+);
