@@ -854,13 +854,18 @@ erDiagram
   EVIDENCE ||--o{ EXPENDITURE_EVIDENCE : supports
   ATTACHMENT ||--o{ EVIDENCE : stored_as
   RND_PROGRAM ||--o{ REPORT_DEADLINE : schedules
-  RND_PROGRAM ||--o{ RESEARCH_NOTE_RND : links
-  RESEARCH_NOTE ||--o{ RESEARCH_NOTE_RND : links
-  PROJECT ||--o{ RESEARCH_NOTE_PROJECT : links
-  RESEARCH_NOTE ||--o{ RESEARCH_NOTE_PROJECT : links
-  RESEARCH_NOTE ||--o{ RESEARCH_NOTE_ENTRY : records
-  RESEARCH_NOTE ||--o{ RESEARCH_NOTE_REVIEW : reviewed
-  USER_ACCOUNT ||--o{ RESEARCH_NOTE_REVIEW : performs
+  PROJECT ||--o{ RESEARCH_NOTE : owns
+  RND_PROGRAM ||--o{ RESEARCH_NOTE : contextualizes
+  RESEARCH_NOTE ||--o{ RESEARCH_NOTE_ENTRY_VERSION : versions
+  RESEARCH_NOTE_ENTRY_VERSION ||--o{ RESEARCH_NOTE_ENTRY_ATTACHMENT : evidences
+  ATTACHMENT ||--o{ RESEARCH_NOTE_ENTRY_ATTACHMENT : exact_file
+  RESEARCH_NOTE_ENTRY_VERSION ||--o{ RESEARCH_NOTE_SENIOR_REVIEW : reviews
+  USER_ACCOUNT ||--o{ RESEARCH_NOTE_SENIOR_REVIEW : performs
+  RESEARCH_NOTE_ENTRY_VERSION ||--o| RESEARCH_NOTE_PDF_MANIFEST : renders
+  ATTACHMENT ||--o{ RESEARCH_NOTE_PDF_MANIFEST : private_output
+  RESEARCH_NOTE_ENTRY_VERSION ||--o| RESEARCH_NOTE_FINALIZATION : finalizes
+  RESEARCH_NOTE_FINALIZATION ||--o{ RESEARCH_NOTE_PDF_MANIFEST : anchors
+  USER_ACCOUNT ||--o{ RESEARCH_NOTE_FINALIZATION : directs
 
   RND_PROGRAM {
     uuid id PK
@@ -919,31 +924,85 @@ erDiagram
   RESEARCH_NOTE {
     uuid id PK
     string note_no UK
-    uuid author_id FK
-    date research_date
+    uuid project_id FK
+    uuid rnd_program_id FK
+    uuid author_user_id FK
+    uuid assigned_senior_user_id FK
+    uuid current_entry_version_id FK
+    int current_entry_no
+    enum security_level
     enum state
+    int version_no
   }
-  RESEARCH_NOTE_ENTRY {
+  RESEARCH_NOTE_ENTRY_VERSION {
     uuid id PK
     uuid research_note_id FK
-    int sequence_no
-    enum entry_type
-    uuid corrects_entry_id FK
-    json editor_content
-    string checksum
+    int entry_no
+    enum entry_kind
+    uuid prior_entry_version_id FK
+    uuid corrects_entry_version_id FK
+    date research_date
+    string title
+    string objective
+    string method
+    string observations
+    string results
+    string conclusion
+    string content_checksum
+    enum state
+    string sealed_snapshot_checksum
+    datetime sealed_at
   }
-  RESEARCH_NOTE_REVIEW {
+  RESEARCH_NOTE_ENTRY_ATTACHMENT {
+    uuid entry_version_id FK
+    uuid attachment_id FK
+    int attachment_row_version
+    string attachment_checksum
+    string purpose_code
+  }
+  RESEARCH_NOTE_SENIOR_REVIEW {
     uuid id PK
     uuid research_note_id FK
-    uuid reviewer_id FK
+    uuid entry_version_id FK
+    string entry_checksum
+    uuid reviewer_user_id FK
+    uuid position_assignment_id FK
     enum outcome
+    string opinion
     datetime reviewed_at
+  }
+  RESEARCH_NOTE_PDF_MANIFEST {
+    uuid id PK
+    uuid research_note_id FK
+    uuid finalization_id FK
+    uuid entry_version_id FK
+    string entry_checksum
+    string renderer_id
+    string renderer_version
+    int page_count
+    string pdf_checksum
+    string manifest_checksum
+    uuid attachment_id FK
+    int attachment_row_version
+    string attachment_checksum
+    datetime rendered_at
+  }
+  RESEARCH_NOTE_FINALIZATION {
+    uuid id PK
+    uuid research_note_id FK
+    uuid entry_version_id FK
+    string entry_checksum
+    uuid director_user_id FK
+    uuid director_position_assignment_id FK
+    datetime finalized_at
   }
 ```
 
 `RND_PROGRAM` has no M11 lifecycle state column or state-machine registry row. Registration, Project linking, budget versioning, expenditure, evidence and deadline events are auditable record changes only; lifecycle commands remain fail-closed under `OD-030`. Expenditure links to Project, ContractVersion or PurchaseResolution through distinct typed relations, and Vendor has no R&D projection or RLS scope path.
 
 Expenditure may use typed join tables such as `EXPENDITURE_PROJECT`, `EXPENDITURE_CONTRACT`, and `EXPENDITURE_PURCHASE`; it must not use an unchecked generic foreign ID.
+
+M12에서 `RESEARCH_NOTE`는 정확히 한 Project와 작성자를 요구하고 선택적으로 하나의 typed `RND_PROGRAM` 문맥을 가진다. 핵심 연구내용은 `RESEARCH_NOTE_ENTRY_VERSION`의 typed column에 저장하며 범용 JSON에 축약하지 않는다. 제출 시 entry와 첨부 exact tuple을 봉인하고, 선임연구원 검토는 공식 결재가 아닌 별도 불변 증거로 기록한다. 연구소장 최종확정은 exact 봉인 엔트리를 먼저 고정하고, 이후 private PDF manifest가 그 finalization과 포함 entry/attachment exact tuple을 참조한다. 최종확정본은 갱신하지 않고 한 개의 정정 또는 추가 엔트리가 직접 이전 버전과 정정 대상을 가리킨다.
 
 ## 8. Safety and Research Allowance Evidence
 

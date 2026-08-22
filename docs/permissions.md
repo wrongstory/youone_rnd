@@ -250,6 +250,10 @@ M11 Purchase/R&D permissions:
 
 Representative approval must not be injected by the generic default line because ResearchNote uses the dedicated finalization workflow policy.
 
+M12의 `RESEARCH_NOTE_LIST_INTERNAL_V1`과 `RESEARCH_NOTE_DETAIL_INTERNAL_V1`은 내부 전용 allowlist projection이다. 목록에는 원문/editor content, Attachment 저장좌표와 URL/token이 없고, 상세도 exact Entry/PDF manifest 식별·무결성 metadata만 제공한다. Vendor는 Project나 R&D 연결이 있어도 ResearchNote projection과 명령에서 거부된다. `Admin-System`은 정책·운영 metadata 권한만으로 Entry 원문이나 private Attachment 내용을 읽을 수 없다.
+
+명령은 활성 내부계정, author/assigned Senior/Lab Director 역할, exact Project/R&D 관계, 현재 상태와 optimistic version을 서버와 DB에서 재검증한다. Senior와 Representative는 finalization을 수행할 수 없으며, Lab Director 권한도 확정된 원본을 수정하거나 PDF evidence를 교체하는 권한으로 확장되지 않는다.
+
 ## 13. Field-Level Projection
 
 Field projection policies are versioned server rules.

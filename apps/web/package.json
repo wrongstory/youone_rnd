@@ -15,6 +15,7 @@
     "@youone/feature-quality": "workspace:*",
     "@youone/feature-project": "workspace:*",
     "@youone/feature-purchase": "workspace:*",
+    "@youone/feature-research-note": "workspace:*",
     "@youone/feature-rnd": "workspace:*",
     "@youone/shared-kernel": "workspace:*",
     "@youone/ui": "workspace:*",

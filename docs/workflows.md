@@ -186,6 +186,8 @@ Workflow ID: `WF-RESEARCH-NOTE-V1`.
 
 No Representative approval step is added.
 
+M12는 이 흐름을 `SM-RESEARCH-NOTE-V1`의 명시적 전이로 구현한다. Senior review를 건너뛰는 경로와 review 후 진행 경로는 모두 exact Entry snapshot에 대한 Lab Director finalization으로 합류한다. 확정 후 correction/addendum는 원본을 덮어쓰지 않으며, PDF bundle은 renderer 식별자·버전, Entry checksum, 포함 Attachment checksum과 최종 manifest/output checksum을 보존한다.
+
 ## 11. Technical Document Temporary Access
 
 Workflow ID: `WF-TECHDOC-ACCESS-V1`.

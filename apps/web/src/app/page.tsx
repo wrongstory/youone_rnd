@@ -54,6 +54,11 @@ const availablePages = [
     href: "/rnd-programs",
     label: "R&D 과제관리",
     description: "과제별 예산·집행·증빙·보고기한과 집행률을 확인합니다."
+  },
+  {
+    href: "/research-notes",
+    label: "연구노트",
+    description: "작성·선택적 선임검토·연구소장 확정·불변 PDF 증빙 이력을 확인합니다."
   }
 ] as const;
 
@@ -65,12 +70,12 @@ export default function HomePage() {
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <PreviewNotice />
         <p className="summary">
-          M00부터 M10까지 개발 통합 브랜치에 병합했고, 현재 M11 구매·R&amp;D 예산·집행·증빙 기반을 개발하고 있습니다.
+          M00부터 M11까지 개발 통합 브랜치에 병합했고, 현재 M12 경량 연구노트와 불변 PDF 증빙을 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M11
+          IMPLEMENTATION_ACTIVE · M12
         </div>
       </section>
 

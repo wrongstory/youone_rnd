@@ -323,6 +323,8 @@ States: `DRAFT`, `SENIOR_REVIEW_PENDING`, `REVISION_REQUIRED`, `DIRECTOR_FINALIZ
 
 Original content remains immutable. No Representative approval transition exists.
 
+M12는 이 machine을 물리 registry와 guarded command로 구현한다. `EVT-NOTE-SUBMIT-DIRECTOR`는 Senior review를 생략하는 명시적 경로이며, `EVT-NOTE-REVIEWED`는 review evidence일 뿐 Approval action이 아니다. 모든 전이는 현재 state·actor·exact Entry version·optimistic aggregate version을 확인하고 transition history, audit, outbox를 같은 transaction에 기록한다. 확정 후에는 원본 update/delete를 거부하고 direct linked correction/addendum만 허용한다.
+
 ## 12. Technical Document Access Grant
 
 Machine: `SM-TECHDOC-GRANT-V1`.
