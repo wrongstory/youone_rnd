@@ -5,8 +5,8 @@
 ## Current delivery
 
 - Phase: `IMPLEMENTATION_ACTIVE`
-- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, `M08` Requirement/Test/Inspection in PR #26, `M09` NCR/CAR in PR #27, `M10` ECR/ECO in PR #29, `M11` Purchase/R&D in PR #30, and `M12` ResearchNote in PR #31 (`dev`)
-- Active merge item: `M13` Safety Light assignment, inspection, training, and incident investigation
+- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, `M08` Requirement/Test/Inspection in PR #26, `M09` NCR/CAR in PR #27, `M10` ECR/ECO in PR #29, `M11` Purchase/R&D in PR #30, `M12` ResearchNote in PR #31, and `M13` Safety Light in PR #32 (`dev`)
+- Active merge item: `M14` L3/L4 controlled-copy watermark, internal printing, and custody ledger
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
 
 ## Branch model

@@ -1270,6 +1270,10 @@ erDiagram
 
 M02 physical tables keep actor/effective-actor UUID snapshots without a `USER_ACCOUNT` FK until M03 and never use cascading evidence deletion. Audit and transition rows are insert-only. Outbox identity, event body, schema, correlation, and idempotency fields are immutable after insert; protected worker operations may change only lease/retry/delivery fields. Business state/action/event definitions are registered by their owning feature migration, not pre-populated by M02.
 
+M14 physically adds `TECHNICAL_DOCUMENT_COPY`, the exact typed `APPROVAL_SUBJECT_TECHNICAL_COPY_REQUEST`, Project/Contract scope links, append-only custody events, Vendor projection allowlist and idempotent overdue alerts. The copy root has composite FKs to the exact sealed DocumentVersion and exact private source Attachment tuple/hash. Its immutable request tuple includes recipient/vendor, Project, optional Contract, purpose checksum, return/destruction due time, request checksum/sealed-at, globally unique copy number and optional reprint predecessor/reason.
+
+The typed Approval subject repeats the exact request tuple through a composite FK so a DocumentVersion-only approval cannot authorize a different recipient or purpose. Contract is optional; when present, guarded commands require active VendorMembership + Project grant + Contract grant for the same VendorUser. Render adds a private output Attachment tuple, output hash, renderer version and watermark manifest checksum. Custody events, transition history, audit and outbox are append-only and commit with each state change; Vendor reads use a narrow function projection and never direct source/output table access.
+
 ## 10. Required Physical Constraints
 
 To be defined in migrations after approval:

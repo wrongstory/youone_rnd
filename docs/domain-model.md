@@ -339,6 +339,12 @@ External L3/L4 invariants:
 - The watermark contains recipient/vendor, project, copy number, security level, issuer, print time, and redistribution prohibition.
 - Expiry ends the authorized use and starts return/destruction follow-up; it does not erase the copy ledger.
 
+### M14 physical baseline
+
+M14는 `TechnicalDocumentCopy` root에 exact approved `DocumentVersion` composite tuple, exact private source `Attachment` tuple/hash, immutable recipient/vendor·Project·optional Contract·purpose·return/destruction plan, request checksum/sealed-at, 전역 unique copy number와 optional reprint predecessor/reason을 정규화해 보존한다. 결재는 일반 DocumentVersion 결재를 재사용하는 대신 `TECHNICAL_DOCUMENT_COPY_REQUEST` typed subject로 이 request 전체를 봉인한다.
+
+Project-only 외부 수령인은 active VendorMembership과 exact Project grant를, Contract-bound 수령인은 동일 VendorUser의 exact Contract grant까지 요구한다. Scope evidence는 request/render/print/handover 시점마다 새 immutable snapshot으로 추가한다. 출력물은 private Attachment, source/output hash, renderer ID/version, manifest checksum, 모든 페이지 watermark proof를 갖는다. print/handover/return/destruction evidence와 custody event는 append-only이고 reprint는 기존 row를 갱신하지 않는 새 root다.
+
 ## 11. Safety Management
 
 ### `safety_manager_assignment`
