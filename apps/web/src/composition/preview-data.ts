@@ -1,0 +1,352 @@
+import type { ApprovalDetailView, ApprovalInboxItem } from "@youone/core-approval/public";
+import type {
+  VendorContractBasicDetail,
+  VendorContractFinanceDetail,
+  VendorContractListSafeItem
+} from "@youone/feature-contract/public";
+import type { ProjectDetailView, ProjectListItemView } from "@youone/feature-project/public";
+import type {
+  NcrVendorDetailView,
+  NcrVendorListItemView,
+  VendorInspectionExternalDetail,
+  VendorInspectionExternalListItem
+} from "@youone/feature-quality/public";
+import { stableCode, utcInstant, uuid, version } from "@youone/shared-kernel/public";
+
+export const PREVIEW_IDS = Object.freeze({
+  approvalResearch: "a0000000-0000-4000-8000-000000000001",
+  approvalContract: "a0000000-0000-4000-8000-000000000002",
+  projectBattery: "b0000000-0000-4000-8000-000000000001",
+  projectSensor: "b0000000-0000-4000-8000-000000000002",
+  contractController: "c0000000-0000-4000-8000-000000000001",
+  contractJig: "c0000000-0000-4000-8000-000000000002",
+  inspectionController: "d0000000-0000-4000-8000-000000000001",
+  inspectionJig: "d0000000-0000-4000-8000-000000000002",
+  ncrController: "e0000000-0000-4000-8000-000000000001",
+  ncrJig: "e0000000-0000-4000-8000-000000000002"
+} as const);
+
+export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
+  {
+    approvalInstanceId: uuid(PREVIEW_IDS.approvalResearch),
+    state: "IN_PROGRESS",
+    subjectKind: "RESEARCH_PROJECT_APPLICATION",
+    submitterDisplayName: "김도윤 책임연구원",
+    submittedAt: utcInstant("2026-08-20T01:20:00Z"),
+    pendingRole: "APPROVAL"
+  },
+  {
+    approvalInstanceId: uuid(PREVIEW_IDS.approvalContract),
+    state: "SUBMITTED",
+    subjectKind: "CONTRACT_VERSION",
+    submitterDisplayName: "이서연 연구원",
+    submittedAt: utcInstant("2026-08-21T05:10:00Z"),
+    pendingRole: "REVIEW"
+  }
+]);
+
+const approvalDetails: readonly ApprovalDetailView[] = Object.freeze([
+  {
+    approvalInstanceId: uuid(PREVIEW_IDS.approvalResearch),
+    generation: 1,
+    state: "IN_PROGRESS",
+    subjectKind: "RESEARCH_PROJECT_APPLICATION",
+    subjectVersion: version(1),
+    subjectChecksum: "1".repeat(64),
+    sealedLine: [
+      {
+        stepId: uuid("a1000000-0000-4000-8000-000000000001"),
+        role: "APPROVAL",
+        completionMode: "SEQUENTIAL",
+        required: true,
+        participants: [
+          {
+            participantId: uuid("a2000000-0000-4000-8000-000000000001"),
+            displayName: "박현우 연구소장",
+            positionId: stableCode("POSITION_LAB_DIRECTOR")
+          }
+        ]
+      }
+    ],
+    timeline: [
+      {
+        actionId: uuid("a3000000-0000-4000-8000-000000000001"),
+        kind: "SUBMIT",
+        at: utcInstant("2026-08-20T01:20:00Z"),
+        actorDisplayName: "김도윤 책임연구원"
+      },
+      {
+        actionId: uuid("a3000000-0000-4000-8000-000000000002"),
+        kind: "ACTIVATE",
+        at: utcInstant("2026-08-20T01:21:00Z"),
+        actorDisplayName: "결재 시스템"
+      }
+    ],
+    actions: [
+      {
+        actionId: stableCode("approval.step.approve"),
+        label: "연구소장 동의",
+        authorized: true,
+        commandAvailable: false,
+        decisionId: uuid("a4000000-0000-4000-8000-000000000001"),
+        evaluatedAt: utcInstant("2026-08-22T00:00:00Z"),
+        evidenceIds: [],
+        obligations: [stableCode("audit.approval.action")]
+      }
+    ]
+  },
+  {
+    approvalInstanceId: uuid(PREVIEW_IDS.approvalContract),
+    generation: 1,
+    state: "SUBMITTED",
+    subjectKind: "CONTRACT_VERSION",
+    subjectVersion: version(2),
+    subjectChecksum: "2".repeat(64),
+    sealedLine: [
+      {
+        stepId: uuid("a1000000-0000-4000-8000-000000000002"),
+        role: "REVIEW",
+        completionMode: "SEQUENTIAL",
+        required: true,
+        participants: [
+          {
+            participantId: uuid("a2000000-0000-4000-8000-000000000002"),
+            displayName: "최민준 구매담당",
+            positionId: stableCode("POSITION_PURCHASE_MANAGER")
+          }
+        ]
+      }
+    ],
+    timeline: [
+      {
+        actionId: uuid("a3000000-0000-4000-8000-000000000003"),
+        kind: "SUBMIT",
+        at: utcInstant("2026-08-21T05:10:00Z"),
+        actorDisplayName: "이서연 연구원"
+      }
+    ],
+    actions: [
+      {
+        actionId: stableCode("approval.step.review"),
+        label: "검토 의견 등록",
+        authorized: true,
+        commandAvailable: false,
+        decisionId: uuid("a4000000-0000-4000-8000-000000000002"),
+        evaluatedAt: utcInstant("2026-08-22T00:00:00Z"),
+        evidenceIds: [],
+        obligations: [stableCode("audit.approval.action")]
+      }
+    ]
+  }
+]);
+
+export function previewApprovalDetail(id: string): ApprovalDetailView | undefined {
+  return approvalDetails.find((item) => item.approvalInstanceId === id);
+}
+
+export const previewProjects: readonly ProjectDetailView[] = Object.freeze([
+  {
+    projectId: PREVIEW_IDS.projectBattery,
+    projectCode: "RND-2026-004",
+    name: "고효율 배터리 냉각모듈 개발",
+    state: "ACTIVE",
+    ownerDisplayName: "김도윤 책임연구원",
+    periodStart: "2026-07-01",
+    periodEnd: "2027-03-31",
+    formalResearch: true,
+    version: 7,
+    objective: "산업용 배터리 팩의 열편차를 15% 이상 개선하는 냉각모듈을 개발합니다.",
+    visibilityCode: "INTERNAL_PROJECT",
+    members: [
+      { userId: "user-kim", displayName: "김도윤", projectRoleId: "PROJECT_PM", state: "ACTIVE" },
+      { userId: "user-lee", displayName: "이서연", projectRoleId: "RESEARCHER", state: "ACTIVE" }
+    ],
+    productLinks: [{ productId: "BATTERY-COOLING-V2", relationType: "TARGET_PRODUCT" }],
+    rndProgramLinks: [{ rndProgramId: "FORMAL-RND-2026-02", relationType: "DESIGNATED_RESEARCH" }],
+    wbs: [
+      { wbsNodeId: "wbs-battery-1", nodeKind: "MILESTONE", title: "요구사항·열설계 확정", state: "DONE", progressPercent: 100, version: 4 },
+      { wbsNodeId: "wbs-battery-2", nodeKind: "TASK", title: "1차 시제품 제작", state: "IN_PROGRESS", progressPercent: 65, version: 5 },
+      { wbsNodeId: "wbs-battery-3", parentId: "wbs-battery-2", nodeKind: "TASK", title: "냉각채널 가공", state: "REVIEW_REQUIRED", progressPercent: 90, version: 3 },
+      { wbsNodeId: "wbs-battery-4", nodeKind: "MILESTONE", title: "성능검증 및 연구노트 종결", state: "BACKLOG", progressPercent: 0, version: 1 }
+    ]
+  },
+  {
+    projectId: PREVIEW_IDS.projectSensor,
+    projectCode: "PJT-2026-011",
+    name: "압력센서 검사 자동화 개선",
+    state: "PLANNED",
+    ownerDisplayName: "정수빈 연구원",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-12-15",
+    formalResearch: false,
+    version: 2,
+    objective: "수작업 검사기록을 자동 수집하고 불량 추적 시간을 단축합니다.",
+    visibilityCode: "INTERNAL_PROJECT",
+    members: [{ userId: "user-jung", displayName: "정수빈", projectRoleId: "PROJECT_OWNER", state: "ACTIVE" }],
+    productLinks: [],
+    rndProgramLinks: [],
+    wbs: [
+      { wbsNodeId: "wbs-sensor-1", nodeKind: "TASK", title: "현행 검사공정 분석", state: "READY", progressPercent: 10, version: 2 },
+      { wbsNodeId: "wbs-sensor-2", nodeKind: "TASK", title: "자동수집 인터페이스 설계", state: "BACKLOG", progressPercent: 0, version: 1 }
+    ]
+  }
+]);
+
+export const previewProjectList: readonly ProjectListItemView[] = previewProjects;
+
+export const previewContracts: readonly VendorContractBasicDetail[] = Object.freeze([
+  {
+    contractId: PREVIEW_IDS.contractController,
+    contractNo: "CT-2026-018",
+    vendorId: "vendor-hanseong",
+    vendorName: "한성정밀",
+    title: "냉각모듈 제어기 시제품 제작",
+    state: "ACTIVE",
+    effectiveFrom: "2026-08-01",
+    effectiveTo: "2026-11-30",
+    projectIds: [PREVIEW_IDS.projectBattery],
+    currentVersionNo: 2,
+    version: 5,
+    statementOfWorkDocumentVersionId: "doc-sow-controller-v2",
+    milestones: [
+      { contractMilestoneId: "milestone-controller-1", sequenceNo: 1, milestoneCode: "M1", title: "회로·기구 설계", dueDate: "2026-09-05" },
+      { contractMilestoneId: "milestone-controller-2", sequenceNo: 2, milestoneCode: "M2", title: "시제품 5대 납품", dueDate: "2026-10-20" }
+    ],
+    deliverables: [
+      { deliverableId: "deliverable-controller-design", contractMilestoneId: "milestone-controller-1", deliverableCode: "DLV-001", title: "제어기 설계 패키지", state: "UNDER_REVIEW", submittedVersionId: "deliverable-controller-design-v3" },
+      { deliverableId: "deliverable-controller-sample", contractMilestoneId: "milestone-controller-2", deliverableCode: "DLV-002", title: "제어기 시제품 5대", state: "IN_PROGRESS" }
+    ],
+    guarantees: [{ guaranteeId: "guarantee-controller-1", guaranteeTypeCode: "PERFORMANCE_BOND", validFrom: "2026-08-01", validTo: "2026-12-31", state: "ACTIVE" }],
+    warrantyIssues: []
+  },
+  {
+    contractId: PREVIEW_IDS.contractJig,
+    contractNo: "CT-2026-021",
+    vendorId: "vendor-mirae",
+    vendorName: "미래테크",
+    title: "센서 검사 지그 제작",
+    state: "APPROVAL_PENDING",
+    effectiveFrom: "2026-09-01",
+    projectIds: [PREVIEW_IDS.projectSensor],
+    currentVersionNo: 1,
+    version: 3,
+    milestones: [{ contractMilestoneId: "milestone-jig-1", sequenceNo: 1, milestoneCode: "M1", title: "검사 지그 납품", dueDate: "2026-10-15" }],
+    deliverables: [{ deliverableId: "deliverable-jig", contractMilestoneId: "milestone-jig-1", deliverableCode: "DLV-001", title: "자동 검사 지그 1식", state: "EXPECTED" }],
+    guarantees: [],
+    warrantyIssues: []
+  }
+]);
+
+export const previewContractList: readonly VendorContractListSafeItem[] = previewContracts;
+
+export function previewContractFinance(contractId: string): VendorContractFinanceDetail | undefined {
+  if (contractId !== PREVIEW_IDS.contractController) return undefined;
+  return {
+    contractId,
+    contractVersionId: "contract-controller-v2",
+    contractAmount: { amount: "48000000", currency: "KRW" },
+    milestones: [
+      { contractMilestoneId: "milestone-controller-1", sequenceNo: 1, plannedAmount: { amount: "19200000", currency: "KRW" }, plannedRatio: "40" },
+      { contractMilestoneId: "milestone-controller-2", sequenceNo: 2, plannedAmount: { amount: "28800000", currency: "KRW" }, plannedRatio: "60" }
+    ],
+    policyProvenance: {
+      presetPolicyId: "CONTRACT_PAYMENT_STANDARD",
+      presetPolicyVersion: 1,
+      legalBaselineId: "LEGAL-BASELINE-2026-01",
+      legalBaselineVersion: 1,
+      overrideApplied: false,
+      approvalInstanceId: PREVIEW_IDS.approvalContract
+    }
+  };
+}
+
+export const previewInspections: readonly VendorInspectionExternalDetail[] = Object.freeze([
+  {
+    inspectionId: PREVIEW_IDS.inspectionController,
+    inspectionNo: "INS-2026-032",
+    inspectionTypeCode: "DELIVERABLE_ACCEPTANCE",
+    contractId: PREVIEW_IDS.contractController,
+    contractMilestoneId: "milestone-controller-1",
+    deliverableId: "deliverable-controller-design",
+    deliverableVersionId: "deliverable-controller-design-v3",
+    state: "CORRECTION_REQUIRED",
+    latestExternalDisposition: "CONDITIONAL_ACCEPTANCE",
+    version: 6,
+    correctionRequest: {
+      inspectionId: PREVIEW_IDS.inspectionController,
+      inspectionAttemptId: "inspection-attempt-controller-2",
+      requestedAt: "2026-08-21T06:30:00Z",
+      reason: "EMI 시험성적서와 커넥터 사양 근거를 보완해 주세요.",
+      dueAt: "2026-08-28T09:00:00Z"
+    },
+    attemptHistory: [
+      { inspectionAttemptId: "inspection-attempt-controller-1", attemptNo: 1, disposition: "CORRECTION_REQUESTED", achievementPercent: "72", sealedAt: "2026-08-18T07:10:00Z", residualConditions: [] },
+      {
+        inspectionAttemptId: "inspection-attempt-controller-2",
+        attemptNo: 2,
+        disposition: "CONDITIONAL_ACCEPTANCE",
+        achievementPercent: "91",
+        sealedAt: "2026-08-21T06:20:00Z",
+        residualConditions: [
+          { conditionCode: stableCode("EMI_REPORT_REQUIRED"), description: "EMI 시험성적서 제출", dueAt: utcInstant("2026-08-28T09:00:00Z"), evidenceIds: [] }
+        ]
+      }
+    ]
+  },
+  {
+    inspectionId: PREVIEW_IDS.inspectionJig,
+    inspectionNo: "INS-2026-029",
+    inspectionTypeCode: "RECEIPT_INSPECTION",
+    contractId: PREVIEW_IDS.contractJig,
+    contractMilestoneId: "milestone-jig-1",
+    deliverableId: "deliverable-jig",
+    deliverableVersionId: "deliverable-jig-v1",
+    state: "COMPLETED",
+    latestExternalDisposition: "PARTIAL_ACCEPTANCE",
+    version: 4,
+    attemptHistory: [
+      { inspectionAttemptId: "inspection-attempt-jig-1", attemptNo: 1, disposition: "PARTIAL_ACCEPTANCE", achievementPercent: "86", sealedAt: "2026-08-19T02:15:00Z", residualConditions: [] }
+    ]
+  }
+]);
+
+export const previewInspectionList: readonly VendorInspectionExternalListItem[] = previewInspections;
+
+export const previewNcrs: readonly NcrVendorDetailView[] = Object.freeze([
+  {
+    ncrId: PREVIEW_IDS.ncrController,
+    ncrNo: "NCR-2026-014",
+    severity: "MAJOR",
+    state: "IMPLEMENTING",
+    contractId: PREVIEW_IDS.contractController,
+    deliverableVersionId: "deliverable-controller-design-v3",
+    dueAt: "2026-08-30T09:00:00Z",
+    scopeSummary: "CT-2026-018 / 제어기 설계 패키지",
+    containmentSummary: "EMI 검증 완료 전 해당 설계버전 생산 적용 보류",
+    version: 8,
+    sourceLinks: [{ kind: "INSPECTION_ATTEMPT", externalReference: "INS-2026-032 / Attempt 2" }],
+    assignedCars: [
+      { carId: "car-controller-1", carNo: "CAR-2026-019", required: true, rootCause: "부품 변경 시 검증항목 연계 절차 누락", actionPlan: "BOM 변경 체크리스트에 EMI 재검증 Gate 추가", dueAt: "2026-08-27T09:00:00Z", state: "IN_PROGRESS", implementationEvidenceRequired: true, version: 3 },
+      { carId: "car-controller-2", carNo: "CAR-2026-020", required: true, rootCause: "시험성적서 제출 책임자 미지정", actionPlan: "납품 패키지별 증빙 책임자 지정", dueAt: "2026-08-29T09:00:00Z", state: "ACCEPTED", implementationEvidenceRequired: true, version: 2 }
+    ]
+  },
+  {
+    ncrId: PREVIEW_IDS.ncrJig,
+    ncrNo: "NCR-2026-011",
+    severity: "MINOR",
+    state: "VERIFICATION",
+    contractId: PREVIEW_IDS.contractJig,
+    deliverableVersionId: "deliverable-jig-v1",
+    dueAt: "2026-08-25T09:00:00Z",
+    scopeSummary: "CT-2026-021 / 자동 검사 지그",
+    containmentSummary: "보정 라벨 재발행 및 기존 라벨 격리",
+    version: 9,
+    sourceLinks: [{ kind: "DELIVERABLE_VERSION", externalReference: "DLV-001 v1" }],
+    assignedCars: [
+      { carId: "car-jig-1", carNo: "CAR-2026-016", required: true, rootCause: "라벨 출력 템플릿 버전 통제 누락", actionPlan: "승인 템플릿만 출력되도록 배포 경로 고정", dueAt: "2026-08-23T09:00:00Z", state: "VERIFICATION_REQUIRED", implementationEvidenceRequired: true, version: 5 }
+    ]
+  }
+]);
+
+export const previewNcrList: readonly NcrVendorListItemView[] = previewNcrs;
+

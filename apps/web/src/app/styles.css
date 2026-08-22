@@ -22,7 +22,7 @@ body {
 .hero,
 .pageDirectory,
 .principles {
-  width: min(100%, 760px);
+  width: min(100%, 920px);
   margin-inline: auto;
   border: 1px solid #ccdcda;
   border-radius: 20px;
@@ -71,6 +71,45 @@ body {
 
 .hero {
   padding: 36px 24px;
+}
+
+.backLink {
+  display: inline-flex;
+  margin-bottom: 24px;
+  color: #0f6b71;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.previewNotice {
+  display: flex;
+  gap: 8px 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  border: 1px solid #e4b758;
+  border-radius: 12px;
+  background: #fff9e8;
+  padding: 12px 14px;
+  color: #604817;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.previewNotice strong {
+  border-radius: 999px;
+  background: #f0c96e;
+  padding: 4px 9px;
+  color: #392800;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
 }
 
 .eyebrow {
@@ -122,6 +161,217 @@ h1 {
   background: #0b8f7d;
 }
 
+.recordGrid {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recordCard {
+  border: 1px solid #ccdcda;
+  border-radius: 16px;
+  background: #fbfdfc;
+  padding: 18px;
+}
+
+.recordCard > a {
+  display: grid;
+  gap: 7px;
+  color: #102a2e;
+  text-decoration: none;
+}
+
+.recordCard > a:hover strong,
+.recordCard > a:focus-visible strong {
+  color: #0f6b71;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.recordCard > a:focus-visible {
+  border-radius: 8px;
+  outline: 3px solid rgb(15 107 113 / 18%);
+  outline-offset: 5px;
+}
+
+.recordCard strong {
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.recordEyebrow {
+  color: #0f6b71;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.recordMeta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.recordMeta span {
+  border-radius: 999px;
+  background: #edf4f3;
+  padding: 6px 9px;
+  color: #456268;
+  font-size: 0.78rem;
+}
+
+.detailTitle {
+  margin: 28px 0 8px;
+  font-size: 1.45rem;
+  line-height: 1.35;
+}
+
+.factGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 26px 0 0;
+  border: 1px solid #d8e3e1;
+  border-radius: 14px;
+  background: #d8e3e1;
+}
+
+.factGrid div {
+  min-width: 0;
+  background: #f8fbfa;
+  padding: 14px;
+}
+
+.factGrid dt {
+  margin-bottom: 6px;
+  color: #60777b;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.factGrid dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: #102a2e;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.detailSection {
+  margin-top: 34px;
+}
+
+.detailSection h2 {
+  margin-bottom: 14px;
+  font-size: 1.05rem;
+}
+
+.timelineList,
+.workList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timelineList li,
+.workList li {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #d8e3e1;
+  border-radius: 13px;
+  background: #fbfdfc;
+  padding: 14px;
+}
+
+.timelineList span,
+.workList span {
+  color: #456268;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.workList li {
+  grid-template-columns: minmax(0, 1fr) 88px 40px;
+  align-items: center;
+}
+
+.workList li > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.progressTrack {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #dce9e6;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #0b8f7d;
+}
+
+.workList b {
+  color: #0f6b71;
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.policyCallout {
+  margin-top: 24px;
+  border-left: 4px solid #0f6b71;
+  border-radius: 10px;
+  background: #edf7f5;
+  padding: 16px;
+  color: #29484d;
+}
+
+.policyCallout.warning {
+  border-left-color: #d29b44;
+  background: #fff8e9;
+}
+
+.policyCallout p {
+  margin: 7px 0 0;
+  line-height: 1.6;
+}
+
+.policyCallout span {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.82rem;
+}
+
+.actionRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actionRow button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+}
+
+.actionRow button:disabled {
+  background: #e8eeed;
+  color: #708286;
+}
+
 .principles {
   margin-top: 18px;
   padding: 24px;
@@ -169,5 +419,19 @@ h1 {
 
   .principles ul {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .recordGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .factGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .workList li {
+    grid-template-columns: minmax(0, 1fr) 64px 36px;
   }
 }

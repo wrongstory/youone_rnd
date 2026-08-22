@@ -1,6 +1,5 @@
 import { availableContractList, unavailableContractList } from "@youone/ui/public";
-import Link from "next/link";
-
+import { PageBackLink, PreviewNotice, RecordCard, RecordGrid } from "../../interface/preview-ui";
 import { vendorContractQuery } from "./query";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +20,10 @@ export default async function ContractsPage() {
   return (
     <main className="shell">
       <section className="hero" aria-labelledby="contracts-title">
+        <PageBackLink />
         <p className="eyebrow">VENDOR CONTRACT · SM-VENDOR-CONTRACT-V1</p>
         <h1 id="contracts-title">외주 계약</h1>
+        <PreviewNotice />
         <div className="status" role="status" data-availability={view.availability}>{view.message}</div>
         {view.availability === "UNAVAILABLE" ? (
           <p className="summary">
@@ -31,14 +32,11 @@ export default async function ContractsPage() {
             계약만 조회할 수 있습니다.
           </p>
         ) : (
-          <ul>
+          <RecordGrid>
             {view.items.map((contract) => (
-              <li key={contract.id}>
-                <Link href={`/contracts/${contract.id}`}>{contract.contractNo} · {contract.vendorName}</Link>
-                {` · ${contract.state} · 연결 프로젝트 ${contract.projectCount}개 · ${contract.currentVersionNo === undefined ? "계약버전 미확정" : `v${contract.currentVersionNo}`}`}
-              </li>
+              <RecordCard key={contract.id} href={`/contracts/${contract.id}`} eyebrow={`${contract.contractNo} · ${contract.vendorName}`} title={contract.contractNo === "CT-2026-018" ? "냉각모듈 제어기 시제품 제작" : "센서 검사 지그 제작"} meta={[`상태 ${contract.state}`, `연결 프로젝트 ${contract.projectCount}개`, contract.currentVersionNo === undefined ? "계약버전 미확정" : `계약 v${contract.currentVersionNo}`]} />
             ))}
-          </ul>
+          </RecordGrid>
         )}
       </section>
     </main>

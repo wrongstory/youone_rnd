@@ -5,6 +5,9 @@ import type {
   VendorContractQueryPort
 } from "@youone/feature-contract/public";
 
+import { previewContractFinance, previewContractList, previewContracts } from "../../composition/preview-data";
+import { previewDataEnabled } from "../../composition/preview-mode";
+
 class UnavailableVendorContractQuery implements VendorContractQueryPort {
   async listSafe(): Promise<ContractListSafeResult> {
     return { availability: "UNAVAILABLE", items: [], reason: "QUERY_ADAPTER_NOT_CONFIGURED" };
@@ -21,6 +24,22 @@ class UnavailableVendorContractQuery implements VendorContractQueryPort {
   }
 }
 
-export function vendorContractQuery(): VendorContractQueryPort {
-  return new UnavailableVendorContractQuery();
+class PreviewVendorContractQuery implements VendorContractQueryPort {
+  async listSafe(): Promise<ContractListSafeResult> {
+    return { availability: "AVAILABLE", items: previewContractList };
+  }
+
+  async getBasicDetail(contractId: string): Promise<ContractBasicDetailResult> {
+    const detail = previewContracts.find((contract) => contract.contractId === contractId);
+    return detail ? { availability: "AVAILABLE", detail } : { availability: "NOT_FOUND", detail: null };
+  }
+
+  async getFinanceDetail(contractId: string): Promise<ContractFinanceDetailResult> {
+    const detail = previewContractFinance(contractId);
+    return detail ? { availability: "AVAILABLE", detail } : { availability: "NOT_FOUND", detail: null };
+  }
+}
+
+export function vendorContractQuery(usePreviewData = previewDataEnabled()): VendorContractQueryPort {
+  return usePreviewData ? new PreviewVendorContractQuery() : new UnavailableVendorContractQuery();
 }

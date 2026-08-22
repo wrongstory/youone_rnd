@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PreviewNotice } from "../interface/preview-ui";
+
 const foundations = [
   "Deny-by-Default 외주 Scope",
   "불변 결재·문서 증빙",
@@ -11,32 +13,32 @@ const availablePages = [
   {
     href: "/approvals",
     label: "내 결재함",
-    description: "M04 공통 결재 엔진의 안전한 조회 경계와 미연결 상태를 확인합니다."
+    description: "정식 연구과제 승격과 계약 결재 샘플을 확인합니다."
   },
   {
     href: "/documents",
     label: "내 문서",
-    description: "M05 문서 엔진의 비공개·권한 우선 조회 경계를 확인합니다."
+    description: "승인 문서·검토본·연구노트와 보안등급별 접근 안내를 확인합니다."
   },
   {
     href: "/projects",
     label: "프로젝트",
-    description: "M06 일반 프로젝트·자유계층 WBS·정식 연구과제 승격 경계를 확인합니다."
+    description: "일반 프로젝트·정식 연구과제와 WBS 진행현황을 확인합니다."
   },
   {
     href: "/contracts",
     label: "외주 계약",
-    description: "M07 업체·계약 Scope와 기본/재무 조회 분리 경계를 확인합니다."
+    description: "업체·계약 Scope와 납품항목 진행현황을 확인합니다."
   },
   {
     href: "/inspections",
     label: "검수 현황",
-    description: "M08 버전 고정 체크리스트·검수 판정과 외부용 안전 조회 경계를 확인합니다."
+    description: "검수 판정·달성도·시정요청과 봉인 이력을 확인합니다."
   },
   {
     href: "/non-conformances",
     label: "NCR/CAR",
-    description: "M09 부적합·시정조치·독립 효과검증과 외주 Scope 경계를 확인합니다."
+    description: "부적합·즉시조치·CAR 수행과 외주 안전 조회를 확인합니다."
   }
 ] as const;
 
@@ -46,6 +48,7 @@ export default function HomePage() {
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">YOUONE R&amp;D · P0 FOUNDATION</p>
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
+        <PreviewNotice />
         <p className="summary">
           M00부터 M08까지 병합을 완료했고, 현재 M09 NCR/CAR 부적합·시정조치·효과검증 기반을 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.

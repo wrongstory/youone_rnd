@@ -1,6 +1,5 @@
 import { availableNonConformanceList, unavailableNonConformanceList } from "@youone/ui/public";
-import Link from "next/link";
-
+import { PageBackLink, PreviewNotice, RecordCard, RecordGrid } from "../../interface/preview-ui";
 import { ncrCarQuery } from "./query";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +21,10 @@ export default async function NonConformancesPage() {
   return (
     <main className="shell">
       <section className="hero" aria-labelledby="ncr-title">
+        <PageBackLink />
         <p className="eyebrow">NCR/CAR · SM-NCR-V1 · SM-CAR-V1</p>
         <h1 id="ncr-title">부적합 및 시정조치</h1>
+        <PreviewNotice />
         <div className="status" role="status" data-availability={view.availability}>{view.message}</div>
         {view.availability === "UNAVAILABLE" ? (
           <p className="summary">
@@ -32,14 +33,11 @@ export default async function NonConformancesPage() {
             포함하지 않습니다.
           </p>
         ) : (
-          <ul>
+          <RecordGrid>
             {view.items.map((ncr) => (
-              <li key={ncr.id}>
-                <Link href={`/non-conformances/${ncr.id}`}>{ncr.ncrNo}</Link>
-                {` · ${ncr.severity} · ${ncr.state}${ncr.dueAt ? ` · 기한 ${ncr.dueAt}` : ""}`}
-              </li>
+              <RecordCard key={ncr.id} href={`/non-conformances/${ncr.id}`} eyebrow={`${ncr.ncrNo} · ${ncr.severity}`} title={ncr.ncrNo === "NCR-2026-014" ? "EMI 검증 증빙 누락" : "검사 지그 보정 라벨 오류"} meta={[`상태 ${ncr.state}`, ncr.dueAt ? `조치기한 ${ncr.dueAt}` : "기한 미지정"]} />
             ))}
-          </ul>
+          </RecordGrid>
         )}
       </section>
     </main>

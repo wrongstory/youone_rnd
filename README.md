@@ -22,6 +22,8 @@ pnpm dev
 pnpm check
 ```
 
+화면 검토용 샘플 데이터는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`일 때만 표시된다. `apps/web/.env.local`에서 로컬 검토 모드를 켤 수 있으며, 모든 샘플 화면에는 `데모 데이터` 안내가 표시된다. 이 플래그가 없으면 기존처럼 조회 어댑터가 fail-closed `UNAVAILABLE`을 반환한다. 실제 운영 환경에서는 활성화하지 않는다.
+
 `apps/web` is the Next.js App Router interface/composition boundary. `apps/worker` is the isolated background-job entry point. Domain and Application packages must not import Next.js, React, Supabase, Storage, or browser SDKs.
 
 The machine-readable P0 package inventory, layer, owner, and first delivery item live in `config/package-boundaries.json`. PostgreSQL migrations are global and ordered; request Auth and privileged service Auth use separate infrastructure exports.

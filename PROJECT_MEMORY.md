@@ -65,7 +65,9 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M08`은 Requirement/Revision, TestPlan/Result, weighted InspectionChecklistVersion/Criterion, immutable InspectionAttempt/CriterionResult 및 AcceptancePaymentDecision/PaymentRateAdjustment를 구현했고 PR #26으로 `main`에 병합됐다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률을 별도 보존하며, critical 실패는 점수만으로 완전합격될 수 없다. 조건부합격은 잔여조건·기한·보류액, 부분합격은 독립 사용가능분·미지급 잔액을 exact snapshot으로 가진다. 조정은 사유·증거·공식 결재 snapshot이 필요하며 지급 가능 상태는 외부 송금이나 회계 실행을 뜻하지 않는다.
 
-`M09` 후보는 exact source와 evidence를 가진 NCR, 복수 CAR, containment, root-cause/action plan, 독립 효과검증, ineffective 재작업, close/reopen 이력을 구현한다. 책임 평가는 `PRELIMINARY`/`DISPUTED`/`FINAL`을 분리하고, 외주업체는 정확한 활성 VendorMembership 및 Project/Contract Scope와 책임 할당이 있을 때만 허용된 수행 명령을 사용할 수 있다. NCR/CAR의 검토·종료가 계약 책임을 면제하거나 계약 상태를 자동 변경하지 않는다.
+`M09` PR #27은 exact source와 evidence를 가진 NCR, 복수 CAR, containment, root-cause/action plan, 독립 효과검증, ineffective 재작업, close/reopen 이력을 구현한다. 책임 평가는 `PRELIMINARY`/`DISPUTED`/`FINAL`을 분리하고, 외주업체는 정확한 활성 VendorMembership 및 Project/Contract Scope와 책임 할당이 있을 때만 허용된 수행 명령을 사용할 수 있다. NCR/CAR의 검토·종료가 계약 책임을 면제하거나 계약 상태를 자동 변경하지 않는다.
+
+로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
