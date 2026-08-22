@@ -876,15 +876,15 @@ returns uuid language plpgsql security definer set search_path=pg_catalog,public
  perform app_private.append_audit(target_audit,'rnd.budget.manage','RND_BUDGET',b.id,v.version_no,'SUCCEEDED','RND-BUDGET-LINE-ADDED',target_line,null,null,null,target_time);return target_line;
 end $$;
 create or replace function public.seal_rnd_budget(target_budget uuid,target_audit uuid,target_outbox uuid,target_time timestamptz)
-returns text language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare b public.rnd_budget%rowtype;v public.rnd_budget_version%rowtype;checksum text;begin
+returns text language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare b public.rnd_budget%rowtype;v public.rnd_budget_version%rowtype;computed_checksum text;begin
  perform app_private.m11_assert_internal_mutator('rnd.budget.manage',target_time);select * into strict b from public.rnd_budget where id=target_budget for update;
  select * into strict v from public.rnd_budget_version where id=b.current_version_id for update;
  if v.state<>'DRAFT' or (select coalesce(sum(allocated_amount),0) from public.rnd_budget_line where rnd_budget_version_id=v.id)<>v.total_amount then raise exception 'complete exact BudgetLine allocation required' using errcode='23514';end if;
- checksum:=app_private.canonical_json_sha256(jsonb_build_object('schema','RND_BUDGET_VERSION_V1','id',v.id,'programId',v.rnd_program_id,
+ computed_checksum:=app_private.canonical_json_sha256(jsonb_build_object('schema','RND_BUDGET_VERSION_V1','id',v.id,'programId',v.rnd_program_id,
   'versionNo',v.version_no,'total',v.total_amount,'currency',v.currency,'lines',(select jsonb_agg(jsonb_build_object('id',l.id,'category',l.category_code,
   'amount',l.allocated_amount,'purpose',l.purpose) order by l.category_code) from public.rnd_budget_line l where l.rnd_budget_version_id=v.id)));
- update public.rnd_budget_version set state='SEALED',checksum=checksum,sealed_at=target_time where id=v.id;
- perform app_private.append_rnd_fact(target_audit,target_outbox,'rnd.budget.manage','RND_BUDGET',b.id,v.version_no,'EVT-RND-ADD-BUDGET-VERSION','RND-BUDGET-EXACT-VERSION-SEALED',target_time);return checksum;
+ update public.rnd_budget_version set state='SEALED',checksum=computed_checksum,sealed_at=target_time where id=v.id;
+ perform app_private.append_rnd_fact(target_audit,target_outbox,'rnd.budget.manage','RND_BUDGET',b.id,v.version_no,'EVT-RND-ADD-BUDGET-VERSION','RND-BUDGET-EXACT-VERSION-SEALED',target_time);return computed_checksum;
 end $$;
 create or replace function public.record_rnd_expenditure(target_id uuid,target_no text,target_program uuid,target_budget_version uuid,target_budget_line uuid,
  target_supplier uuid,target_counterparty text,target_spent_on date,target_amount numeric,target_currency char(3),target_purpose text,
@@ -1256,6 +1256,7 @@ revoke all on function app_private.reject_m11_append_only(),app_private.protect_
  app_private.assert_receipt_quantity(),app_private.assert_rnd_expenditure_complete(),app_private.protect_rnd_budget_snapshot(),
  app_private.assert_purchase_policy_selection(uuid,uuid,timestamptz),app_private.assert_exactly_one_rnd_evidence_subject()
 from public,youone_request,youone_privileged_writer;
+grant execute on function app_private.m11_actor_is_hq(timestamptz) to youone_request;
 
 comment on table public.rnd_program is 'OD-030: agreement facts only. No lifecycle state, transition registry, close, reopen, payment, journal, or RCMS command.';
 comment on table public.purchase_external_payment_fact is 'External payment readback evidence only; this system does not issue a transfer or accounting journal.';

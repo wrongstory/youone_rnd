@@ -67,6 +67,7 @@ describe("M11 Purchase/R&D migration contract", () => {
     expect(sql).toContain("force row level security");
     expect(sql).toContain("revoke all on table public.%I from public,youone_request,youone_privileged_writer");
     expect(sql).toContain("HQ Viewer is read-only for Purchase and R&D");
+    expect(sql).toContain("grant execute on function app_private.m11_actor_is_hq(timestamptz) to youone_request");
     expect(sql).toContain("function public.read_purchase_hq");
     expect(sql).toContain("function public.read_rnd_program_summary");
     const projection = sql.slice(sql.indexOf("function public.read_purchase_hq"), sql.indexOf("create or replace function public.submit_approval_instance"));
