@@ -441,6 +441,12 @@ create or replace function app_private.m11_actor_is_hq(target_time timestamptz)
 returns boolean language sql stable security definer set search_path=pg_catalog,public,app_private as $$ select exists(
  select 1 from public.user_role_assignment a join public.role r on r.id=a.role_id and r.stable_code='ROLE_HQ_VIEWER' and r.status='ACTIVE'
  where a.user_id=app_private.current_actor_user_id() and a.revoked_at is null and a.valid_from<=target_time and (a.valid_until is null or a.valid_until>target_time)) $$;
+create or replace function app_private.m11_actor_can_read_rnd(target_time timestamptz)
+returns boolean language sql stable security definer set search_path=pg_catalog,public,app_private as $$ select
+ app_private.required_setting('app.actor_kind')='USER'
+ and app_private.actor_has_permission('rnd.program.read',target_time)
+ and exists(select 1 from public.user_account u where u.id=app_private.current_actor_user_id() and u.account_kind='INTERNAL' and u.status='ACTIVE'
+  and u.valid_from<=target_time and (u.valid_until is null or u.valid_until>target_time)) $$;
 create or replace function app_private.m11_assert_internal_mutator(target_permission text,target_time timestamptz)
 returns void language plpgsql stable security definer set search_path=pg_catalog,public,app_private as $$ begin
  perform app_private.m08_assert_direct_internal(target_time,target_permission);
@@ -1228,8 +1234,7 @@ create policy purchase_version_internal_read on public.purchase_request_version 
 create policy approval_purchase_subject_read on public.approval_subject_purchase_request_version for select to youone_request using(
  app_private.can_read_approval_instance(instance_id,app_private.request_time()));
 create policy rnd_program_internal_read on public.rnd_program for select to youone_request using(
- app_private.required_setting('app.actor_kind')='USER' and app_private.actor_has_permission('rnd.program.read',app_private.request_time())
- and exists(select 1 from public.user_account u where u.id=app_private.current_actor_user_id() and u.account_kind='INTERNAL' and u.status='ACTIVE'));
+ app_private.m11_actor_can_read_rnd(app_private.request_time()));
 
 do $revoke$ declare table_name text;begin foreach table_name in array array[
  'supplier','supplier_vendor_link','item','supplier_item','purchase_request','purchase_request_version','purchase_request_line','purchase_quotation',
@@ -1250,13 +1255,13 @@ do $commands$ declare fn record;begin for fn in select p.oid::regprocedure signa
  'emit_rnd_alert','read_purchase_hq','read_rnd_program_summary') loop
  execute format('revoke all on function %s from public,youone_request,youone_privileged_writer',fn.signature);
  execute format('grant execute on function %s to youone_request',fn.signature);end loop;end $commands$;
-revoke all on function app_private.reject_m11_append_only(),app_private.protect_m11_purchase(),app_private.m11_actor_is_hq(timestamptz),
+revoke all on function app_private.reject_m11_append_only(),app_private.protect_m11_purchase(),app_private.m11_actor_is_hq(timestamptz),app_private.m11_actor_can_read_rnd(timestamptz),
  app_private.m11_assert_internal_mutator(text,timestamptz),app_private.append_m11_transition(uuid,uuid,uuid,text,text,uuid,text,text,text,bigint,bigint,text,timestamptz),
  app_private.append_rnd_fact(uuid,uuid,text,text,uuid,bigint,text,text,timestamptz),app_private.apply_purchase_approval_outcome(),
  app_private.assert_receipt_quantity(),app_private.assert_rnd_expenditure_complete(),app_private.protect_rnd_budget_snapshot(),
  app_private.assert_purchase_policy_selection(uuid,uuid,timestamptz),app_private.assert_exactly_one_rnd_evidence_subject()
 from public,youone_request,youone_privileged_writer;
-grant execute on function app_private.m11_actor_is_hq(timestamptz) to youone_request;
+grant execute on function app_private.m11_actor_is_hq(timestamptz),app_private.m11_actor_can_read_rnd(timestamptz) to youone_request;
 
 comment on table public.rnd_program is 'OD-030: agreement facts only. No lifecycle state, transition registry, close, reopen, payment, journal, or RCMS command.';
 comment on table public.purchase_external_payment_fact is 'External payment readback evidence only; this system does not issue a transfer or accounting journal.';
