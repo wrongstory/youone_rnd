@@ -1,8 +1,10 @@
+import type { TechCopySecurityLevel, TechCopyState } from "@youone/feature-tech-copy/public";
+
 import { previewTechnicalCopies } from "../../composition/preview-data";
 import { previewDataEnabled } from "../../composition/preview-mode";
 
-export type TechnicalCopyState = "REQUESTED" | "APPROVAL_PENDING" | "APPROVED" | "RENDERED" | "PRINTED" | "HANDED_OVER" | "RETURN_DUE" | "RETURNED" | "DESTROYED" | "OVERDUE" | "CANCELLED";
-export type TechnicalCopySecurityLevel = "L3" | "L4";
+export type TechnicalCopyState = TechCopyState;
+export type TechnicalCopySecurityLevel = TechCopySecurityLevel;
 
 export interface TechnicalCopyApprovalStepView {
   readonly role: "LAB_DIRECTOR" | "REPRESENTATIVE";

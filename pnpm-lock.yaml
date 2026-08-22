@@ -65,6 +65,9 @@ importers:
       '@youone/feature-safety':
         specifier: workspace:*
         version: link:../../packages/features/safety
+      '@youone/feature-tech-copy':
+        specifier: workspace:*
+        version: link:../../packages/features/tech-copy
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../packages/shared-kernel
