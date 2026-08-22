@@ -5,8 +5,8 @@
 ## Current delivery
 
 - Phase: `IMPLEMENTATION_ACTIVE`
-- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, `M08` Requirement/Test/Inspection in PR #26, and `M09` NCR/CAR in PR #27
-- Active merge item: `M10` ECR/ECO change request, change order, implementation, and reverification
+- Completed: `M00`/`M01` in PR #19, `M02` in PR #20, `M03` trusted Auth/RBAC/Scope in PR #21, `M04` common Approval Engine in PR #22, `M05` immutable Document/Template/File in PR #23, `M06` Project/WBS in PR #24, `M07` Vendor/Contract/Deliverable in PR #25, `M08` Requirement/Test/Inspection in PR #26, `M09` NCR/CAR in PR #27, and `M10` ECR/ECO in PR #29 (`dev`)
+- Active merge item: `M11` Purchase/R&D progress, budget, expenditure, evidence, and deadlines
 - Roadmap: <https://github.com/wrongstory/youone_rnd/issues/18>
 
 ## Branch model
