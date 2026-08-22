@@ -915,8 +915,8 @@ returns trigger language plpgsql set search_path=pg_catalog,app_private
 as $$ begin
   if tg_op='DELETE' then raise exception 'ECR/ECO aggregate and version are retained' using errcode='55000'; end if;
   if app_private.optional_setting('app.m10_command') is distinct from
-      case tg_table_name when 'change_request' then old.id::text when 'change_order' then old.id::text
-        when 'change_request_version' then old.change_request_id::text else old.change_order_id::text end then
+      (case tg_table_name when 'change_request' then old.id::text when 'change_order' then old.id::text
+        when 'change_request_version' then old.change_request_id::text else old.change_order_id::text end) then
     raise exception 'ECR/ECO updates require a trusted command' using errcode='42501';
   end if;
   if tg_table_name in ('change_request_version','change_order_version') and old.state<>'DRAFT'
