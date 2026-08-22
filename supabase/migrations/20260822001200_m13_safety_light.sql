@@ -100,7 +100,7 @@ create table public.safety_inspection (
  stop_work_active boolean not null default false,version_no bigint not null check(version_no>0),retain_until date not null,legal_hold boolean not null default false,
  created_at timestamptz not null,updated_at timestamptz not null,
  foreign key(contract_id,project_id) references public.contract_project(contract_id,project_id),
- check(contract_id is not null or assigned_vendor_id is null),check(retain_until>=(created_at+interval '5 years')::date),
+ check(retain_until>=(created_at+interval '5 years')::date),
  check((state='STOP_WORK' and stop_work_active) or state<>'STOP_WORK')
 );
 create table public.safety_inspection_item (
@@ -144,7 +144,7 @@ create table public.safety_training_session (
  held_at timestamptz,state text not null check(state in ('PLANNED','COMPLETED','CANCELLED')),version_no bigint not null check(version_no>0),
  retain_until date not null,legal_hold boolean not null default false,created_by_user_id uuid not null references public.user_account(id),created_at timestamptz not null,
  foreign key(contract_id,project_id) references public.contract_project(contract_id,project_id),
- foreign key(contract_id,assigned_vendor_id) references public.vendor_contract(id,vendor_id),check(contract_id is not null or assigned_vendor_id is null),
+ foreign key(contract_id,assigned_vendor_id) references public.vendor_contract(id,vendor_id),
  check(retain_until>=(created_at+interval '5 years')::date)
 );
 create table public.safety_training_attendance (
@@ -168,7 +168,7 @@ create table public.safety_incident (
  investigation_due_at timestamptz not null,state text not null check(state in ('REPORTED','EMERGENCY_RESPONSE','SITE_SECURED','INVESTIGATION','RECURRENCE_ACTION','VERIFICATION','CLOSED')),
  version_no bigint not null check(version_no>0),retain_until date not null,legal_hold boolean not null default false,created_at timestamptz not null,updated_at timestamptz not null,
  foreign key(contract_id,project_id) references public.contract_project(contract_id,project_id),
- foreign key(contract_id,assigned_vendor_id) references public.vendor_contract(id,vendor_id),check(contract_id is not null or assigned_vendor_id is null),
+ foreign key(contract_id,assigned_vendor_id) references public.vendor_contract(id,vendor_id),
  check(num_nonnulls(reported_by_user_id,reported_by_vendor_user_id)=1),check(reported_at>=occurred_at),check(investigation_due_at=reported_at+interval '48 hours'),
  check(retain_until>=(created_at+interval '5 years')::date)
 );

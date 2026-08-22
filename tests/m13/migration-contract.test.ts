@@ -49,6 +49,7 @@ describe("M13 Safety Light migration contract", () => {
     expect(sql).toContain("foreign key(contract_id,vendor_id) references public.vendor_contract(id,vendor_id)");
     expect(sql).toContain("from public.project_vendor_grant g where g.vendor_user_id=vu");
     expect(sql).toContain("from public.contract_vendor_grant g where g.vendor_user_id=vu");
+    expect(sql).not.toContain("check(contract_id is not null or assigned_vendor_id is null)");
     expect(sql).toContain("base exact Project grant required");
     expect(sql).toContain("base exact Contract grant required");
   });
