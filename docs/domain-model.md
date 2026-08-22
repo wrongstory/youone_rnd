@@ -488,6 +488,6 @@ M12는 `ResearchNote` root를 정확히 한 Project와 작성자에 결합하고
 
 제출 시 entry content와 exact `ResearchNoteEntryAttachment`의 Attachment id·row version·checksum을 함께 봉인해 sealed snapshot checksum을 만든다. 봉인·최종확정된 엔트리와 첨부 연결은 수정하지 않으며, 수정 요구는 새 `ORIGINAL` 엔트리로 재제출한다. 선택적 `ResearchNoteSeniorReview`는 exact 봉인 엔트리·검토자·유효한 선임연구원 직위 배정·의견·결과를 기록하는 검토 증거일 뿐 공식 결재가 아니다.
 
-`ResearchNotePdfManifest`는 exact 봉인 엔트리, renderer id/version, page count, PDF checksum, private Attachment exact tuple, rendered timestamp 및 canonical manifest checksum을 불변 증거로 보존한다. `ResearchNoteFinalization`은 이 exact entry/PDF manifest와 당시 유효한 `POSITION_LAB_DIRECTOR` 배정을 결합한다. 연구소장만 최종확정할 수 있고 선임연구원·대표는 최종확정 권한이 없다. 최종확정 후 원본은 변경하지 않으며 정정·추가는 새 엔트리와 직접 계보로 남기고 기존 root는 `CORRECTED_BY_ADDENDUM`으로 전이한다.
+`ResearchNoteFinalization`은 exact 봉인 엔트리와 당시 유효한 `POSITION_LAB_DIRECTOR` 배정을 먼저 결합한다. 연구소장만 최종확정할 수 있고 선임연구원·대표는 최종확정 권한이 없다. 그 후 `ResearchNotePdfManifest`가 이 finalization, 포함된 모든 봉인 entry/attachment exact tuple, renderer id/version, page count, PDF checksum, private output Attachment, rendered timestamp 및 canonical manifest checksum을 불변 증거로 보존한다. 최종확정 후 원본은 변경하지 않으며 정정·추가는 한 개의 새 엔트리와 직접 계보로 남기고 기존 root는 terminal `CORRECTED_BY_ADDENDUM`으로 전이한다.
 
 Additional superior-regulation concepts are covered by Safety Management and Research Allowance Evidence. Research outcomes and notes carry ownership provenance: company ownership by default with explicit law/agreement/contract exception records.

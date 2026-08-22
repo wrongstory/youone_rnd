@@ -94,8 +94,18 @@ create table public.research_note_senior_review (
 alter table public.user_position_assignment add constraint user_position_assignment_m12_exact_unique unique(id,user_id);
 alter table public.research_note_senior_review add constraint research_note_senior_assignment_exact_fk
  foreign key(position_assignment_id,reviewer_user_id) references public.user_position_assignment(id,user_id);
+create table public.research_note_finalization (
+ id uuid primary key,research_note_id uuid not null unique,entry_version_id uuid not null unique,entry_no bigint not null,
+ entry_checksum text not null check(app_private.is_sha256(entry_checksum)),entry_sealed_at timestamptz not null,
+ director_user_id uuid not null references public.user_account(id),director_position_assignment_id uuid not null references public.user_position_assignment(id),
+ finalized_at timestamptz not null,unique(id,research_note_id),
+ foreign key(entry_version_id,research_note_id,entry_no,entry_checksum,entry_sealed_at)
+  references public.research_note_entry_version(id,research_note_id,entry_no,sealed_snapshot_checksum,sealed_at)
+);
+alter table public.research_note_finalization add constraint research_note_director_assignment_exact_fk
+ foreign key(director_position_assignment_id,director_user_id) references public.user_position_assignment(id,user_id);
 create table public.research_note_pdf_manifest (
- id uuid primary key,research_note_id uuid not null,entry_version_id uuid not null,entry_no bigint not null,
+ id uuid primary key,research_note_id uuid not null,finalization_id uuid not null,entry_version_id uuid not null,entry_no bigint not null,
  entry_checksum text not null check(app_private.is_sha256(entry_checksum)),entry_sealed_at timestamptz not null,
  manifest_schema text not null default 'RESEARCH_NOTE_PDF_MANIFEST_V1' check(manifest_schema='RESEARCH_NOTE_PDF_MANIFEST_V1'),
  renderer_id text not null check(app_private.is_stable_code(renderer_id)),renderer_version text not null check(app_private.is_stable_code(renderer_version)),
@@ -103,22 +113,12 @@ create table public.research_note_pdf_manifest (
  manifest_checksum text not null check(app_private.is_sha256(manifest_checksum)),
  attachment_id uuid not null,attachment_row_version bigint not null,attachment_checksum text not null check(app_private.is_sha256(attachment_checksum)),
  rendered_at timestamptz not null,unique(entry_version_id),unique(id,entry_version_id),
+ foreign key(finalization_id,research_note_id) references public.research_note_finalization(id,research_note_id),
  foreign key(entry_version_id,research_note_id,entry_no,entry_checksum,entry_sealed_at)
   references public.research_note_entry_version(id,research_note_id,entry_no,sealed_snapshot_checksum,sealed_at),
  foreign key(attachment_id,attachment_row_version,attachment_checksum) references public.attachment(id,row_version,detected_sha256),
  check(pdf_checksum=attachment_checksum)
 );
-create table public.research_note_finalization (
- id uuid primary key,research_note_id uuid not null unique,entry_version_id uuid not null unique,entry_no bigint not null,
- entry_checksum text not null check(app_private.is_sha256(entry_checksum)),entry_sealed_at timestamptz not null,pdf_manifest_id uuid not null unique,
- director_user_id uuid not null references public.user_account(id),director_position_assignment_id uuid not null references public.user_position_assignment(id),
- finalized_at timestamptz not null,
- foreign key(entry_version_id,research_note_id,entry_no,entry_checksum,entry_sealed_at)
-  references public.research_note_entry_version(id,research_note_id,entry_no,sealed_snapshot_checksum,sealed_at),
- foreign key(pdf_manifest_id,entry_version_id) references public.research_note_pdf_manifest(id,entry_version_id)
-);
-alter table public.research_note_finalization add constraint research_note_director_assignment_exact_fk
- foreign key(director_position_assignment_id,director_user_id) references public.user_position_assignment(id,user_id);
 
 create or replace function app_private.m12_reject_immutable()
 returns trigger language plpgsql set search_path=pg_catalog as $$ begin raise exception 'final ResearchNote evidence is append-only' using errcode='55000';end $$;
@@ -283,25 +283,35 @@ create or replace function public.resubmit_research_note(target_note uuid,target
 end $$;
 create or replace function public.record_research_note_pdf(target_manifest uuid,target_note uuid,target_renderer text,target_renderer_version text,
  target_page_count integer,target_attachment uuid,target_audit uuid,target_outbox uuid,target_time timestamptz) returns uuid
-language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare n public.research_note%rowtype;e public.research_note_entry_version%rowtype;a public.attachment%rowtype;manifest_hash text;begin
+language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare n public.research_note%rowtype;e public.research_note_entry_version%rowtype;
+ f public.research_note_finalization%rowtype;a public.attachment%rowtype;manifest_hash text;entries_manifest jsonb;files_manifest jsonb;begin
  perform app_private.m05_assert_worker(target_time,'DOCUMENT_ENGINE');select * into strict n from public.research_note where id=target_note for share;
- select * into strict e from public.research_note_entry_version where id=n.current_entry_version_id and state in ('SEALED','ADDENDUM_SEALED') for share;
+ select * into strict e from public.research_note_entry_version where id=n.current_entry_version_id and state in ('FINALIZED','ADDENDUM_SEALED') for share;
+ select * into strict f from public.research_note_finalization where research_note_id=n.id for share;
  select * into strict a from public.attachment where id=target_attachment and state='AVAILABLE' and detected_mime_type='application/pdf' and security_level=n.security_level;
- if not ((n.state='DIRECTOR_FINALIZATION_PENDING' and e.state='SEALED') or (n.state='CORRECTED_BY_ADDENDUM' and e.state='ADDENDUM_SEALED')) then
-  raise exception 'finalization/addendum exact entry required for PDF rendering' using errcode='23514';end if;
+ if not ((n.state='FINALIZED' and e.state='FINALIZED') or (n.state='CORRECTED_BY_ADDENDUM' and e.state='ADDENDUM_SEALED')) then
+  raise exception 'finalized ResearchNote exact entry required for PDF rendering' using errcode='23514';end if;
+ select coalesce(jsonb_agg(jsonb_build_object('entryId',x.id,'entryNo',x.entry_no,'kind',x.entry_kind,'checksum',x.sealed_snapshot_checksum,
+  'sealedAt',x.sealed_at) order by x.entry_no),'[]'::jsonb) into entries_manifest from public.research_note_entry_version x
+ where x.research_note_id=n.id and x.state<>'DRAFT';
+ select coalesce(jsonb_agg(jsonb_build_object('entryId',x.id,'attachmentId',ra.attachment_id,'rowVersion',ra.attachment_row_version,
+  'checksum',ra.attachment_checksum) order by x.entry_no,ra.purpose_code,ra.attachment_id),'[]'::jsonb) into files_manifest
+ from public.research_note_entry_version x join public.research_note_entry_attachment ra on ra.entry_version_id=x.id
+ where x.research_note_id=n.id and x.state<>'DRAFT';
  manifest_hash:=app_private.canonical_json_sha256(jsonb_build_object('schema','RESEARCH_NOTE_PDF_MANIFEST_V1','noteId',n.id,
+  'finalizationId',f.id,'finalizedEntryId',f.entry_version_id,'finalizedEntryChecksum',f.entry_checksum,'entries',entries_manifest,'files',files_manifest,
   'entryId',e.id,'entryNo',e.entry_no,'entryChecksum',e.sealed_snapshot_checksum,'entrySealedAt',e.sealed_at,
   'rendererId',target_renderer,'rendererVersion',target_renderer_version,'pageCount',target_page_count,
   'pdfChecksum',a.detected_sha256,'attachmentId',a.id,'attachmentRowVersion',a.row_version,'renderedAt',target_time));
- insert into public.research_note_pdf_manifest(id,research_note_id,entry_version_id,entry_no,entry_checksum,entry_sealed_at,renderer_id,renderer_version,page_count,
-  pdf_checksum,manifest_checksum,attachment_id,attachment_row_version,attachment_checksum,rendered_at) values(target_manifest,n.id,e.id,e.entry_no,e.sealed_snapshot_checksum,e.sealed_at,
+ insert into public.research_note_pdf_manifest(id,research_note_id,finalization_id,entry_version_id,entry_no,entry_checksum,entry_sealed_at,renderer_id,renderer_version,page_count,
+  pdf_checksum,manifest_checksum,attachment_id,attachment_row_version,attachment_checksum,rendered_at) values(target_manifest,n.id,f.id,e.id,e.entry_no,e.sealed_snapshot_checksum,e.sealed_at,
   target_renderer,target_renderer_version,target_page_count,a.detected_sha256,manifest_hash,a.id,a.row_version,a.detected_sha256,target_time);
  perform app_private.append_audit(target_audit,'research_note.pdf.render','RESEARCH_NOTE',n.id,n.version_no,'SUCCEEDED','RESEARCH-NOTE-PDF-RENDERED',target_manifest,null,null,null,target_time);
  perform app_private.enqueue_outbox(target_outbox,target_audit,'EVT-NOTE-PDF-RENDERED','RESEARCH_NOTE',n.id,n.version_no,
   app_private.required_setting('app.correlation_id'),app_private.optional_setting('app.causation_id'),'RESEARCH_NOTE_EVENT_REF',1,
   jsonb_build_object('aggregateId',n.id,'resourceVersion',n.version_no,'eventId','EVT-NOTE-PDF-RENDERED'),'EVT-NOTE-PDF-RENDERED:'||n.id::text||':'||n.version_no::text,target_time,target_time);return target_manifest;
 end $$;
-create or replace function public.finalize_research_note(target_note uuid,target_expected bigint,target_finalization uuid,target_manifest uuid,
+create or replace function public.finalize_research_note(target_note uuid,target_expected bigint,target_finalization uuid,
  target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz) returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare
  n public.research_note%rowtype;e public.research_note_entry_version%rowtype;assignment uuid;next_version bigint;begin
  perform app_private.m12_assert_user('research_note.record.finalize',target_time);select * into strict n from public.research_note where id=target_note for update;
@@ -309,12 +319,11 @@ create or replace function public.finalize_research_note(target_note uuid,target
  select a.id into strict assignment from public.user_position_assignment a join public.position p on p.id=a.position_id and p.stable_code='POSITION_LAB_DIRECTOR' and p.status='ACTIVE'
   where a.user_id=app_private.current_effective_actor_user_id() and a.revoked_at is null and a.valid_from<=target_time and (a.valid_until is null or a.valid_until>target_time)
   order by a.is_primary desc,a.id limit 1;
- if n.state<>'DIRECTOR_FINALIZATION_PENDING' or not app_private.actor_has_project_internal_scope(n.project_id,target_time)
-  or not exists(select 1 from public.research_note_pdf_manifest p where p.id=target_manifest and p.entry_version_id=e.id) then
-  raise exception 'Lab Director exact entry/PDF finalization required' using errcode='42501';end if;
+ if n.state<>'DIRECTOR_FINALIZATION_PENDING' or not app_private.actor_has_project_internal_scope(n.project_id,target_time) then
+  raise exception 'Lab Director exact entry finalization required' using errcode='42501';end if;
  next_version:=app_private.next_version(n.version_no,target_expected);
- insert into public.research_note_finalization(id,research_note_id,entry_version_id,entry_no,entry_checksum,entry_sealed_at,pdf_manifest_id,director_user_id,
-  director_position_assignment_id,finalized_at) values(target_finalization,n.id,e.id,e.entry_no,e.sealed_snapshot_checksum,e.sealed_at,target_manifest,
+ insert into public.research_note_finalization(id,research_note_id,entry_version_id,entry_no,entry_checksum,entry_sealed_at,director_user_id,
+  director_position_assignment_id,finalized_at) values(target_finalization,n.id,e.id,e.entry_no,e.sealed_snapshot_checksum,e.sealed_at,
   app_private.current_effective_actor_user_id(),assignment,target_time);
  perform set_config('app.m12_entry_command',e.id::text,true);update public.research_note_entry_version set state='FINALIZED' where id=e.id;
  perform set_config('app.m12_note_command',n.id::text,true);update public.research_note set state='FINALIZED',version_no=next_version,updated_at=target_time where id=n.id;

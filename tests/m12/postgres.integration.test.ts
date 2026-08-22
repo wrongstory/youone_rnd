@@ -43,17 +43,18 @@ function workerContext(): string { return `select set_config('app.actor_kind','S
  select set_config('app.causation_id','',true);select set_config('app.request_time','${now}',true);select set_config('app.acting_authority_id','',true);`; }
 
 function createNote(note: string, entry: string, noteNo: string, targetAuthor = author): void {
+  const audit = `d${note.slice(1)}`, transition = `e${note.slice(1)}`, outbox = `f${note.slice(1)}`;
   run(`begin;set local role youone_request;${userContext(targetAuthor)}select public.create_research_note('${note}','${entry}','${noteNo}','${project}',null,
     '${senior}','SEC_L2_INTERNAL','2026-08-22','Experiment','Objective','Method','Observations','Results','Conclusion',
-    extensions.gen_random_uuid(),extensions.gen_random_uuid(),extensions.gen_random_uuid(),'${now}');commit;`);
+    '${audit}','${transition}','${outbox}','${now}');commit;`);
 }
 function submitDirect(note: string, expected: number, suffix: string): void {
   run(`begin;set local role youone_request;${userContext(author)}select public.submit_research_note('${note}',${expected},false,
     'c1${suffix}0000-0000-4000-8000-000000000001','c1${suffix}0000-0000-4000-8000-000000000002','c1${suffix}0000-0000-4000-8000-000000000003','${now}');commit;`);
 }
-function renderPdf(note: string, manifest: string, suffix: string): void {
+function renderPdf(note: string, manifest: string, suffix: string, success = true): void {
   run(`begin;set local role youone_privileged_writer;${workerContext()}select public.record_research_note_pdf('${manifest}','${note}','DOCUMENT_ENGINE','V1',2,
-    '${attachment}','c2${suffix}0000-0000-4000-8000-000000000001','c2${suffix}0000-0000-4000-8000-000000000002','${now}');commit;`);
+    '${attachment}','c2${suffix}0000-0000-4000-8000-000000000001','c2${suffix}0000-0000-4000-8000-000000000002','${now}');commit;`, success);
 }
 
 dbDescribe.sequential("M12 PostgreSQL ResearchNote boundary", () => {
@@ -123,14 +124,15 @@ dbDescribe.sequential("M12 PostgreSQL ResearchNote boundary", () => {
       and table_name in(${names.map((n) => `'${n}'`).join(",")}) and privilege_type in('INSERT','UPDATE','DELETE');`)).toBe("0");
   });
 
-  it("creates, seals, renders and finalizes one exact entry through the dedicated Director path", () => {
+  it("creates, seals, finalizes and then renders one exact entry through the dedicated Director path", () => {
     const note = "c1000000-0000-4000-8000-000000000001"; const entry = "c1000000-0000-4000-8000-000000000002";
     createNote(note, entry, "M12-NOTE-1"); submitDirect(note, 1, "01");
-    renderPdf(note, "c1000000-0000-4000-8000-000000000003", "01");
     run(`begin;set local role youone_request;${userContext(director)}select public.finalize_research_note('${note}',2,
-      'c1000000-0000-4000-8000-000000000004','c1000000-0000-4000-8000-000000000003',
-      'c1000000-0000-4000-8000-000000000005','c1000000-0000-4000-8000-000000000006','c1000000-0000-4000-8000-000000000007','${now}');commit;`);
+      'c1000000-0000-4000-8000-000000000004','c1000000-0000-4000-8000-000000000005',
+      'c1000000-0000-4000-8000-000000000006','c1000000-0000-4000-8000-000000000007','${now}');commit;`);
+    renderPdf(note, "c1000000-0000-4000-8000-000000000003", "01");
     expect(run(`select n.state||':'||e.state from public.research_note n join public.research_note_entry_version e on e.id=n.current_entry_version_id where n.id='${note}';`)).toBe("FINALIZED:FINALIZED");
+    expect(run(`select count(*) from public.research_note_pdf_manifest p join public.research_note_finalization f on f.id=p.finalization_id and f.research_note_id=p.research_note_id where p.research_note_id='${note}' and length(p.manifest_checksum)=64;`)).toBe("1");
     expect(run(`select count(*) from public.audit_log a join public.state_transition_history t on t.audit_log_id=a.id join public.outbox_event o on o.initiating_audit_log_id=a.id where a.resource_type='RESEARCH_NOTE' and a.resource_id='${note}';`)).toBe("3");
   });
 
@@ -144,10 +146,10 @@ dbDescribe.sequential("M12 PostgreSQL ResearchNote boundary", () => {
 
   it("denies Representative and Senior official finalization even with the permission", () => {
     const note = "c1100000-0000-4000-8000-000000000001";createNote(note, "c1100000-0000-4000-8000-000000000002", "M12-NOTE-2");submitDirect(note, 1, "02");
-    renderPdf(note, "c1100000-0000-4000-8000-000000000003", "02");
+    renderPdf(note, "c1100000-0000-4000-8000-000000000003", "02", false);
     for (const actor of [representative, senior]) {
       run(`begin;set local role youone_request;${userContext(actor)}select public.finalize_research_note('${note}',2,'c1100000-0000-4000-8000-000000000004',
-       'c1100000-0000-4000-8000-000000000003','c1100000-0000-4000-8000-000000000005','c1100000-0000-4000-8000-000000000006',
+       'c1100000-0000-4000-8000-000000000005','c1100000-0000-4000-8000-000000000006',
        'c1100000-0000-4000-8000-000000000007','${now}');commit;`, false);
     }
   });
@@ -173,9 +175,8 @@ dbDescribe.sequential("M12 PostgreSQL ResearchNote boundary", () => {
 
   it("allows only one concurrent optimistic Director finalization", async () => {
     const note = "c1400000-0000-4000-8000-000000000001";createNote(note, "c1400000-0000-4000-8000-000000000002", "M12-NOTE-5");submitDirect(note, 1, "05");
-    renderPdf(note, "c1400000-0000-4000-8000-000000000003", "05");
     const call = (suffix: string) => `begin;set local role youone_request;${userContext(director)}select public.finalize_research_note('${note}',2,
-      'c14${suffix}000-0000-4000-8000-000000000004','c1400000-0000-4000-8000-000000000003','c14${suffix}000-0000-4000-8000-000000000005',
+      'c14${suffix}000-0000-4000-8000-000000000004','c14${suffix}000-0000-4000-8000-000000000005',
       'c14${suffix}000-0000-4000-8000-000000000006','c14${suffix}000-0000-4000-8000-000000000007','${now}');commit;`;
     const statuses = await Promise.all([runAsync(call("01")), runAsync(call("02"))]);
     expect(statuses.filter((status) => status === 0)).toHaveLength(1);

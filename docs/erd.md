@@ -864,7 +864,7 @@ erDiagram
   RESEARCH_NOTE_ENTRY_VERSION ||--o| RESEARCH_NOTE_PDF_MANIFEST : renders
   ATTACHMENT ||--o{ RESEARCH_NOTE_PDF_MANIFEST : private_output
   RESEARCH_NOTE_ENTRY_VERSION ||--o| RESEARCH_NOTE_FINALIZATION : finalizes
-  RESEARCH_NOTE_PDF_MANIFEST ||--o| RESEARCH_NOTE_FINALIZATION : proves
+  RESEARCH_NOTE_FINALIZATION ||--o{ RESEARCH_NOTE_PDF_MANIFEST : anchors
   USER_ACCOUNT ||--o{ RESEARCH_NOTE_FINALIZATION : directs
 
   RND_PROGRAM {
@@ -974,6 +974,7 @@ erDiagram
   RESEARCH_NOTE_PDF_MANIFEST {
     uuid id PK
     uuid research_note_id FK
+    uuid finalization_id FK
     uuid entry_version_id FK
     string entry_checksum
     string renderer_id
@@ -991,7 +992,6 @@ erDiagram
     uuid research_note_id FK
     uuid entry_version_id FK
     string entry_checksum
-    uuid pdf_manifest_id FK
     uuid director_user_id FK
     uuid director_position_assignment_id FK
     datetime finalized_at
@@ -1002,7 +1002,7 @@ erDiagram
 
 Expenditure may use typed join tables such as `EXPENDITURE_PROJECT`, `EXPENDITURE_CONTRACT`, and `EXPENDITURE_PURCHASE`; it must not use an unchecked generic foreign ID.
 
-M12에서 `RESEARCH_NOTE`는 정확히 한 Project와 작성자를 요구하고 선택적으로 하나의 typed `RND_PROGRAM` 문맥을 가진다. 핵심 연구내용은 `RESEARCH_NOTE_ENTRY_VERSION`의 typed column에 저장하며 범용 JSON에 축약하지 않는다. 제출 시 entry와 첨부 exact tuple을 봉인하고, 선임연구원 검토는 공식 결재가 아닌 별도 불변 증거로 기록한다. 연구소장 최종확정은 exact 봉인 엔트리와 private PDF manifest를 함께 참조한다. 최종확정본은 갱신하지 않고 정정·추가 엔트리가 직접 이전 버전과 정정 대상을 가리킨다.
+M12에서 `RESEARCH_NOTE`는 정확히 한 Project와 작성자를 요구하고 선택적으로 하나의 typed `RND_PROGRAM` 문맥을 가진다. 핵심 연구내용은 `RESEARCH_NOTE_ENTRY_VERSION`의 typed column에 저장하며 범용 JSON에 축약하지 않는다. 제출 시 entry와 첨부 exact tuple을 봉인하고, 선임연구원 검토는 공식 결재가 아닌 별도 불변 증거로 기록한다. 연구소장 최종확정은 exact 봉인 엔트리를 먼저 고정하고, 이후 private PDF manifest가 그 finalization과 포함 entry/attachment exact tuple을 참조한다. 최종확정본은 갱신하지 않고 한 개의 정정 또는 추가 엔트리가 직접 이전 버전과 정정 대상을 가리킨다.
 
 ## 8. Safety and Research Allowance Evidence
 

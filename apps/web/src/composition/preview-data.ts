@@ -581,12 +581,10 @@ export const previewResearchNotes = Object.freeze([
     nextAction: null,
     entries: [
       { entryId: "rn-38-entry-1", sequenceNo: 1, entryType: "ORIGINAL" as const, heading: "측정 절차와 결과", summary: "기준 흑체와 비교하여 허용오차 이내임을 확인했습니다.", contentChecksum: "6".repeat(64), recordedAt: "2026-08-18T04:00:00Z", finalized: true },
-      { entryId: "rn-38-entry-2", sequenceNo: 2, entryType: "CORRECTION" as const, correctsEntryId: "rn-38-entry-1", heading: "장비 일련번호 정정", summary: "원문을 덮어쓰지 않고 오기된 일련번호를 정정했습니다.", contentChecksum: "7".repeat(64), recordedAt: "2026-08-19T01:10:00Z", finalized: false },
-      { entryId: "rn-38-entry-3", sequenceNo: 3, entryType: "ADDENDUM" as const, correctsEntryId: "rn-38-entry-1", heading: "교정성적서 연결", summary: "확정 후 수령한 교정성적서의 증빙 참조를 추가했습니다.", contentChecksum: "8".repeat(64), recordedAt: "2026-08-20T02:30:00Z", finalized: false }
+      { entryId: "rn-38-entry-2", sequenceNo: 2, entryType: "CORRECTION" as const, correctsEntryId: "rn-38-entry-1", heading: "장비 일련번호 정정", summary: "원문을 덮어쓰지 않고 오기된 일련번호를 정정했습니다.", contentChecksum: "7".repeat(64), recordedAt: "2026-08-19T01:10:00Z", finalized: false }
     ],
     correctionChain: [
-      { entryId: "rn-38-entry-2", correctsEntryId: "rn-38-entry-1", kind: "CORRECTION" as const },
-      { entryId: "rn-38-entry-3", correctsEntryId: "rn-38-entry-1", kind: "ADDENDUM" as const }
+      { entryId: "rn-38-entry-2", correctsEntryId: "rn-38-entry-1", kind: "CORRECTION" as const }
     ],
     directorFinalization: { finalizedByDisplayName: "박현우 연구소장", finalizedAt: "2026-08-18T07:30:00Z", finalizedVersion: 1, finalizedSnapshotChecksum: "6".repeat(64), representativeApprovalIncluded: false as const },
     pdfEvidence: { documentVersionId: "rn-38-pdf-v3", manifestSchemaId: "RESEARCH_NOTE_PDF_MANIFEST_V1", manifestSchemaVersion: 1, manifestChecksum: "a".repeat(64), pdfContentHash: "b".repeat(64), pageCount: 7, rendererId: "GENERIC_RESEARCH_NOTE_PDF", rendererVersion: "1.0.0", generatedAt: "2026-08-18T07:31:00Z", delivery: "AUTHORIZED_PRIVATE_DELIVERY" as const }

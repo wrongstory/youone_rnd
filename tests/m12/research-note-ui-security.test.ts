@@ -13,7 +13,7 @@ describe("M12 ResearchNote UI/API security", () => {
 
   it("shows one optional Senior-review path and one finalized skip/correction chain", async () => {
     await expect(researchNoteQuery(true).getInternal(PREVIEW_IDS.researchNoteSeniorReview)).resolves.toMatchObject({ availability: "AVAILABLE", detail: { state: "DIRECTOR_FINALIZATION_PENDING", seniorReviewPath: "COMPLETED", seniorReview: { officialApproval: false }, pdfEvidence: null } });
-    await expect(researchNoteQuery(true).getInternal(PREVIEW_IDS.researchNoteFinalized)).resolves.toMatchObject({ availability: "AVAILABLE", detail: { state: "CORRECTED_BY_ADDENDUM", seniorReviewPath: "SKIPPED_BY_POLICY", directorFinalization: { finalizedVersion: 1, representativeApprovalIncluded: false }, correctionChain: [{ kind: "CORRECTION", correctsEntryId: "rn-38-entry-1" }, { kind: "ADDENDUM", correctsEntryId: "rn-38-entry-1" }], pdfEvidence: { deliveryRestriction: "ORIGINAL_DENIED" } } });
+    await expect(researchNoteQuery(true).getInternal(PREVIEW_IDS.researchNoteFinalized)).resolves.toMatchObject({ availability: "AVAILABLE", detail: { state: "CORRECTED_BY_ADDENDUM", seniorReviewPath: "SKIPPED_BY_POLICY", directorFinalization: { finalizedVersion: 1, representativeApprovalIncluded: false }, correctionChain: [{ kind: "CORRECTION", correctsEntryId: "rn-38-entry-1" }], pdfEvidence: { deliveryRestriction: "ORIGINAL_DENIED" } } });
   });
 
   it("hard-denies Vendor and gives Admin-System no original-content capability", async () => {

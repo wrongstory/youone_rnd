@@ -38,7 +38,7 @@ describe("M12 ResearchNote migration contract", () => {
     expect(sql).toContain("POSITION_LAB_DIRECTOR");
     expect(sql).toContain("POSITION_REPRESENTATIVE");
     expect(sql).toContain("assigned active Senior review required");
-    expect(sql).toContain("Lab Director exact entry/PDF finalization required");
+    expect(sql).toContain("Lab Director exact entry finalization required");
     expect(sql).toContain("Optional Senior review evidence only; it is not official Approval authority.");
   });
 
@@ -48,6 +48,8 @@ describe("M12 ResearchNote migration contract", () => {
     expect(sql).toContain("app_private.canonical_json_sha256");
     expect(sql).toContain("RESEARCH_NOTE_PDF_MANIFEST_V1");
     expect(sql).toContain("manifest_checksum text not null");
+    expect(sql).toContain("foreign key(finalization_id,research_note_id)");
+    expect(sql.indexOf("create table public.research_note_finalization")).toBeLessThan(sql.indexOf("create table public.research_note_pdf_manifest"));
     expect(sql).not.toMatch(/\bnext\s+bigint\b|return\s+next\s*;/i);
   });
 
