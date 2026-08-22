@@ -6,5 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./public": "./src/public.ts"
+  },
+  "dependencies": {
+    "@youone/core-authorization": "workspace:*",
+    "@youone/shared-kernel": "workspace:*"
   }
 }

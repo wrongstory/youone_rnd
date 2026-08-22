@@ -202,12 +202,11 @@ M12는 `features.research-note`가 ResearchNote root, exact Entry version, 선�
 
 오프라인 허용 명령:
 
-- 할 일 snapshot 조회.
-- 체크리스트 작성.
-- 검수 초안.
-- 사진/메모 임시저장.
-- 허용된 과업 진행상태 변경 명령.
-- 현장기록 초안.
+- `CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT` 체크리스트 초안.
+- `CMD-OFFLINE-INSPECTION-DRAFT-UPSERT` 검수 초안.
+- `CMD-OFFLINE-FIELD-NOTE-DRAFT-UPSERT` 현장노트 초안.
+- `CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE` 허용된 작업항목 진행률 변경.
+- `CMD-OFFLINE-FIELD-RECORD-DRAFT-UPSERT` 현장기록 초안.
 
 온라인 전용:
 
@@ -217,7 +216,9 @@ M12는 `features.research-note`가 ResearchNote root, exact Entry version, 선�
 - 기술문서 삭제 승인.
 - 계약 체결/해지와 지급확정 같은 고위험 전이.
 
-로컬에는 IndexedDB 기반 `offline_outbox`와 최소 캐시만 둔다. 명령에는 `command_id`, `aggregate_id`, `base_version`, `created_at`, `payload_schema_version`을 포함한다. 서버 version이 다르면 `SYNC_CONFLICT`를 만들고 자동 적용하지 않는다.
+M15는 Dexie `4.4.5`를 통해 IndexedDB에 위 명령의 `offline_outbox`, 로컬 초안, 첨부 staging metadata, 충돌과 `CACHE-PROJECT-LIST-SAFE`·`CACHE-WBS-LIST-SAFE`·`CACHE-SAFETY-CHECKLIST-TEMPLATE`만 저장한다. bearer token·raw session ID·민감 원문은 저장하지 않고 현재 사용자와 세션의 SHA-256 binding으로 재생 대상을 제한하며, 세션 교체/로그아웃 시 해당 binding의 payload를 제거한다.
+
+명령에는 immutable `command_id`, stable command type, authenticated/effective actor, session binding hash, aggregate ID/type, `base_version`, schema version, UTC 생성시각, canonical minimized payload와 SHA-256을 포함한다. `/api/v1/sync/commands`는 현재 서버 세션으로 `TrustedActorContext`를 다시 만들고 등록된 정상 Application handler에 권한·Scope·상태·precondition·낙관적 버전 검사를 위임한다. M16 live request adapter 조합 전에는 endpoint가 `503 SYNC_REQUEST_ADAPTER_NOT_CONFIGURED`로 fail-closed한다. 서버 version이 다르면 양쪽 payload를 보존한 `SYNC_CONFLICT`를 만들고 자동 적용하지 않으며, 승인된 field merge 정책이 없는 P0에서는 `DISCARD_LOCAL` 또는 최신 server version을 기준으로 새 명령을 만드는 `RETRY_AS_NEW`만 기록한다.
 
 ## 10. 배포 구조
 

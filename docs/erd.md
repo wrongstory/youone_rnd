@@ -1274,6 +1274,8 @@ M14 physically adds `TECHNICAL_DOCUMENT_COPY`, the exact typed `APPROVAL_SUBJECT
 
 The typed Approval subject repeats the exact request tuple through a composite FK so a DocumentVersion-only approval cannot authorize a different recipient or purpose. Contract is optional; when present, guarded commands require active VendorMembership + Project grant + Contract grant for the same VendorUser. Render adds a private output Attachment tuple, output hash, renderer version and watermark manifest checksum. Custody events, transition history, audit and outbox are append-only and commit with each state change; Vendor reads use a narrow function projection and never direct source/output table access.
 
+M15 physically adds `OFFLINE_COMMAND_TYPE_DEFINITION`, immutable `OFFLINE_COMMAND`, one terminal `OFFLINE_COMMAND_RESULT`, immutable `SYNC_CONFLICT`, and append-only terminal `SYNC_CONFLICT_RESOLUTION`. The command row stores canonical minimized JSON and a DB-recomputed SHA-256, exact actor IDs and a one-way session binding; raw bearer/session credentials are not columns. Conflict rows use a composite FK back to the exact command type, aggregate, base version and local payload hash, and keep the safe server projection separately. Request-role RLS exposes only the authenticated command owner and all writes go through guarded functions; direct table mutation and last-write-wins are unavailable.
+
 ## 10. Required Physical Constraints
 
 To be defined in migrations after approval:

@@ -161,6 +161,79 @@ h1 {
   background: #0b8f7d;
 }
 
+.pwaStatusPanel {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  border: 1px solid #b9d5d1;
+  border-radius: 14px;
+  background: #f2faf8;
+  padding: 16px;
+}
+
+.pwaStatusPanel h2,
+.pwaStatusPanel p {
+  margin-bottom: 0;
+}
+
+.pwaStatusPanel p:not(.recordEyebrow) {
+  margin-top: 6px;
+  color: #456268;
+  line-height: 1.5;
+}
+
+.pwaStatusPanel .offlineQueueSummary {
+  color: #0f6b71;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pwaStatusPanel button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #0f6b71;
+  padding: 10px 14px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conflictComparison {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.conflictComparison article {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #d8e3e1;
+  border-radius: 14px;
+  background: #fbfdfc;
+  padding: 16px;
+}
+
+.conflictComparison span {
+  color: #0f6b71;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.conflictComparison p {
+  margin: 0;
+  color: #456268;
+  line-height: 1.55;
+}
+
+.conflictActions {
+  margin-top: 14px;
+}
+
 .recordGrid {
   display: grid;
   gap: 12px;
@@ -424,9 +497,18 @@ h1 {
   .recordGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .conflictComparison {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
+  .pwaStatusPanel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .factGrid {
     grid-template-columns: 1fr;
   }
