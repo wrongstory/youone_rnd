@@ -203,7 +203,11 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/features/tech-copy: {}
+  packages/features/tech-copy:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/vendor:
     dependencies:
@@ -215,7 +219,14 @@ importers:
 
   packages/infrastructure/offline-dexie: {}
 
-  packages/infrastructure/pdf-renderer: {}
+  packages/infrastructure/pdf-renderer:
+    dependencies:
+      '@youone/feature-tech-copy':
+        specifier: workspace:*
+        version: link:../../features/tech-copy
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/infrastructure/postgres:
     dependencies:
@@ -253,7 +264,14 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/processes/controlled-copy-delivery: {}
+  packages/processes/controlled-copy-delivery:
+    dependencies:
+      '@youone/feature-tech-copy':
+        specifier: workspace:*
+        version: link:../../features/tech-copy
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/processes/formal-research-designation:
     dependencies:

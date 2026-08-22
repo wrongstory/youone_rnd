@@ -1,2 +1,2 @@
 /** Public cross-module contracts for @youone/infra-pdf-renderer. */
-export {};
+export * from "./controlled-copy-renderer.js";

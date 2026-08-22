@@ -1,2 +1,2 @@
 /** Public cross-module contracts for @youone/process-controlled-copy-delivery. */
-export {};
+export * from "./process.js";
