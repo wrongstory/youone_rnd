@@ -51,6 +51,7 @@ Blocking levels:
 | `OD-029-APPROVAL-SUBJECT` | Approve common ApprovalInstance plus typed subject-link tables/adapters for non-Document subjects | `DECIDED` | none | `ADR-003`, 2026-08-21 | Common instance + exactly one typed FK link and subject adapter transaction |
 | `OD-030-RND-STATE-MACHINE` | Define the stable states, events, actors, and close/reopen rules for `RND_PROGRAM` | `OPEN` | `FEATURE_BLOCKER` for M11 R&D lifecycle; not a blocker for the M02 empty registry | R&D owner and agreement/settlement scenarios | `WF-RND-V1` exists but no canonical state machine does; M02 must not invent or seed one |
 | `OD-031-NCR-REOPEN-FOLLOWUP` | Define the canonical transition path after an NCR reaches `REOPENED` | `OPEN` | `FEATURE_BLOCKER` for post-reopen remediation/second closure; not a blocker for immutable `CLOSED → REOPENED` evidence | Quality owner and recurrence scenarios | M09 implements evidence-backed reopening and immutable history only; it must not invent a `REOPENED` exit transition |
+| `OD-032-EMERGENCY-CHANGE-POLICY` | Select production authority tiers, retrospective approval deadline, risk thresholds and notification escalation for EmergencyChangeException | `OPEN` | `NON_BLOCKING_CONFIG` for the versioned engine; production emergency route fails closed until configured | Lab Director/legal/safety/security owners | M10 implements a policy-driven sealed exception and audit contract, but does not invent company-specific authority or deadline values |
 
 ## Decisions Already Fixed and Not Open
 
