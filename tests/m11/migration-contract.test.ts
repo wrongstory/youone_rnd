@@ -77,6 +77,7 @@ describe("M11 Purchase/R&D migration contract", () => {
 
   it("uses optimistic state plus Audit/Transition/Outbox transaction helpers", () => {
     expect(sql).toContain("app_private.next_version");
+    expect(sql).not.toMatch(/\bnext\s+bigint\b|return\s+next\s*;/i);
     expect(sql).toContain("perform app_private.append_audit");
     expect(sql).toContain("perform app_private.append_state_transition");
     expect(sql).toContain("perform app_private.enqueue_outbox");

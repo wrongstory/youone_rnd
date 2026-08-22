@@ -536,7 +536,7 @@ create or replace function public.create_purchase_request_revision(target_reques
  target_purpose text,target_requested_on date,target_currency char(3),target_vat_total numeric,target_window_start date,target_window_end date,
  target_effective_policy_amount numeric,target_expected bigint,target_reason text,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
 returns uuid language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare
- r public.purchase_request%rowtype;prior public.purchase_request_version%rowtype;next bigint;begin
+ r public.purchase_request%rowtype;prior public.purchase_request_version%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.request.create',target_time);
  select * into strict r from public.purchase_request where id=target_request for update;
  select * into strict prior from public.purchase_request_version where id=target_prior_version and purchase_request_id=r.id for update;
@@ -544,15 +544,15 @@ returns uuid language plpgsql security definer set search_path=pg_catalog,public
   or prior.state not in ('REJECTED','RECALLED') or nullif(btrim(target_reason),'') is null
   or not exists(select 1 from public.purchase_approval_negative_outcome n where n.purchase_request_version_id=prior.id and n.outcome=prior.state)
  then raise exception 'exact rejected/recalled PurchaseRequestVersion predecessor required' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected);
+ next_version:=app_private.next_version(r.version_no,target_expected);
  insert into public.purchase_request_version(id,purchase_request_id,version_no,prior_version_id,purpose,requested_on,currency,vat_included_total,
   anti_split_window_start,anti_split_window_end,effective_policy_amount,state,created_by_user_id,created_at)
  values(target_new_version,r.id,prior.version_no+1,prior.id,target_purpose,target_requested_on,target_currency,target_vat_total,
   target_window_start,target_window_end,target_effective_policy_amount,'DRAFT',app_private.current_effective_actor_user_id(),target_time);
  perform set_config('app.m11_purchase_command',r.id::text,true);
- update public.purchase_request set current_version_id=target_new_version,current_version_no=prior.version_no+1,state='REQUEST_DRAFT',version_no=next,updated_at=target_time where id=r.id;
+ update public.purchase_request set current_version_id=target_new_version,current_version_no=prior.version_no+1,state='REQUEST_DRAFT',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.request.create','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-REVISE-AFTER-NEGATIVE-APPROVAL','APPROVAL_PENDING','REQUEST_DRAFT',r.version_no,next,target_reason,target_time);return target_new_version;
+  'EVT-PURCHASE-REVISE-AFTER-NEGATIVE-APPROVAL','APPROVAL_PENDING','REQUEST_DRAFT',r.version_no,next_version,target_reason,target_time);return target_new_version;
 end $$;
 create or replace function public.add_purchase_request_line(target_request uuid,target_line uuid,target_item uuid,target_spec text,target_quantity numeric,
  target_unit text,target_unit_price numeric,target_line_amount numeric,target_currency char(3),target_audit uuid,target_time timestamptz)
@@ -576,7 +576,7 @@ returns uuid language plpgsql security definer set search_path=pg_catalog,public
  perform app_private.append_audit(target_audit,'purchase.request.create','PURCHASE_REQUEST',r.id,r.version_no,'SUCCEEDED','QUOTATION-EVIDENCE-ADDED',a.id,null,a.detected_sha256,null,target_time); return target_quote;
 end $$;
 create or replace function public.draft_purchase_request(target_request uuid,target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare r public.purchase_request%rowtype; v public.purchase_request_version%rowtype; next bigint; begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare r public.purchase_request%rowtype; v public.purchase_request_version%rowtype; next_version bigint; begin
  perform app_private.m11_assert_internal_mutator('purchase.request.create',target_time); select * into strict r from public.purchase_request where id=target_request for update;
  select * into strict v from public.purchase_request_version where id=r.current_version_id for update;
  if r.state<>'QUOTE_COLLECTION' or r.requester_user_id<>app_private.current_effective_actor_user_id()
@@ -584,15 +584,15 @@ returns bigint language plpgsql security definer set search_path=pg_catalog,publ
   or not exists(select 1 from public.purchase_quotation where purchase_request_version_id=v.id)
   or (select coalesce(sum(line_amount),0) from public.purchase_request_line where purchase_request_version_id=v.id)<>v.vat_included_total then
   raise exception 'complete lines, exact amount and quotation evidence required' using errcode='23514'; end if;
- next:=app_private.next_version(r.version_no,target_expected); perform set_config('app.m11_purchase_command',r.id::text,true);
- update public.purchase_request set state='REQUEST_DRAFT',version_no=next,updated_at=target_time where id=r.id;
+ next_version:=app_private.next_version(r.version_no,target_expected); perform set_config('app.m11_purchase_command',r.id::text,true);
+ update public.purchase_request set state='REQUEST_DRAFT',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.request.create','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-DRAFT-REQUEST','QUOTE_COLLECTION','REQUEST_DRAFT',r.version_no,next,'PURCHASE-REQUEST-DRAFT-COMPLETE',target_time); return next;
+  'EVT-PURCHASE-DRAFT-REQUEST','QUOTE_COLLECTION','REQUEST_DRAFT',r.version_no,next_version,'PURCHASE-REQUEST-DRAFT-COMPLETE',target_time); return next_version;
 end $$;
 create or replace function public.seal_purchase_request(target_request uuid,target_policy uuid,target_policy_checksum text,target_preset_version uuid,
  target_tier uuid,target_anti_split_exposure numeric,target_facts_checksum text,target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
 returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private,extensions as $$ declare r public.purchase_request%rowtype;
- v public.purchase_request_version%rowtype;p public.approval_policy_version%rowtype;next bigint;checksum text;begin
+ v public.purchase_request_version%rowtype;p public.approval_policy_version%rowtype;next_version bigint;checksum text;begin
  perform app_private.m11_assert_internal_mutator('purchase.request.create',target_time); select * into strict r from public.purchase_request where id=target_request for update;
  select * into strict v from public.purchase_request_version where id=r.current_version_id for update;
  select * into strict p from public.approval_policy_version where id=target_policy and subject_kind='PURCHASE_REQUEST_VERSION'
@@ -608,7 +608,7 @@ returns bigint language plpgsql security definer set search_path=pg_catalog,publ
   'quotations',(select jsonb_agg(jsonb_build_object('id',q.id,'supplierId',q.supplier_id,'amount',q.total_amount,'currency',q.currency,
    'attachmentId',q.attachment_id,'rowVersion',q.attachment_row_version,'checksum',q.attachment_checksum) order by q.id)
    from public.purchase_quotation q where q.purchase_request_version_id=v.id)));
- next:=app_private.next_version(r.version_no,target_expected); perform set_config('app.m11_purchase_command',r.id::text,true);
+ next_version:=app_private.next_version(r.version_no,target_expected); perform set_config('app.m11_purchase_command',r.id::text,true);
  update public.purchase_request_version set state='SEALED',sealed_snapshot_checksum=checksum,sealed_at=target_time,approval_policy_version_id=p.id,
   approval_policy_version_no=p.version_no,approval_policy_checksum=p.checksum,policy_facts_checksum=target_facts_checksum where id=v.id;
  insert into public.purchase_approval_policy_snapshot(purchase_request_version_id,preset_version_id,preset_version_no,preset_checksum,tier_id,
@@ -619,9 +619,9 @@ returns bigint language plpgsql security definer set search_path=pg_catalog,publ
  where preset.id=target_preset_version and t.id=target_tier and t.approval_policy_version_id=p.id;
  if not found then raise exception 'versioned Purchase policy preset/tier required' using errcode='23514';end if;
  perform app_private.assert_purchase_policy_selection(v.id,p.id,target_time);
- update public.purchase_request set state='APPROVAL_PENDING',version_no=next,updated_at=target_time where id=r.id;
+ update public.purchase_request set state='APPROVAL_PENDING',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.request.create','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-SUBMIT','REQUEST_DRAFT','APPROVAL_PENDING',r.version_no,next,'PURCHASE-EXACT-SNAPSHOT-SEALED',target_time); return next;
+  'EVT-PURCHASE-SUBMIT','REQUEST_DRAFT','APPROVAL_PENDING',r.version_no,next_version,'PURCHASE-EXACT-SNAPSHOT-SEALED',target_time); return next_version;
 end $$;
 
 create or replace function public.create_purchase_approval_instance(target_instance uuid,target_policy uuid,target_policy_checksum text,target_version uuid,
@@ -654,7 +654,7 @@ end $$;
 create or replace function app_private.apply_purchase_approval_outcome()
 returns trigger language plpgsql security definer set search_path=pg_catalog,public,app_private,extensions as $$ declare
  link public.approval_subject_purchase_request_version%rowtype;v public.purchase_request_version%rowtype;r public.purchase_request%rowtype;
- terminal public.approval_action%rowtype;position_id uuid;next bigint;begin
+ terminal public.approval_action%rowtype;position_id uuid;next_version bigint;begin
  if new.state=old.state then return new; end if; select * into link from public.approval_subject_purchase_request_version where instance_id=new.id;
  if not found then return new; end if;
  if old.state='DRAFT' and new.state='SUBMITTED' then
@@ -678,14 +678,14 @@ returns trigger language plpgsql security definer set search_path=pg_catalog,pub
   select * into strict v from public.purchase_request_version where id=link.purchase_request_version_id for update;
   select * into strict r from public.purchase_request where id=v.purchase_request_id for update;
   if r.state<>'APPROVAL_PENDING' or r.current_version_id<>v.id or v.approval_instance_id<>new.id then raise exception 'Purchase approval completion snapshot mismatch' using errcode='23514'; end if;
-  next:=r.version_no+1;perform set_config('app.m11_purchase_command',r.id::text,true);
+  next_version:=r.version_no+1;perform set_config('app.m11_purchase_command',r.id::text,true);
   update public.purchase_request_version set state='APPROVED' where id=v.id;
-  update public.purchase_request set state='REQUEST_APPROVED',version_no=next,updated_at=terminal.occurred_at where id=r.id;
+  update public.purchase_request set state='REQUEST_APPROVED',version_no=next_version,updated_at=terminal.occurred_at where id=r.id;
   insert into public.purchase_request_approval_outcome(purchase_request_version_id,purchase_request_id,approval_instance_id,approval_version,
    policy_version_id,policy_version_no,policy_checksum,official_approver_user_id,official_approver_position_id,terminal_action_id,completed_at)
   values(v.id,r.id,new.id,new.version_no,new.policy_version_id,new.policy_version_no,new.policy_checksum_snapshot,terminal.effective_actor_user_id,position_id,terminal.id,terminal.occurred_at);
   perform app_private.append_m11_transition(extensions.gen_random_uuid(),extensions.gen_random_uuid(),extensions.gen_random_uuid(),'purchase.request.manage',
-   'PURCHASE_REQUEST',r.id,'EVT-PURCHASE-APPROVED','APPROVAL_PENDING','REQUEST_APPROVED',r.version_no,next,'PURCHASE-EXACT-APPROVAL-COMPLETED',terminal.occurred_at);
+   'PURCHASE_REQUEST',r.id,'EVT-PURCHASE-APPROVED','APPROVAL_PENDING','REQUEST_APPROVED',r.version_no,next_version,'PURCHASE-EXACT-APPROVAL-COMPLETED',terminal.occurred_at);
  end if;return new;
 end $$;
 create constraint trigger approval_instance_purchase_subject_apply after update on public.approval_instance deferrable initially deferred
@@ -694,50 +694,50 @@ create constraint trigger approval_instance_purchase_subject_apply after update 
 create or replace function public.create_purchase_resolution(target_id uuid,target_request uuid,target_quote uuid,target_reason text,
  target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
 returns uuid language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare r public.purchase_request%rowtype;
- v public.purchase_request_version%rowtype;q public.purchase_quotation%rowtype;next bigint;begin
+ v public.purchase_request_version%rowtype;q public.purchase_quotation%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.resolution.manage',target_time);select * into strict r from public.purchase_request where id=target_request for update;
  select * into strict v from public.purchase_request_version where id=r.current_version_id for share;select * into strict q from public.purchase_quotation where id=target_quote and purchase_request_version_id=v.id for share;
  if r.state<>'REQUEST_APPROVED' or v.state<>'APPROVED' or not exists(select 1 from public.purchase_request_approval_outcome o where o.purchase_request_version_id=v.id) then raise exception 'exact approved PurchaseRequestVersion required' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected);
+ next_version:=app_private.next_version(r.version_no,target_expected);
  insert into public.purchase_resolution(id,purchase_request_id,purchase_request_version_id,request_version_no,request_checksum,request_sealed_at,
   selected_quotation_id,selected_supplier_id,resolution_reason,resolved_amount,currency,state,version_no,created_by_user_id,created_at)
  values(target_id,r.id,v.id,v.version_no,v.sealed_snapshot_checksum,v.sealed_at,q.id,q.supplier_id,target_reason,q.total_amount,q.currency,'DRAFT',1,
   app_private.current_effective_actor_user_id(),target_time);
- perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='RESOLUTION_DRAFT',version_no=next,updated_at=target_time where id=r.id;
+ perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='RESOLUTION_DRAFT',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.resolution.manage','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-CREATE-RESOLUTION','REQUEST_APPROVED','RESOLUTION_DRAFT',r.version_no,next,target_reason,target_time);return target_id;
+  'EVT-PURCHASE-CREATE-RESOLUTION','REQUEST_APPROVED','RESOLUTION_DRAFT',r.version_no,next_version,target_reason,target_time);return target_id;
 end $$;
 create or replace function public.transition_purchase_resolution(target_resolution uuid,target_event text,target_expected_request bigint,target_expected_resolution bigint,
  target_reason text,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
 returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare x public.purchase_resolution%rowtype;r public.purchase_request%rowtype;
- next bigint;next_resolution bigint;from_state text;to_state text;action text;begin select * into strict x from public.purchase_resolution where id=target_resolution for update;
+ next_version bigint;next_resolution bigint;from_state text;to_state text;action text;begin select * into strict x from public.purchase_resolution where id=target_resolution for update;
  select * into strict r from public.purchase_request where id=x.purchase_request_id for update;
  action:=case when target_event='EVT-PURCHASE-AWAIT-PAYMENT' then 'purchase.payment.record' else 'purchase.resolution.manage' end;
  perform app_private.m11_assert_internal_mutator(action,target_time);
  from_state:=r.state;to_state:=case when target_event='EVT-PURCHASE-RESOLVE' and r.state='RESOLUTION_DRAFT' and x.state='DRAFT' then 'RESOLVED'
   when target_event='EVT-PURCHASE-AWAIT-PAYMENT' and r.state='RESOLVED' and x.state='RESOLVED' then 'PAYMENT_PENDING_EXTERNAL' else null end;
  if to_state is null then raise exception 'invalid Purchase resolution transition' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected_request);next_resolution:=app_private.next_version(x.version_no,target_expected_resolution);
+ next_version:=app_private.next_version(r.version_no,target_expected_request);next_resolution:=app_private.next_version(x.version_no,target_expected_resolution);
  update public.purchase_resolution set state=case when to_state='RESOLVED' then 'RESOLVED' else 'AWAITING_EXTERNAL_PAYMENT' end,
   version_no=next_resolution,resolved_at=case when to_state='RESOLVED' then target_time else resolved_at end where id=x.id;
- perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state=to_state,version_no=next,updated_at=target_time where id=r.id;
+ perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state=to_state,version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,action,'PURCHASE_REQUEST',r.id,target_event,from_state,to_state,
-  r.version_no,next,target_reason,target_time);return next;
+  r.version_no,next_version,target_reason,target_time);return next_version;
 end $$;
 create or replace function public.record_external_payment_fact(target_id uuid,target_resolution uuid,target_system text,target_reference text,
  target_amount numeric,target_currency char(3),target_paid_on date,target_expected_request bigint,target_expected_resolution bigint,
  target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare x public.purchase_resolution%rowtype;r public.purchase_request%rowtype;next bigint;begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare x public.purchase_resolution%rowtype;r public.purchase_request%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.payment.record',target_time);select * into strict x from public.purchase_resolution where id=target_resolution for update;
  select * into strict r from public.purchase_request where id=x.purchase_request_id for update;
  if r.state<>'PAYMENT_PENDING_EXTERNAL' or x.state<>'AWAITING_EXTERNAL_PAYMENT' or target_amount<>x.resolved_amount or target_currency<>x.currency then raise exception 'exact external payment readback required; no transfer command exists' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected_request);perform app_private.next_version(x.version_no,target_expected_resolution);
+ next_version:=app_private.next_version(r.version_no,target_expected_request);perform app_private.next_version(x.version_no,target_expected_resolution);
  insert into public.purchase_external_payment_fact(id,purchase_resolution_id,external_system_code,external_reference,confirmed_amount,currency,paid_on,recorded_by_user_id,recorded_at)
  values(target_id,x.id,target_system,target_reference,target_amount,target_currency,target_paid_on,app_private.current_effective_actor_user_id(),target_time);
  update public.purchase_resolution set state='EXTERNAL_PAYMENT_CONFIRMED',version_no=version_no+1 where id=x.id;
- perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='PAYMENT_CONFIRMED',version_no=next,updated_at=target_time where id=r.id;
+ perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='PAYMENT_CONFIRMED',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.payment.record','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-CONFIRM-PAYMENT','PAYMENT_PENDING_EXTERNAL','PAYMENT_CONFIRMED',r.version_no,next,'EXTERNAL-PAYMENT-FACT-RECORDED',target_time);return next;
+  'EVT-PURCHASE-CONFIRM-PAYMENT','PAYMENT_PENDING_EXTERNAL','PAYMENT_CONFIRMED',r.version_no,next_version,'EXTERNAL-PAYMENT-FACT-RECORDED',target_time);return next_version;
 end $$;
 create or replace function public.create_receipt(target_id uuid,target_no text,target_resolution uuid,target_received_on date,target_audit uuid,target_time timestamptz)
 returns uuid language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare x public.purchase_resolution%rowtype;r public.purchase_request%rowtype;begin
@@ -775,39 +775,39 @@ returns uuid language plpgsql security definer set search_path=pg_catalog,public
  perform app_private.append_audit(target_audit,'purchase.receipt.record','RECEIPT',rc.id,rc.version_no,'SUCCEEDED','RECEIPT-LINE-ADDED',target_line,null,null,null,target_time);return target_line;
 end $$;
 create or replace function public.finalize_receipt(target_receipt uuid,target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;complete boolean;next bigint;begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;complete boolean;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.receipt.record',target_time);select * into strict rc from public.receipt where id=target_receipt for update;
  select * into strict r from public.purchase_request where id=rc.purchase_request_id for update;
  if rc.state<>'RECORDED' or not exists(select 1 from public.receipt_line where receipt_id=rc.id) then raise exception 'nonempty unfinalized Receipt required' using errcode='23514';end if;
  select not exists(select 1 from public.purchase_request_line pl where pl.purchase_request_version_id=r.current_version_id and pl.quantity<>
   (select coalesce(sum(rl.received_quantity),0) from public.receipt_line rl join public.receipt x on x.id=rl.receipt_id where x.purchase_request_id=r.id and rl.purchase_request_line_id=pl.id)) into complete;
- next:=app_private.next_version(r.version_no,target_expected);perform set_config('app.m11_purchase_command',r.id::text,true);
- update public.purchase_request set state=case when complete then 'RECEIVED' else 'PARTIALLY_RECEIVED' end,version_no=next,updated_at=target_time where id=r.id;
+ next_version:=app_private.next_version(r.version_no,target_expected);perform set_config('app.m11_purchase_command',r.id::text,true);
+ update public.purchase_request set state=case when complete then 'RECEIVED' else 'PARTIALLY_RECEIVED' end,version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.receipt.record','PURCHASE_REQUEST',r.id,
   case when complete then 'EVT-PURCHASE-RECEIVE' else 'EVT-PURCHASE-RECEIVE-PART' end,r.state,case when complete then 'RECEIVED' else 'PARTIALLY_RECEIVED' end,
-  r.version_no,next,'RECEIPT-QUANTITIES-FINALIZED',target_time);return next;
+  r.version_no,next_version,'RECEIPT-QUANTITIES-FINALIZED',target_time);return next_version;
 end $$;
 create or replace function public.request_purchase_inspection(target_receipt uuid,target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;next bigint;begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.inspection.record',target_time);select * into strict rc from public.receipt where id=target_receipt for update;
  select * into strict r from public.purchase_request where id=rc.purchase_request_id for update;
  if r.state<>'RECEIVED' or rc.state<>'RECORDED' then raise exception 'fully received purchase required' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected);update public.receipt set state='INSPECTION_PENDING',version_no=version_no+1 where id=rc.id;
- perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='INSPECTION_PENDING',version_no=next,updated_at=target_time where id=r.id;
+ next_version:=app_private.next_version(r.version_no,target_expected);update public.receipt set state='INSPECTION_PENDING',version_no=version_no+1 where id=rc.id;
+ perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='INSPECTION_PENDING',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.inspection.record','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-REQUEST-INSPECTION','RECEIVED','INSPECTION_PENDING',r.version_no,next,'PURCHASE-INSPECTION-REQUESTED',target_time);return next;
+  'EVT-PURCHASE-REQUEST-INSPECTION','RECEIVED','INSPECTION_PENDING',r.version_no,next_version,'PURCHASE-INSPECTION-REQUESTED',target_time);return next_version;
 end $$;
 create or replace function public.record_purchase_inspection(target_id uuid,target_receipt uuid,target_inspection uuid,target_inspection_attempt uuid,
  target_inspection_attempt_no integer,target_inspection_checksum text,target_quantity text,target_spec text,target_appearance text,
  target_performance text,target_overall text,target_summary text,target_attachment uuid,target_expected bigint,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;a public.attachment%rowtype;next bigint;begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;a public.attachment%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.inspection.record',target_time);select * into strict rc from public.receipt where id=target_receipt for update;
  select * into strict r from public.purchase_request where id=rc.purchase_request_id for update;select * into strict a from public.attachment where id=target_attachment and state='AVAILABLE';
  if r.state<>'INSPECTION_PENDING' or rc.state<>'INSPECTION_PENDING' or not exists(select 1 from public.inspection_attempt i
    where i.id=target_inspection_attempt and i.inspection_id=target_inspection and i.attempt_no=target_inspection_attempt_no
     and i.checksum=target_inspection_checksum and i.state='SEALED')
   or (target_overall='PASS' and (target_quantity<>'PASS' or target_spec<>'PASS' or target_appearance<>'PASS' or target_performance='FAIL')) then raise exception 'exact pending receipt, sealed InspectionAttempt and consistent verdict required' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected);
+ next_version:=app_private.next_version(r.version_no,target_expected);
  insert into public.purchase_inspection(id,receipt_id,purchase_resolution_id,inspection_id,inspection_attempt_id,inspection_attempt_no,inspection_attempt_checksum,
   inspector_user_id,quantity_verdict,specification_verdict,appearance_verdict,performance_verdict,
   overall_verdict,summary,evidence_attachment_id,evidence_attachment_row_version,evidence_attachment_checksum,inspected_at)
@@ -816,21 +816,21 @@ returns bigint language plpgsql security definer set search_path=pg_catalog,publ
   target_overall,target_summary,a.id,a.row_version,a.detected_sha256,target_time);
  update public.receipt set state=case when target_overall='PASS' then 'INSPECTED' else 'CORRECTION_REQUIRED' end,version_no=version_no+1 where id=rc.id;
  perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state=case when target_overall='PASS' then 'COMPLETED' else 'CORRECTION_REQUIRED' end,
-  version_no=next,updated_at=target_time where id=r.id;
+  version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.inspection.record','PURCHASE_REQUEST',r.id,
   case when target_overall='PASS' then 'EVT-PURCHASE-INSPECTION-PASS' else 'EVT-PURCHASE-INSPECTION-FAIL' end,'INSPECTION_PENDING',
-  case when target_overall='PASS' then 'COMPLETED' else 'CORRECTION_REQUIRED' end,r.version_no,next,'PURCHASE-INSPECTION-EVIDENCE-RECORDED',target_time);return next;
+  case when target_overall='PASS' then 'COMPLETED' else 'CORRECTION_REQUIRED' end,r.version_no,next_version,'PURCHASE-INSPECTION-EVIDENCE-RECORDED',target_time);return next_version;
 end $$;
 
 create or replace function public.resolve_purchase_correction(target_receipt uuid,target_expected bigint,target_reason text,target_audit uuid,target_transition uuid,target_outbox uuid,target_time timestamptz)
-returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;next bigint;begin
+returns bigint language plpgsql security definer set search_path=pg_catalog,public,app_private as $$ declare rc public.receipt%rowtype;r public.purchase_request%rowtype;next_version bigint;begin
  perform app_private.m11_assert_internal_mutator('purchase.inspection.record',target_time);select * into strict rc from public.receipt where id=target_receipt for update;
  select * into strict r from public.purchase_request where id=rc.purchase_request_id for update;
  if r.state<>'CORRECTION_REQUIRED' or rc.state<>'CORRECTION_REQUIRED' or nullif(btrim(target_reason),'') is null then raise exception 'evidenced correction reason required' using errcode='23514';end if;
- next:=app_private.next_version(r.version_no,target_expected);update public.receipt set state='INSPECTION_PENDING',version_no=version_no+1 where id=rc.id;
- perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='INSPECTION_PENDING',version_no=next,updated_at=target_time where id=r.id;
+ next_version:=app_private.next_version(r.version_no,target_expected);update public.receipt set state='INSPECTION_PENDING',version_no=version_no+1 where id=rc.id;
+ perform set_config('app.m11_purchase_command',r.id::text,true);update public.purchase_request set state='INSPECTION_PENDING',version_no=next_version,updated_at=target_time where id=r.id;
  perform app_private.append_m11_transition(target_audit,target_transition,target_outbox,'purchase.inspection.record','PURCHASE_REQUEST',r.id,
-  'EVT-PURCHASE-RESOLVE-CORRECTION','CORRECTION_REQUIRED','INSPECTION_PENDING',r.version_no,next,target_reason,target_time);return next;
+  'EVT-PURCHASE-RESOLVE-CORRECTION','CORRECTION_REQUIRED','INSPECTION_PENDING',r.version_no,next_version,target_reason,target_time);return next_version;
 end $$;
 
 create or replace function app_private.append_rnd_fact(target_audit uuid,target_outbox uuid,target_action text,target_type text,target_id uuid,
