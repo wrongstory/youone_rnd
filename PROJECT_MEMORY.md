@@ -46,7 +46,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M13` Safety Light PR #32가 `dev`에 병합 완료됐고, `M14` L3/L4 통제사본 구현 진행 중).
+`IMPLEMENTATION_ACTIVE` (`M13` Safety Light PR #32가 `dev`에 병합 완료됐고, `M14` L3/L4 통제사본 구현 및 PR 검증 준비 완료).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -71,6 +71,8 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 `M10`은 PR #29로 `dev`에 병합됐다. ECR/ECO의 immutable version, 구조화된 6개 영향검토, exact typed before/after target, 승인된 변경지시, 적용범위 및 독립 재검증을 구현한다. 계약 영향 변경은 별도 서명·발효된 ContractVersion snapshot 없이는 효력이 발생하지 않으며, 긴급변경 정책과 결재 부정결과 상태전이는 각각 `OD-032`, `OD-033`을 임의 결정하지 않고 fail-closed로 유지한다. BOM은 P1 extension port만 두고 M10 물리 저장소와 화면에 포함하지 않았다.
 
 `M11`은 PR #30, `M12`는 PR #31, `M13`은 PR #32로 `dev`에 병합됐다. M11은 Purchase/R&D 진행·예산·집행·증빙을, M12는 경량 ResearchNote와 immutable PDF 증빙을, M13은 effective-dated 안전담당·점검·교육·사고 및 48시간 내부 조사 SLA를 구현한다. M13은 MSDS·유해물질·폐기물·비상훈련을 P1로 유지하고 Vendor에게 exact Scope의 안전 allowlist projection만 제공한다.
+
+`M14`는 exact approved DocumentVersion과 source Attachment tuple을 봉인한 통제사본 신청, L3 연구소장 단독 및 L4 연구소장 후 대표자 2명 중 1명 결재, 신청 시점 고유 사본번호, 내부 전용 per-page 워터마크 렌더링·출력, 인계·회수·파기·연체 대장을 구현했다. 외부 수령인은 활성 VendorMembership과 Project grant를 요구하고 계약 연결 건은 동일 VendorUser의 Contract grant까지 AND로 재검증한다. Vendor와 Admin-System은 원문·렌더·자가출력에서 차단되며 Vendor projection은 허용 필드만 제공한다. 로컬 M14 계약·도메인·애플리케이션·PDF·화면 테스트 32개와 전체 408개 테스트, typecheck, lint, build가 통과했다. PostgreSQL 16 실DB 8개 검증은 PR CI에서 실행한다.
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
@@ -110,5 +112,5 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 12. `M11`: Purchase/R&D 진행·예산·집행·증빙 구현 및 PR #30 `dev` 병합 완료.
 13. `M12`: ResearchNote 경량·불변 Entry·선택적 선임검토·연구소장 확정·generic PDF 증빙 구현 및 PR #31 `dev` 병합 완료.
 14. `M13`: Safety 경량 담당지정·주/월 점검·교육·사고 48시간 조사 구현 및 PR #32 `dev` 병합 완료.
-15. `M14`: L3/L4 exact version 결재·내부 워터마크 출력·인계/회수/파기 대장 구현 진행 중.
+15. `M14`: L3/L4 exact version 결재·내부 워터마크 출력·인계/회수/파기 대장 구현 완료, `dev` 대상 PR 검토 대기.
 16. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
