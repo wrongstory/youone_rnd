@@ -1,0 +1,251 @@
+import type { StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
+import {
+  EngineeringChangeOrder,
+  EngineeringChangeRequest,
+  type ApprovedEcrOrigin,
+  type ChangeAuditObligation,
+  type ChangeCommand,
+  type ChangeDomainEvent,
+  type ChangePriority,
+  type EcoImplementationSnapshot,
+  type EcoMutation,
+  type EcoSealedVersionSnapshot,
+  type EcoSnapshot,
+  type EcoState,
+  type EcoTarget,
+  type EcoVerificationSnapshot,
+  type EcrMutation,
+  type EcrImpactAnalysisSnapshot,
+  type EcrReviewSnapshot,
+  type EcrSealedVersionSnapshot,
+  type EcrSnapshot,
+  type EcrState,
+  type EmergencyChangeExceptionSnapshot,
+  type ExecutedSignedChangeContractSnapshot,
+  type OfficialChangeApprovalEvidence
+} from "../domain/ecr-eco.js";
+
+export const CHANGE_PERMISSION_IDS = Object.freeze({
+  REQUEST_CREATE: "change.request.create",
+  REQUEST_MANAGE: "change.request.manage",
+  IMPACT_ANALYZE: "change.impact.analyze",
+  REQUEST_REVIEW: "change.request.review",
+  REQUEST_APPROVE: "change.request.approve",
+  ORDER_MANAGE: "change.order.manage",
+  ORDER_EMERGENCY_RELEASE: "change.order.emergency.release",
+  ORDER_IMPLEMENT: "change.order.implement",
+  ORDER_VERIFY: "change.order.verify"
+} as const);
+
+export interface EcrRepository {
+  loadForUpdate(ecrId: Uuid): Promise<EcrSnapshot | null>;
+  insert(snapshot: EcrSnapshot): Promise<void>;
+  save(snapshot: EcrSnapshot, expectedVersion: Version): Promise<boolean>;
+  appendImmutableImpactAnalysis(snapshot: EcrImpactAnalysisSnapshot): Promise<void>;
+  appendImmutableSealedVersion(snapshot: EcrSealedVersionSnapshot): Promise<void>;
+  appendImmutableReview(snapshot: EcrReviewSnapshot): Promise<void>;
+  appendImmutableOfficialApproval(ecrId: Uuid, snapshot: OfficialChangeApprovalEvidence): Promise<void>;
+}
+
+export interface EcoRepository {
+  loadForUpdate(ecoId: Uuid): Promise<EcoSnapshot | null>;
+  insert(snapshot: EcoSnapshot): Promise<void>;
+  save(snapshot: EcoSnapshot, expectedVersion: Version): Promise<boolean>;
+  appendImmutableSealedVersion(snapshot: EcoSealedVersionSnapshot): Promise<void>;
+  appendImmutableEmergencyException(snapshot: EmergencyChangeExceptionSnapshot): Promise<void>;
+  appendImmutableImplementation(snapshot: EcoImplementationSnapshot): Promise<void>;
+  appendImmutableVerification(snapshot: EcoVerificationSnapshot): Promise<void>;
+  appendImmutableOfficialApproval(ecoId: Uuid, snapshot: OfficialChangeApprovalEvidence): Promise<void>;
+  appendImmutableRetrospectiveApproval(ecoId: Uuid, snapshot: OfficialChangeApprovalEvidence): Promise<void>;
+  appendImmutableSignedChangeContract(snapshot: ExecutedSignedChangeContractSnapshot): Promise<void>;
+}
+
+/** Adapters must validate entity identity, immutable before revision, and distinct newly-created after revision. */
+export interface EcoTargetValidationPort {
+  assertExactProposedTargets(input: { readonly projectId: Uuid; readonly contractId?: Uuid; readonly targets: readonly EcoTarget[] }): Promise<void>;
+  assertImplementationCreatedExactAfterRevision(input: EcoImplementationSnapshot): Promise<void>;
+  assertExactAppliedScope(input: EcoVerificationSnapshot["appliedScope"]): Promise<void>;
+}
+
+/** Optional BOM integration point only. M10 does not create or write BOM storage. */
+export interface BomChangeTargetExtension {
+  readonly extensionId: Uuid;
+  readonly ecoId: Uuid;
+  readonly bomId: Uuid;
+  readonly beforeBomVersionId: Uuid;
+  readonly proposedAfterBomVersionId: Uuid;
+}
+export interface BomChangeTargetExtensionPort {
+  assertExactBomTarget(input: BomChangeTargetExtension): Promise<void>;
+  recordAppliedBomRevision(input: BomChangeTargetExtension & { readonly implementedAt: UtcInstant; readonly evidenceIds: readonly Uuid[] }): Promise<void>;
+}
+
+export interface EmergencyChangeAuthorityPort {
+  /** Fail closed if the referenced policy or exact temporary authority assignment is absent, expired, revoked, or not applicable. */
+  assertExactActiveException(input: EmergencyChangeExceptionSnapshot & { readonly projectId: Uuid; readonly contractId?: Uuid }): Promise<void>;
+}
+
+export interface ExecutedChangeContractValidationPort {
+  assertExecutedSignedExactSnapshot(snapshot: ExecutedSignedChangeContractSnapshot): Promise<void>;
+}
+
+export interface ChangeLinkValidationPort {
+  assertProjectAndContract(input: { readonly projectId: Uuid; readonly contractId?: Uuid; readonly assignedVendorId?: Uuid }): Promise<void>;
+  assertExactNcrLinks(ncrIds: readonly Uuid[]): Promise<void>;
+}
+
+export interface ChangeEvidencePort {
+  appendTransition(input: { readonly aggregateId: Uuid; readonly machineId: StableCode; readonly fromVersion: Version; readonly toVersion: Version; readonly eventType: StableCode; readonly occurredAt: UtcInstant }): Promise<void>;
+  appendAudit(obligation: ChangeAuditObligation): Promise<void>;
+  enqueue(event: ChangeDomainEvent): Promise<void>;
+}
+
+export interface ChangeTransactionContext {
+  readonly ecrs: EcrRepository;
+  readonly ecos: EcoRepository;
+  readonly targets: EcoTargetValidationPort;
+  readonly emergencyAuthority: EmergencyChangeAuthorityPort;
+  readonly signedChangeContracts: ExecutedChangeContractValidationPort;
+  readonly links: ChangeLinkValidationPort;
+  readonly evidence: ChangeEvidencePort;
+}
+export interface ChangeUnitOfWork { transact<T>(work: (context: ChangeTransactionContext) => Promise<T>): Promise<T> }
+
+export class ChangeApplicationError extends Error {
+  public constructor(public readonly code: StableCode, message: string) { super(message); this.name = "ChangeApplicationError"; }
+}
+export class ChangeConcurrencyError extends ChangeApplicationError {
+  public constructor(message: string) { super("CHANGE_STALE_VERSION" as StableCode, message); }
+}
+
+async function appendEvidence(context: ChangeTransactionContext, mutation: EcrMutation | EcoMutation): Promise<void> {
+  if (mutation.snapshot.version !== mutation.expectedVersion + 1) throw new ChangeConcurrencyError("A change mutation must increment optimistic version exactly once.");
+  await context.evidence.appendTransition({ aggregateId: mutation.event.aggregateId, machineId: mutation.event.machineId as StableCode, fromVersion: mutation.expectedVersion, toVersion: mutation.snapshot.version, eventType: mutation.event.eventType, occurredAt: mutation.event.occurredAt });
+  await context.evidence.appendAudit(mutation.audit);
+  await context.evidence.enqueue(mutation.event);
+}
+
+async function saveEcr(context: ChangeTransactionContext, mutation: EcrMutation): Promise<void> {
+  if (mutation.expectedVersion === 0) {
+    if (mutation.snapshot.version !== 1 || mutation.event.eventType !== "EVT-ECR-CREATE") throw new ChangeConcurrencyError("ECR creation must be version 0 to 1.");
+    await context.links.assertProjectAndContract({ projectId: mutation.snapshot.projectId, ...(mutation.snapshot.contractId ? { contractId: mutation.snapshot.contractId } : {}), ...(mutation.snapshot.assignedVendorId ? { assignedVendorId: mutation.snapshot.assignedVendorId } : {}) });
+    await context.links.assertExactNcrLinks(mutation.snapshot.linkedNcrIds);
+    await context.ecrs.insert(mutation.snapshot);
+  } else if (!await context.ecrs.save(mutation.snapshot, mutation.expectedVersion)) {
+    throw new ChangeConcurrencyError("ECR optimistic lock lost.");
+  }
+  if (mutation.immutableReview) await context.ecrs.appendImmutableReview(mutation.immutableReview);
+  if (mutation.immutableImpactAnalysis) await context.ecrs.appendImmutableImpactAnalysis(mutation.immutableImpactAnalysis);
+  if (mutation.immutableSealedVersion) await context.ecrs.appendImmutableSealedVersion(mutation.immutableSealedVersion);
+  if (mutation.immutableOfficialApproval) await context.ecrs.appendImmutableOfficialApproval(mutation.snapshot.ecrId, mutation.immutableOfficialApproval);
+  await appendEvidence(context, mutation);
+}
+
+async function saveEco(context: ChangeTransactionContext, mutation: EcoMutation): Promise<void> {
+  if (mutation.expectedVersion === 0) {
+    if (mutation.snapshot.version !== 1 || mutation.event.eventType !== "EVT-ECO-CREATE") throw new ChangeConcurrencyError("ECO creation must be version 0 to 1.");
+    await context.links.assertProjectAndContract({ projectId: mutation.snapshot.projectId, ...(mutation.snapshot.contractId ? { contractId: mutation.snapshot.contractId } : {}), ...(mutation.snapshot.assignedVendorId ? { assignedVendorId: mutation.snapshot.assignedVendorId } : {}) });
+    await context.links.assertExactNcrLinks(mutation.snapshot.linkedNcrIds);
+    await context.targets.assertExactProposedTargets({ projectId: mutation.snapshot.projectId, ...(mutation.snapshot.contractId ? { contractId: mutation.snapshot.contractId } : {}), targets: mutation.snapshot.targets });
+    await context.ecos.insert(mutation.snapshot);
+  } else if (!await context.ecos.save(mutation.snapshot, mutation.expectedVersion)) {
+    throw new ChangeConcurrencyError("ECO optimistic lock lost.");
+  }
+  if (mutation.immutableEmergencyException) await context.ecos.appendImmutableEmergencyException(mutation.immutableEmergencyException);
+  if (mutation.immutableSealedVersion) await context.ecos.appendImmutableSealedVersion(mutation.immutableSealedVersion);
+  if (mutation.immutableImplementation) { await context.targets.assertImplementationCreatedExactAfterRevision(mutation.immutableImplementation); await context.ecos.appendImmutableImplementation(mutation.immutableImplementation); }
+  if (mutation.immutableVerification) { await context.targets.assertExactAppliedScope(mutation.immutableVerification.appliedScope); await context.ecos.appendImmutableVerification(mutation.immutableVerification); }
+  if (mutation.immutableOfficialApproval) await context.ecos.appendImmutableOfficialApproval(mutation.snapshot.ecoId, mutation.immutableOfficialApproval);
+  if (mutation.immutableRetrospectiveApproval) await context.ecos.appendImmutableRetrospectiveApproval(mutation.snapshot.ecoId, mutation.immutableRetrospectiveApproval);
+  if (mutation.immutableSignedChangeContract) { await context.signedChangeContracts.assertExecutedSignedExactSnapshot(mutation.immutableSignedChangeContract); await context.ecos.appendImmutableSignedChangeContract(mutation.immutableSignedChangeContract); }
+  await appendEvidence(context, mutation);
+}
+
+export async function persistEcrMutation(unitOfWork: ChangeUnitOfWork, mutation: EcrMutation): Promise<void> {
+  await unitOfWork.transact((context) => saveEcr(context, mutation));
+}
+
+/** Approved-ECR ECO creation is intentionally unavailable here; it must atomically convert the source ECR. */
+export async function persistEmergencyEcoCreation(unitOfWork: ChangeUnitOfWork, mutation: EcoMutation): Promise<void> {
+  if (mutation.expectedVersion !== 0 || mutation.snapshot.origin.kind !== "EMERGENCY_EXCEPTION" || !mutation.immutableEmergencyException) throw new ChangeApplicationError("ECO_EMERGENCY_CREATE_REQUIRED" as StableCode, "Only a documented emergency ECO creation may use this path.");
+  await unitOfWork.transact(async (context) => {
+    const origin = mutation.snapshot.origin as EmergencyChangeExceptionSnapshot;
+    await context.emergencyAuthority.assertExactActiveException({ ...origin, projectId: mutation.snapshot.projectId, ...(mutation.snapshot.contractId ? { contractId: mutation.snapshot.contractId } : {}) });
+    await saveEco(context, mutation);
+  });
+}
+
+export async function persistEcoMutation(unitOfWork: ChangeUnitOfWork, mutation: EcoMutation): Promise<void> {
+  if (mutation.expectedVersion === 0) throw new ChangeApplicationError("ECO_CREATE_UOW_REQUIRED" as StableCode, "Use the approved-ECR or emergency ECO creation UoW.");
+  await unitOfWork.transact((context) => saveEco(context, mutation));
+}
+
+export type StandardEcoCreateInput = Omit<Parameters<typeof EngineeringChangeOrder.create>[0], "origin">;
+export async function createEcoFromApprovedEcr(unitOfWork: ChangeUnitOfWork, input: {
+  readonly ecrId: Uuid;
+  readonly eco: StandardEcoCreateInput;
+  readonly ecoCommand: Omit<ChangeCommand, "expectedVersion">;
+  readonly ecrConversionCommand: ChangeCommand;
+}): Promise<EcoSnapshot> {
+  return unitOfWork.transact(async (context) => {
+    const exact = await context.ecrs.loadForUpdate(input.ecrId);
+    if (!exact) throw new ChangeApplicationError("ECR_NOT_FOUND" as StableCode, "Source ECR was not found.");
+    if (exact.state !== "APPROVED" || !exact.sealedSubjectVersionId || !exact.sealedSubjectVersion || !exact.sealedSubjectChecksum || !exact.sealedSubjectAt || !exact.officialApproval) throw new ChangeApplicationError("ECO_APPROVED_ECR_REQUIRED" as StableCode, "ECO creation requires the exact immutable approved ECR snapshot.");
+    const origin: ApprovedEcrOrigin = { kind: "APPROVED_ECR", ecrId: exact.ecrId, ecrVersion: exact.version, ecrState: "APPROVED", sealedSubjectVersionId: exact.sealedSubjectVersionId, sealedSubjectVersion: exact.sealedSubjectVersion, sealedSubjectChecksum: exact.sealedSubjectChecksum, sealedSubjectAt: exact.sealedSubjectAt, officialApproval: exact.officialApproval };
+    const ecoMutation = EngineeringChangeOrder.create({ ...input.eco, origin }, input.ecoCommand);
+    const ecrMutation = EngineeringChangeRequest.restore(exact).markEcoCreated(input.ecrConversionCommand, ecoMutation.snapshot.ecoId);
+    await saveEco(context, ecoMutation);
+    await saveEcr(context, ecrMutation);
+    return ecoMutation.snapshot;
+  });
+}
+
+export async function applyEcoImplementation(unitOfWork: ChangeUnitOfWork, input: { readonly ecoId: Uuid; readonly command: ChangeCommand; readonly implementation: Omit<EcoImplementationSnapshot, "ecoId" | "implementedByUserId" | "implementedByVendorId" | "implementedAt" | "originalOverwritten"> }): Promise<EcoSnapshot> {
+  return unitOfWork.transact(async (context) => {
+    const snapshot = await context.ecos.loadForUpdate(input.ecoId);
+    if (!snapshot) throw new ChangeApplicationError("ECO_NOT_FOUND" as StableCode, "ECO was not found.");
+    const mutation = EngineeringChangeOrder.restore(snapshot).recordImplementation(input.command, input.implementation);
+    await saveEco(context, mutation);
+    return mutation.snapshot;
+  });
+}
+
+export async function verifyEcoEffectiveness(unitOfWork: ChangeUnitOfWork, input: { readonly ecoId: Uuid; readonly command: ChangeCommand; readonly verification: Omit<EcoVerificationSnapshot, "ecoId" | "verifierUserId" | "verifiedAt">; readonly signedChangeContract?: ExecutedSignedChangeContractSnapshot }): Promise<EcoSnapshot> {
+  return unitOfWork.transact(async (context) => {
+    const snapshot = await context.ecos.loadForUpdate(input.ecoId);
+    if (!snapshot) throw new ChangeApplicationError("ECO_NOT_FOUND" as StableCode, "ECO was not found.");
+    const aggregate = EngineeringChangeOrder.restore(snapshot);
+    const mutation = aggregate.verify(input.command, { verification: input.verification, ...(input.signedChangeContract ? { signedChangeContract: input.signedChangeContract } : {}) });
+    const enriched: EcoMutation = input.signedChangeContract ? { ...mutation, immutableSignedChangeContract: input.signedChangeContract } : mutation;
+    await saveEco(context, enriched);
+    return enriched.snapshot;
+  });
+}
+
+export interface ChangeImpactSummaryView { readonly cost: "NO_IMPACT" | "AFFECTED"; readonly schedule: "NO_IMPACT" | "AFFECTED"; readonly quality: "NO_IMPACT" | "AFFECTED"; readonly safety: "NO_IMPACT" | "AFFECTED"; readonly security: "NO_IMPACT" | "AFFECTED"; readonly regulatory: "NO_IMPACT" | "AFFECTED" }
+export interface ChangeTargetDisplayRef { readonly kind: EcoTarget["kind"]; readonly targetId: string; readonly displayRef: string }
+export interface ChangeProgressView { readonly implementedTargets: number; readonly totalTargets: number; readonly verification: "NOT_READY" | "PENDING" | "VERIFIED" }
+export interface VendorChangeListItemView {
+  readonly changeRequestId: string; readonly ecrNo: string; readonly title: string; readonly priority: ChangePriority; readonly state: EcrState;
+  readonly changeOrderId?: string; readonly ecoNo?: string; readonly ecoState?: EcoState; readonly projectId: string; readonly contractId?: string;
+  readonly impactSummary: ChangeImpactSummaryView; readonly exactTargetDisplayRefs: readonly ChangeTargetDisplayRef[]; readonly progress: ChangeProgressView; readonly nextAction: StableCode | null;
+}
+export interface VendorChangeDetailView extends VendorChangeListItemView {
+  readonly assignedImplementationEvidenceIds: readonly string[];
+  readonly appliedScope?: { readonly serialNumbers: readonly string[]; readonly lotNumbers: readonly string[]; readonly equipmentIds: readonly string[] };
+}
+export interface InternalChangeDetailView { readonly ecr: EcrSnapshot; readonly eco?: EcoSnapshot; readonly reviews: readonly EcrReviewSnapshot[]; readonly implementations: readonly EcoImplementationSnapshot[] }
+export type ChangeVendorListResult = { readonly availability: "AVAILABLE"; readonly items: readonly VendorChangeListItemView[] } | { readonly availability: "UNAVAILABLE"; readonly items: readonly []; readonly reason: "QUERY_ADAPTER_NOT_CONFIGURED" };
+export type ChangeVendorDetailResult = { readonly availability: "AVAILABLE"; readonly detail: VendorChangeDetailView } | { readonly availability: "FORBIDDEN" | "NOT_FOUND"; readonly detail: null } | { readonly availability: "UNAVAILABLE"; readonly detail: null; readonly reason: "QUERY_ADAPTER_NOT_CONFIGURED" };
+export type ChangeInternalDetailResult = { readonly availability: "AVAILABLE"; readonly detail: InternalChangeDetailView } | { readonly availability: "FORBIDDEN" | "NOT_FOUND"; readonly detail: null } | { readonly availability: "UNAVAILABLE"; readonly detail: null; readonly reason: "QUERY_ADAPTER_NOT_CONFIGURED" };
+export interface ChangeQueryPort { listMineExternal(): Promise<ChangeVendorListResult>; getMineExternal(changeRequestId: string): Promise<ChangeVendorDetailResult>; getInternalDetail(changeRequestId: string): Promise<ChangeInternalDetailResult> }
+
+/** Explicit forbidden-field contract for external projections. */
+export type VendorForbiddenChangeField = "internalImpactDeliberation" | "approvalParticipants" | "contractAmount" | "legalNotes" | "securityFindings" | "internalNotes" | "temporaryAuthorityInternalReasoning";
+export const VENDOR_FORBIDDEN_CHANGE_FIELDS: readonly VendorForbiddenChangeField[] = Object.freeze(["internalImpactDeliberation", "approvalParticipants", "contractAmount", "legalNotes", "securityFindings", "internalNotes", "temporaryAuthorityInternalReasoning"]);
+
+export interface ChangeCommandPort {
+  /** The trusted server loads and seals the completed analysis; no client-provided checksum is authoritative. */
+  submitEcrReview(input: { readonly ecrId: string; readonly expectedVersion: number }): Promise<{ readonly availability: "ACCEPTED"; readonly newVersion: number } | { readonly availability: "FORBIDDEN" | "CONFLICT" | "NOT_FOUND" } | { readonly availability: "UNAVAILABLE"; readonly reason: "COMMAND_ADAPTER_NOT_CONFIGURED" }>;
+  submitEcoVerification(input: { readonly ecoId: string; readonly expectedVersion: number }): Promise<{ readonly availability: "ACCEPTED"; readonly newVersion: number } | { readonly availability: "FORBIDDEN" | "CONFLICT" | "NOT_FOUND" } | { readonly availability: "UNAVAILABLE"; readonly reason: "COMMAND_ADAPTER_NOT_CONFIGURED" }>;
+}
