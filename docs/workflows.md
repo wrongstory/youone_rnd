@@ -147,6 +147,14 @@ Workflow ID: `WF-PURCHASE-V1`.
 
 Headquarters staff remain read-only until a future explicit role policy grants more authority.
 
+M11 execution rules:
+
+- PurchaseRequest approval binds the exact immutable PurchaseRequestVersion; edits create a newer version and never retarget a completed Approval.
+- The amount band and approval route come from a versioned internal policy snapshot. VAT-inclusive totals and anti-splitting review facts are retained; presets are not described as statutory values.
+- PurchaseResolution may be created only from an approved exact version. External payment information is a recorded fact, not a transfer, accounting journal, or RCMS action.
+- Receipt is line/quantity based and may be partial or exceed the expected quantity only through explicit discrepancy handling. PurchaseInspection references the exact Receipt and PurchaseRequest line through typed relations.
+- Supplier is an internal procurement master distinct from the external-login Vendor boundary. Vendor actors and unassigned headquarters staff cannot execute internal purchase commands.
+
 ## 9. R&D Program and Expenditure
 
 Workflow ID: `WF-RND-V1`.
@@ -160,6 +168,8 @@ Workflow ID: `WF-RND-V1`.
 7. Close/settle program internally while preserving source evidence.
 
 No bank transfer, accounting journal, full VAT/refund workflow, or RCMS approval clone is included. Future integrations use adapters and preserve external IDs/import snapshots.
+
+M11 implements steps 1 through 6 as registration, typed Project links, immutable budget versions, structured expenditure/evidence, aggregates, and deadline alerts. Because `OD-030-RND-STATE-MACHINE` remains open, step 7 lifecycle commands and any Program state/event registry entries remain unavailable rather than being represented by an unconstrained status string.
 
 ## 10. Research Note
 
