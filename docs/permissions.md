@@ -254,7 +254,20 @@ M12의 `RESEARCH_NOTE_LIST_INTERNAL_V1`과 `RESEARCH_NOTE_DETAIL_INTERNAL_V1`은
 
 명령은 활성 내부계정, author/assigned Senior/Lab Director 역할, exact Project/R&D 관계, 현재 상태와 optimistic version을 서버와 DB에서 재검증한다. Senior와 Representative는 finalization을 수행할 수 없으며, Lab Director 권한도 확정된 원본을 수정하거나 PDF evidence를 교체하는 권한으로 확장되지 않는다.
 
-## 13. Field-Level Projection
+## 13. Technical Controlled Copy Permissions
+
+| Action | Authorized internal | Lab Director | Representative | Vendor | Admin-System |
+|---|---:|---:|---:|---:|---:|
+| Request controlled copy | explicit request permission | explicit permission | explicit permission | deny | deny by default |
+| Official L3 approval | exact participant only | allow | deny | deny | deny |
+| Official L4 approval | exact step participant only | first step | second `ANY_ONE` step | deny | deny |
+| Render | trusted internal document service | no implicit service authority | no implicit service authority | deny | deny |
+| Print / custody / return / destroy | explicit function permission | only with explicit permission | only with explicit permission | deny | deny |
+| Read source or rendered bytes | separate source entitlement and trusted delivery | policy entitlement only | policy entitlement only | deny | deny by role alone |
+
+Project-only Vendor recipient validation requires active VendorMembership plus exact Project grant. Contract-bound validation additionally requires the exact Contract grant for the same VendorUser; Project or Contract Scope alone never suffices. The application and DB revalidate this conjunction at request, render, print, and handover. Vendor/API projection contains only controlled-copy identity, purpose code, custody state, page count, handover time and return/destruction due time; source/output bytes, hashes, storage coordinates, approval participants, contract finance and internal evaluation fields are absent.
+
+## 14. Field-Level Projection
 
 Field projection policies are versioned server rules.
 
@@ -276,7 +289,7 @@ NCR/CAR projections:
 
 Vendor action requires an active account and VendorMembership, an active exact Project or Contract grant, and assignment to that Vendor/NCR. Vendor actors cannot issue, accept a plan, verify effectiveness, close or reopen. Internal review authority does not imply independent verification when the same actor owned or performed the CAR. Senior Researcher review never becomes official approval authority through NCR/CAR.
 
-## 14. Application and Database Enforcement
+## 15. Application and Database Enforcement
 
 ### Application server
 
@@ -302,7 +315,7 @@ M05 uses a private `PRIVATE_BUSINESS` bucket, server-issued object keys and an a
 - Upload requires a server-issued intent bound to subject, version, size/type constraints, and actor.
 - Download/preview requires a fresh authorization decision.
 
-## 15. Safety and Allowance Permissions
+## 16. Safety and Allowance Permissions
 
 - The Lab Director designates `ROLE_SAFETY_MANAGER`; designation is effective-dated and audited.
 - M13 Safety Manager may schedule/record inspections, education, incident investigation, and corrective verification. Material/waste/drill capabilities remain P1 and have no M13 physical route or table.
@@ -312,7 +325,7 @@ M05 uses a private `PRIVATE_BUSINESS` bucket, server-issued object keys and an a
 - The Lab Director evaluates contribution under the superior regulation; Representative-approved ratios/decisions are separate records.
 - Allowance calculation and tax classification require an approved project policy, exact calculation/tax-rule version, and HR-like restricted permission. No project role may self-approve or mark external payment complete.
 
-## 16. Audit Requirements
+## 17. Audit Requirements
 
 Always audit:
 
@@ -336,7 +349,7 @@ ECR/ECO authorization additionally requires:
 
 Audit records are append-only and must identify both the authenticated actor and effective delegated actor.
 
-## 17. Required Authorization Test Matrix
+## 18. Required Authorization Test Matrix
 
 For each protected use case, test:
 

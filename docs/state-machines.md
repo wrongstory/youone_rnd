@@ -365,6 +365,8 @@ States: `REQUESTED`, `APPROVAL_PENDING`, `APPROVED`, `RENDERED`, `PRINTED`, `HAN
 
 No transition grants vendor download, source-file delivery, or recipient-controlled printing.
 
+M14 reserves a globally unique copy number when the immutable request is created, but no rendered artifact exists until `EVT-TECHCOPY-RENDER` verifies the completed exact request approval, live recipient Scope, private source tuple and per-page watermark evidence. `RETURNED` is not terminal because the approved `RETURNED → DESTROYED` transition remains available. Scope-loss handover denial is an audited failed command, not a fabricated lifecycle transition; `OD-034` governs the future internal disposition event.
+
 ## 13. Guarantee and Warranty Issue
 
 Guarantee machine `SM-GUARANTEE-V1`: `DRAFT`, `ACTIVE`, `CLAIM_REVIEW`, `CLAIMED`, `RELEASE_PENDING`, `RELEASED`, `EXPIRED`, `CANCELLED`.

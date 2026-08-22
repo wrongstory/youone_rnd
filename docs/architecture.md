@@ -188,6 +188,10 @@ M11은 `features.purchase`가 Supplier/Item, immutable PurchaseRequestVersion, q
 
 M13은 `features.safety`가 유효기간형 담당 지정, 주/월 점검과 finding/stop-work/correction/verification, 교육·참석·보충교육, 사고·응급조치·현장보존·48시간 내부 조사·재발방지를 소유한다. 안전 상태 변경은 trusted ActorContext, 현재 유효한 SafetyManager/Coordinator assignment, exact Project/Vendor Scope, 낙관적 버전을 한 transaction에서 검증하고 audit/transition/outbox를 함께 기록한다. 48시간 SLA 작업은 idempotency key로 경고만 생성하며 조사 완료를 조작하지 않는다. MSDS·유해물질·폐기물·비상훈련은 P1 public port만 남기고 M13 table·route·menu를 만들지 않는다.
 
+M14는 `features.tech-copy`가 `SM-TECHDOC-COPY-V1` aggregate와 exact request/approval/render/custody 규칙을, `processes.controlled-copy-delivery`가 Document·Approval·Vendor/Project/Contract 공개 Port의 orchestration을 소유한다. `infrastructure.pdf-renderer`는 exact private source Attachment를 읽고 모든 페이지에 동일한 수령인·업체·Project·사본번호·보안등급·발급자·출력시각·목적·재배포 금지 워터마크를 입힌 뒤 private output과 source/output hash·renderer/manifest evidence를 반환한다.
+
+신청은 `TECHNICAL_DOCUMENT_COPY_REQUEST` typed Approval subject로 immutable request checksum에 묶인다. Project-only 외부 수령인은 active VendorMembership과 exact Project grant를, Contract-bound 수령인은 여기에 같은 VendorUser의 exact Contract grant까지 AND로 요구한다. 이 Scope는 request/render/print/handover마다 live 재검증한다. Vendor와 Admin-System에는 source/render/self-print 경로가 없고, 앱 화면은 allowlisted metadata/custody projection만 사용한다.
+
 `features.rnd`는 RndProgram 등록정보, Project N:M, immutable BudgetVersion/Line, Expenditure, Evidence와 Deadline을 소유한다. Vendor는 모든 R&D 예산·집행 projection과 명령에서 거부하며 본사 직원은 별도 정책 확정 전 read-only다. `OD-030`이 열린 동안 Program lifecycle state/event를 registry나 임의 `status`로 만들지 않고, 종료·정산·재개 명령은 명시적으로 fail-closed 처리한다. 두 feature의 UI와 API는 application query/command port만 사용하고 provider SDK나 table에 직접 접근하지 않는다.
 
 M12는 `features.research-note`가 ResearchNote root, exact Entry version, 선택적 Senior review, Lab Director finalization, correction/addendum lineage와 generic PDF evidence manifest 계약을 소유한다. 이 전용 workflow는 공통 Approval Engine의 대표까지 이어지는 기본 결재선을 사용하지 않는다. Senior review는 별도 review evidence이며 공식 approval action이 아니고, finalization은 현재 exact entry snapshot을 대상으로 Lab Director가 수행한다.

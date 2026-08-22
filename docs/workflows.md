@@ -202,6 +202,10 @@ Workflow ID: `WF-TECHDOC-ACCESS-V1`.
 8. Revocation, expiry, account disablement, or scope removal makes digital access fail immediately and starts physical-copy recovery follow-up.
 9. Grant, render, print, handover, return/destruction, denial, revoke, and expire events are audited.
 
+M14 physical implementation binds steps 2~3 to an immutable `TECHNICAL_DOCUMENT_COPY_REQUEST` Approval subject containing the exact DocumentVersion/source Attachment, recipient/vendor, Project/optional Contract, purpose, due plan and request checksum. A copy number is atomically reserved for each request; reprint creates a new request/root/number with the prior-copy link and reason. Project-only recipient Scope requires Membership + Project grant, while Contract-bound Scope requires Membership + Project + Contract grants for the same VendorUser.
+
+The internal renderer proves the watermark on every sequential page and stores only a private output Attachment plus source/output hashes and a manifest. Render, print, handover, return and destruction append custody, audit, transition and outbox evidence in the same transaction. If Scope is lost before handover, handover fails closed and the denial is audited; disposition of an already rendered/printed internally held artifact remains `OD-034` and no invented transition is applied.
+
 ## 12. Guarantee and Warranty
 
 Workflow ID: `WF-WARRANTY-V1`.
