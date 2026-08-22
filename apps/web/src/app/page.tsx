@@ -11,6 +11,11 @@ const foundations = [
 
 const availablePages = [
   {
+    href: "/offline-sync",
+    label: "PWA·오프라인",
+    description: "설치 상태와 허용된 로컬 초안, 온라인 전용 작업 및 충돌 원칙을 확인합니다."
+  },
+  {
     href: "/approvals",
     label: "내 결재함",
     description: "정식 연구과제 승격과 계약 결재 샘플을 확인합니다."
@@ -80,12 +85,12 @@ export default function HomePage() {
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <PreviewNotice />
         <p className="summary">
-          M00부터 M13까지 개발 통합 브랜치에 병합했고, 현재 M14 L3/L4 통제사본을 개발하고 있습니다.
+          M00부터 M14까지 개발 통합 브랜치에 병합했고, 현재 M15 PWA·오프라인 동기화를 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M14
+          IMPLEMENTATION_ACTIVE · M15
         </div>
       </section>
 

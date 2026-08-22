@@ -23,6 +23,9 @@ importers:
       eslint-config-next:
         specifier: 16.3.2
         version: 16.3.2(@typescript-eslint/parser@8.67.0(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3))(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
+      fake-indexeddb:
+        specifier: ^6.2.5
+        version: 6.2.5
       tsx:
         specifier: 4.23.12
         version: 4.23.12
@@ -41,6 +44,9 @@ importers:
       '@youone/core-approval':
         specifier: workspace:*
         version: link:../../packages/core/approval
+      '@youone/core-sync':
+        specifier: workspace:*
+        version: link:../../packages/core/sync
       '@youone/feature-change':
         specifier: workspace:*
         version: link:../../packages/features/change
@@ -68,6 +74,9 @@ importers:
       '@youone/feature-tech-copy':
         specifier: workspace:*
         version: link:../../packages/features/tech-copy
+      '@youone/infra-offline-dexie':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure/offline-dexie
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../packages/shared-kernel
@@ -147,7 +156,14 @@ importers:
 
   packages/core/notification: {}
 
-  packages/core/sync: {}
+  packages/core/sync:
+    dependencies:
+      '@youone/core-authorization':
+        specifier: workspace:*
+        version: link:../authorization
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/change:
     dependencies:
@@ -220,7 +236,17 @@ importers:
 
   packages/infrastructure/notification-adapters: {}
 
-  packages/infrastructure/offline-dexie: {}
+  packages/infrastructure/offline-dexie:
+    dependencies:
+      '@youone/core-sync':
+        specifier: workspace:*
+        version: link:../../core/sync
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
+      dexie:
+        specifier: ^4.4.5
+        version: 4.4.5
 
   packages/infrastructure/pdf-renderer:
     dependencies:
@@ -1447,6 +1473,9 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
+  dexie@4.4.5:
+    resolution: {integrity: sha512-wWCHdihT3dmlUSuNhn5mMZDWSpG0suxjAni7YjjiZdzabZcKmy3uNZGZ7AeYYXBoLbpSXX35fikPLkPC44Osiw==}
+
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
@@ -1640,6 +1669,10 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
@@ -3620,6 +3653,8 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
+  dexie@4.4.5: {}
+
   doctrine@2.1.0:
     dependencies:
       esutils: 2.0.3
@@ -3988,6 +4023,8 @@ snapshots:
   esutils@2.0.3: {}
 
   expect-type@1.4.0: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-deep-equal@3.1.3: {}
 

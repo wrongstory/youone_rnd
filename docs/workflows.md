@@ -253,13 +253,13 @@ Workflow ID: `WF-ALLOWANCE-V1`.
 
 Workflow ID: `WF-OFFLINE-SYNC-V1`.
 
-1. PWA caches only allowed data and creates versioned local commands.
-2. Each command includes stable ID, aggregate/base version, actor session context reference, schema version, and attachment manifest.
+1. PWA caches only `CACHE-PROJECT-LIST-SAFE`, `CACHE-WBS-LIST-SAFE`, `CACHE-SAFETY-CHECKLIST-TEMPLATE` and creates only the five M15 allowlisted low-risk draft/work-item commands.
+2. Each command includes stable ID/type, aggregate/base version, authenticated/effective actor IDs, one-way session binding hash, schema version, canonical minimized payload/hash, and attachment staging metadata when applicable. Raw session credentials are never persisted.
 3. Reconnection uploads commands to a trusted sync endpoint.
 4. Server re-authenticates and re-authorizes the current actor; offline creation never preserves expired authority.
 5. If base version matches, validate and apply through the normal Application Use Case.
 6. If it differs, create conflict with local/server representations and do not apply automatically.
-7. User chooses server, local-as-new-change, or supported field merge.
-8. Resolution records both versions, chosen strategy, actor, time, and resulting version.
+7. P0 user chooses server by discarding the local attempt, or creates a new command against the latest server version. Field merge remains disabled until a named command policy and fixture are approved.
+8. Resolution records both versions, chosen strategy, current actor/session binding, time, reason and successor command when retrying as new.
 
-Approval, permission changes, and sensitive technical-content access never enter this flow.
+Approval, authority/permission/Scope changes, L2~L4 access, technical-document deletion, controlled-copy actions, contract sign/terminate and payment confirmation never enter this flow.

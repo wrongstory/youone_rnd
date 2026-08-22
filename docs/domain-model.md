@@ -431,6 +431,10 @@ Append-only domain transition record with stateful resource type/ID, machine ID,
 
 Offline Outbox command and server-side conflict record. Sensitive payloads must be minimized and encrypted at rest where supported. Resolved conflicts retain both versions and the resolution decision.
 
+M15 `OfflineCommand`은 stable allowlisted command type, authenticated/effective actor snapshot, raw session이 아닌 session binding hash, aggregate type/ID, base version, schema version, canonical JSON payload/hash를 불변으로 소유한다. 같은 `command_id`와 동일 hash의 재전송은 `IDEMPOTENT_REPLAY`이며 다른 hash 재사용은 거부한다. 정상 Application handler만 `APPLIED`/`REJECTED`/`STALE_BASE_VERSION`을 반환할 수 있다.
+
+`SyncConflict`는 정확한 OfflineCommand, base/server version, 원본 local payload/hash와 allowlisted safe server comparison projection/hash를 보존한다. 충돌 자체와 terminal resolution은 append-only다. P0 resolution은 `RESOLVED_DISCARD_LOCAL` 또는 동일 actor·command type·aggregate와 최신 server version에 묶인 successor command를 갖는 `RESOLVED_RETRY_AS_NEW`뿐이며 자동 overwrite와 미승인 field merge 상태는 없다.
+
 ## 14. Aggregate Boundaries
 
 | Aggregate | Owns | References, does not own |

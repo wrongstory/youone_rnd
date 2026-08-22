@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="유원 R&amp;D">
+  <rect width="512" height="512" fill="#0f4c5c"/>
+  <circle cx="256" cy="256" r="196" fill="#0b7778"/>
+  <path d="M144 156h58v108c0 46 18 68 54 68s54-22 54-68V156h58v112c0 82-43 124-112 124s-112-42-112-124V156Z" fill="#fff"/>
+  <circle cx="256" cy="132" r="22" fill="#f0c96e"/>
+</svg>

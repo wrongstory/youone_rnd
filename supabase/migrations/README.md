@@ -17,6 +17,12 @@ Applied sequence:
 - `20260822000600_m07_vendor_contract.sql`: normalized VendorContract/immutable ContractVersion, exact ContractProject and ContractMilestone finance, Deliverable evidence manifests, Guarantee/Warranty bases, exact VendorMembership-bound ContractScope, typed ContractVersion approval subject, separate safe/basic/finance projections, and atomic activation/close/termination scope obligations.
 - `20260822000700_m08_quality_inspection.sql`: direct-next Requirement revisions, sealed TestPlan/TestResult evidence, exact Inspection checklist/attempt/result/evidence snapshots, versioned score/payment policies, immutable AcceptancePaymentDecision/adjustment bases, exact typed approval links, Vendor-safe projections, separate finance permission, and evidence-backed eligibility without transfer/accounting execution.
 - `20260822000800_m09_ncr_car.sql`: exact sealed InspectionAttempt lineage, append-only responsibility/containment/root-cause/CAR/verification/close/reopen evidence, independent effectiveness verification, exact Vendor assignment and Contract/Project Scope, narrow Vendor action projection, and atomic transition/audit/outbox commands without Contract state mutation.
+- `20260822000900_m10_ecr_eco.sql`: immutable ECR/ECO versions, structured impact review, exact typed before/after targets, signed ContractVersion obligations, implementation scope and independent reverification.
+- `20260822001000_m11_purchase_rnd.sql`: Purchase request/resolution/receipt/inspection and R&D budget/expenditure/evidence/deadline records without payment execution or RCMS cloning.
+- `20260822001100_m12_research_note.sql`: immutable ResearchNote entry lineage, optional Senior review, Lab Director finalization and generic PDF evidence manifest.
+- `20260822001200_m13_safety_light.sql`: effective-dated safety assignment, weekly/monthly inspection, training, incident and 48-hour investigation evidence.
+- `20260822001300_m14_controlled_copy.sql`: exact L3/L4 controlled-copy request/approval/render/print/handover/return/destruction evidence, watermark manifest and Vendor-safe projection.
+- `20260823001400_m15_pwa_offline_sync.sql`: allowlisted offline command registry, canonical payload hash, immutable command/result/conflict/resolution, exact retry successor, owner RLS and direct-write denial.
 
 M03 intentionally does not create ProjectScope, ContractScope, or DocumentVersion grants before their typed FK targets exist.
 

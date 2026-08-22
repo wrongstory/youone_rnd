@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="유원 R&amp;D">
+  <rect width="512" height="512" rx="112" fill="#0f4c5c"/>
+  <path d="M126 132h66v124c0 52 22 78 64 78s64-26 64-78V132h66v128c0 94-50 140-130 140s-130-46-130-140V132Z" fill="#fff"/>
+  <circle cx="256" cy="106" r="26" fill="#f0c96e"/>
+</svg>
