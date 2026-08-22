@@ -250,6 +250,7 @@ Additional M10 gates:
 - `EVT-ECO-SUBMIT` requires at least one exact typed before target and proposed after revision. `EVT-ECO-SUBMIT-VERIFY` requires applied after-version evidence and exact serial/lot/equipment scope.
 - `EVT-ECO-VERIFY` requires an internal verifier independent of every implementation actor and all required retest/reinspection evidence. Contract-affecting orders additionally require an executed signed change-contract snapshot.
 - No transition mutates an approved ECR, released ECO, before-version artifact, signed ContractVersion, or prior verification record.
+- `SM-ECO-V1` currently defines no event for an Approval `REJECTED`, `RECALLED`, or `CANCELLED` outcome even though `CANCELLED` is a listed state. `OD-033-ECO-APPROVAL-NEGATIVE-OUTCOME` blocks an invented state transition; M10 retains the exact Approval outcome evidence and fails closed until the transition is decided.
 
 ## 9. Approval
 
