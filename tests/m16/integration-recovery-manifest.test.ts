@@ -9,7 +9,7 @@ describe("M16 recovery manifest", () => {
   it("binds the database dump and every private storage object to exact evidence", () => {
     const manifest = createRecoveryManifest({
       manifestVersion: 1,
-      migrationHead: "20260823001400_m15_pwa_offline_sync.sql",
+      migrationHead: "20260823001500_m16_force_registry_rls.sql",
       database: { sizeBytes: 2048, sha256: digest },
       storage: [{ bucket: "private-business", objectKey: "org/document/version.pdf", sizeBytes: 512, sha256: storageDigest }],
       storageObjectCount: 1,
@@ -28,7 +28,7 @@ describe("M16 recovery manifest", () => {
   it("rejects public URLs, traversal, duplicates, count drift and hash drift", () => {
     const base = {
       manifestVersion: 1 as const,
-      migrationHead: "20260823001400_m15_pwa_offline_sync.sql",
+      migrationHead: "20260823001500_m16_force_registry_rls.sql",
       database: { sizeBytes: 2048, sha256: digest },
       storageObjectCount: 1,
       completedAt: "2026-08-23T10:00:00Z"

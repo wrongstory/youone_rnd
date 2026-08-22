@@ -28,6 +28,7 @@ const aggregateId = "16000000-0000-4000-8000-000000000402";
 const sessionId = "m16-live-session";
 const payload = '{"checked":true}';
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
+const stableRegistries = ["aggregate_type_definition", "action_definition", "domain_event_definition", "state_machine_definition", "state_definition", "transition_definition"];
 
 function run(sql: string, success = true): string {
   if (databaseUrl === undefined) throw new Error("M16_TEST_DATABASE_URL required");
@@ -75,11 +76,15 @@ databaseDescribe.sequential("M16 full-chain PostgreSQL security and recovery reh
   it("enforces FORCE RLS and denies direct request/worker table writes", () => {
     expect(run(`select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity);`)).toBe("0");
     expect(run(`select count(*) from information_schema.role_table_grants where grantee in('youone_request','youone_privileged_writer') and table_schema='public' and privilege_type in('INSERT','UPDATE','DELETE','TRUNCATE');`)).toBe("0");
+    expect(run(`select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_roles owner on owner.oid=c.relowner where n.nspname='public' and c.relname=any(array[${stableRegistries.map((table) => `'${table}'`).join(",")}]) and (not c.relforcerowsecurity or owner.rolname in('youone_request','youone_privileged_writer','youone_identity_resolver'));`)).toBe("0");
     expect(run("select rolname||':'||rolsuper||':'||rolbypassrls from pg_roles where rolname in('youone_request','youone_privileged_writer','youone_identity_resolver') order by rolname;").split("\n")).toEqual([
       "youone_identity_resolver:false:false",
       "youone_privileged_writer:false:false",
       "youone_request:false:false"
     ]);
+    for (const role of ["youone_request", "youone_privileged_writer", "youone_identity_resolver"]) {
+      run(`begin; set local role ${role}; insert into public.action_definition(action_id) values('M16_FORGED_${role.toUpperCase()}'); rollback;`, false);
+    }
   });
 
   it("fails closed for missing, disabled, expired, and cross-vendor actors", () => {

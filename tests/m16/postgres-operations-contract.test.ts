@@ -8,6 +8,15 @@ const migrations = readdirSync(migrationsDirectory)
   .sort()
   .map((name) => ({ name, sql: readFileSync(resolve(migrationsDirectory, name), "utf8") }));
 const combined = migrations.map(({ sql }) => sql).join("\n");
+const registryForwardFix = migrations.find(({ name }) => name === "20260823001500_m16_force_registry_rls.sql")?.sql ?? "";
+const stableRegistries = [
+  "aggregate_type_definition",
+  "action_definition",
+  "domain_event_definition",
+  "state_machine_definition",
+  "state_definition",
+  "transition_definition"
+] as const;
 
 describe("M16 PostgreSQL security and recovery contract", () => {
   it("keeps request, worker, and identity resolver principals non-bypass and separate", () => {
@@ -15,6 +24,14 @@ describe("M16 PostgreSQL security and recovery contract", () => {
     expect(combined).toMatch(/create role youone_privileged_writer[\s\S]*nobypassrls/i);
     expect(combined).toMatch(/create role youone_identity_resolver[\s\S]*nobypassrls/i);
     expect(combined).toContain("revoke all on all tables in schema public from youone_request, youone_privileged_writer");
+  });
+
+  it("closes table-owner RLS bypass on every stable definition registry", () => {
+    expect(registryForwardFix).not.toBe("");
+    for (const table of stableRegistries) expect(registryForwardFix).toContain(`'${table}'`);
+    expect(registryForwardFix).toContain("force row level security");
+    expect(registryForwardFix).toContain("from public, youone_request, youone_privileged_writer, youone_identity_resolver");
+    expect(registryForwardFix).not.toMatch(/grant\s+(insert|update|delete|truncate|all)/i);
   });
 
   it("keeps audit, transition, outbox, and M15 conflict evidence append-only", () => {
