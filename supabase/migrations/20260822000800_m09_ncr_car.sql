@@ -356,6 +356,7 @@ create table public.ncr_close_event (
   closed_by_user_id uuid not null references public.user_account(id),
   closed_at timestamptz not null,
   unique(ncr_id,closed_version),
+  unique(id,ncr_id),
   unique(id,ncr_id,closed_version,closed_at)
 );
 alter table public.ncr_reopen_event add constraint ncr_reopen_prior_close_fk
