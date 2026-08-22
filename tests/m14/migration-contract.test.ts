@@ -26,6 +26,12 @@ describe("M14 controlled-copy migration contract", () => {
     expect(sql).not.toMatch(/subject_type\s+text|resource_type\s+text.*resource_id/i);
   });
 
+  it("binds the exact VendorUser, user account and Vendor recipient tuple", () => {
+    expect(sql).toContain("vendor_user_m14_exact_recipient_unique unique(id,user_id,vendor_id)");
+    expect(sql).toContain("foreign key(recipient_vendor_user_id,recipient_user_id,recipient_vendor_id) references public.vendor_user(id,user_id,vendor_id)");
+    expect(sql).not.toContain("foreign key(recipient_vendor_user_id,recipient_vendor_id) references public.vendor_user(id,vendor_id)");
+  });
+
   it("requires Director for L3 and Director plus Representative for L4", () => {
     expect(sql).toContain("POSITION_LAB_DIRECTOR");
     expect(sql).toContain("POSITION_REPRESENTATIVE");

@@ -47,6 +47,11 @@ on conflict do nothing;
 create sequence public.technical_copy_number_sequence;
 revoke all on sequence public.technical_copy_number_sequence from public,youone_request,youone_privileged_writer;
 
+-- A controlled-copy recipient is the exact VendorUser/account/Vendor tuple. The
+-- VendorUser primary key makes this logically unique; the explicit composite
+-- key lets PostgreSQL enforce the complete relationship through one FK.
+alter table public.vendor_user add constraint vendor_user_m14_exact_recipient_unique unique(id,user_id,vendor_id);
+
 create table public.technical_document_copy (
  id uuid primary key,
  document_version_id uuid not null,
@@ -98,7 +103,7 @@ create table public.technical_document_copy (
  foreign key(document_version_id,source_attachment_id) references public.document_attachment(document_version_id,attachment_id),
  foreign key(source_attachment_id,source_attachment_row_version,source_file_checksum) references public.attachment(id,row_version,detected_sha256),
  foreign key(contract_id,project_id) references public.contract_project(contract_id,project_id),
- foreign key(recipient_vendor_user_id,recipient_vendor_id) references public.vendor_user(id,vendor_id),
+ foreign key(recipient_vendor_user_id,recipient_user_id,recipient_vendor_id) references public.vendor_user(id,user_id,vendor_id),
  foreign key(output_attachment_id,output_attachment_row_version,output_checksum) references public.attachment(id,row_version,detected_sha256),
  check((reprint_of_copy_id is null)=(reprint_reason_code is null)),
  check(num_nonnulls(output_attachment_id,output_attachment_row_version,output_checksum) in (0,3)),
