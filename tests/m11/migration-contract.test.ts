@@ -57,6 +57,7 @@ describe("M11 Purchase/R&D migration contract", () => {
     expect(sql).toContain("budget overrun is forbidden");
     expect(sql).toContain("on conflict(idempotency_key) do nothing");
     expect(sql).toContain("R&D evidence requires exactly one typed subject");
+    expect(sql).toContain("unique(id,rnd_budget_id,version_no)");
     expect(sql).toContain("references public.contract_version(id,contract_id,version_no,sealed_snapshot_checksum,sealed_at)");
     expect(sql).toContain("No lifecycle state, transition registry, close, reopen, payment, journal, or RCMS command");
     expect(sql).not.toMatch(/create (?:or replace )?function public\.(?:pay|transfer|journal|rcms)/i);

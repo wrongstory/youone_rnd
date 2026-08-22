@@ -264,7 +264,7 @@ create table public.rnd_budget_version (
  version_no bigint not null check(version_no>0),prior_version_id uuid unique,state text not null check(state in ('DRAFT','SEALED','SUPERSEDED')),
  total_amount numeric(20,2) not null check(total_amount>=0),currency char(3) not null check(currency~'^[A-Z]{3}$'),
  checksum text check(checksum is null or app_private.is_sha256(checksum)),sealed_at timestamptz,created_by_user_id uuid not null references public.user_account(id),created_at timestamptz not null,
- unique(rnd_budget_id,version_no),unique(id,rnd_budget_id),unique(id,rnd_budget_id,rnd_program_id,version_no),unique(id,checksum,sealed_at),
+ unique(rnd_budget_id,version_no),unique(id,rnd_budget_id),unique(id,rnd_budget_id,version_no),unique(id,rnd_budget_id,rnd_program_id,version_no),unique(id,checksum,sealed_at),
  foreign key(rnd_budget_id,rnd_program_id) references public.rnd_budget(id,rnd_program_id),
  foreign key(prior_version_id,rnd_budget_id) references public.rnd_budget_version(id,rnd_budget_id),
  check((version_no=1 and prior_version_id is null) or (version_no>1 and prior_version_id is not null)),
