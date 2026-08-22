@@ -174,6 +174,10 @@ M07는 `features.vendor`와 `features.contract`가 Vendor/Contract/Deliverable �
 
 M08는 `features.quality`가 Requirement/Test/Inspection과 immutable attempt 규칙을 소유하고, `processes.vendor-acceptance-payment`가 exact sealed InspectionAttempt와 Approval Core를 조합한다. Quality는 지급결정 내부 엔티티를 import하지 않고 finalized-inspection public port/event만 발행한다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률은 서로 다른 필드와 상태로 유지하며, 최종 승인 시 지급정책 버전의 반올림 규칙으로 산출한 지급가능액도 함께 봉인한다. UI·API는 검수 외부판정/내부검수상세/지급판정을 별도 DTO로 노출한다. `ELIGIBLE_FOR_EXTERNAL_PAYMENT`는 외부 지급 가능 표시에 불과하고 송금·회계 adapter를 호출하지 않는다.
 
+M09는 같은 `features.quality` 안에서 NCR/CAR aggregate와 application port를 추가한다. NCR은 exact InspectionAttempt/RequirementRevision/DeliverableVersion/Contract 중 적용 가능한 typed source FK와 정규화된 evidence를 보존하고, 하나 이상의 CAR를 소유한다. 외주용 projection에는 책임 할당, 수행에 필요한 시정 범위·기한·외부 evidence만 포함하며 내부 책임검토, 계약구제 검토, 내부 메모는 포함하지 않는다. UI는 Supabase SDK나 테이블을 직접 호출하지 않고 query adapter가 미연결이면 가짜 빈 목록 대신 `UNAVAILABLE`을 반환한다.
+
+NCR/CAR 명령은 trusted ActorContext, exact VendorMembership 및 Project/Contract Scope, 책임 할당, 현재 상태와 optimistic version을 검증한다. 상태 변경, append-only transition/audit/outbox, evidence link는 한 transaction에 기록한다. 독립 효과검증은 CAR owner·실행자와 다른 내부 검증자만 수행하며, 종료·재개방은 과거 검증과 전이를 수정하지 않는다. M09는 계약 상태를 직접 변경하지 않고 M10 ECR/ECO 또는 계약구제 검토가 필요한 사실만 typed event/port로 전달한다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:

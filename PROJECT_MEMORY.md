@@ -45,7 +45,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M07` Vendor/Contract/Deliverable PR #25 병합 완료, `M08` Requirement/Test/Inspection 및 달성도·차등지급 구현 진행 중).
+`IMPLEMENTATION_ACTIVE` (`M08` Requirement/Test/Inspection 및 달성도·차등지급 PR #26 병합 완료, `M09` NCR/CAR 구현 진행 중).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -63,7 +63,11 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M07`은 VendorContract root, immutable ContractVersion, ContractProject, 구조화된 ContractMilestone, Deliverable/Version, Guarantee/Warranty 기반과 실제 Contract Scope를 구현했다. 외주 계약 목록 projection에는 금액·지급·내부평가 필드가 존재하지 않으며, 상세 금융 projection은 exact active Contract Scope와 `contract.detail.finance.read`를 모두 요구한다. 계약 승인·서명·변경은 exact version/checksum/signature evidence로 고정하고, 활성화 시 scope 부여와 종료·해지 시 scope 회수를 계약 전이·감사·outbox와 같은 transaction에서 처리한다. PR #25는 `quality`와 독립 `m07-postgres` 검증을 통과해 `main`에 병합됐다.
 
-`M08` 후보는 Requirement/Revision, TestPlan/Result, weighted InspectionChecklistVersion/Criterion, immutable InspectionAttempt/CriterionResult 및 AcceptancePaymentDecision/PaymentRateAdjustment를 구현한다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률을 별도 보존하고, critical 실패는 점수만으로 완전합격될 수 없다. 조건부합격은 잔여조건·기한·보류액, 부분합격은 독립 사용가능분·미지급 잔액을 exact snapshot으로 가진다. 조정은 사유·증거·공식 결재 snapshot이 필요하며 지급 가능 상태는 외부 송금이나 회계 실행을 뜻하지 않는다.
+`M08`은 Requirement/Revision, TestPlan/Result, weighted InspectionChecklistVersion/Criterion, immutable InspectionAttempt/CriterionResult 및 AcceptancePaymentDecision/PaymentRateAdjustment를 구현했고 PR #26으로 `main`에 병합됐다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률을 별도 보존하며, critical 실패는 점수만으로 완전합격될 수 없다. 조건부합격은 잔여조건·기한·보류액, 부분합격은 독립 사용가능분·미지급 잔액을 exact snapshot으로 가진다. 조정은 사유·증거·공식 결재 snapshot이 필요하며 지급 가능 상태는 외부 송금이나 회계 실행을 뜻하지 않는다.
+
+`M09` PR #27은 exact source와 evidence를 가진 NCR, 복수 CAR, containment, root-cause/action plan, 독립 효과검증, ineffective 재작업, close/reopen 이력을 구현한다. 책임 평가는 `PRELIMINARY`/`DISPUTED`/`FINAL`을 분리하고, 외주업체는 정확한 활성 VendorMembership 및 Project/Contract Scope와 책임 할당이 있을 때만 허용된 수행 명령을 사용할 수 있다. NCR/CAR의 검토·종료가 계약 책임을 면제하거나 계약 상태를 자동 변경하지 않는다.
+
+로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
@@ -75,6 +79,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 - BOM, 연구수당, 연구장비/교정, 권한필터 검색은 P1이다. 특허/IP와 하이웍스/외부시스템은 P2다.
 - 실제 회사 양식, 역할별 KPI, 하이웍스 범위, 모바일 탭, 캘린더 위치, 검색 범위가 미확정이다.
 - `WF-RND-V1`의 `RND_PROGRAM` 정식 상태머신은 미확정이며 `OD-030`으로 기록했다. M11 전 결정하고 M02 registry에는 임의 등록하지 않는다.
+- NCR `REOPENED` 이후 재시정·재종료 전이 경로는 `OD-031`로 남긴다. M09는 증거가 있는 `CLOSED → REOPENED`와 과거 이력 보존까지만 구현하고 후속 상태를 임의로 만들지 않는다.
 - 실제 회사 양식 업로드 전에는 범용 버전형 템플릿만 설계하고 인쇄 레이아웃을 추정하지 않는다.
 
 ## Development Gate
@@ -91,7 +96,8 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 6. `M05`: Document/File CI 실DB 검증 및 PR #23 병합 완료.
 7. `M06`: Project/WBS, 실제 Project Scope, 정식 연구과제 승격 구현 및 PR #24 병합 완료.
 8. `M07`: Vendor/Contract/Deliverable, 실제 Contract Scope와 finance field denial 구현 및 PR #25 병합 완료.
-9. `M08`: Requirement/Test/Inspection, 달성도·조건부/부분합격·승인된 지급률 조정 구현.
-10. `M09~M11`: NCR/CAR → ECR/ECO → Purchase/R&D.
-11. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
-12. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+9. `M08`: Requirement/Test/Inspection, 달성도·조건부/부분합격·승인된 지급률 조정 구현 및 PR #26 병합 완료.
+10. `M09`: NCR/CAR 부적합·시정조치·독립 효과검증 구현.
+11. `M10~M11`: ECR/ECO → Purchase/R&D.
+12. `M12~M14`: ResearchNote 경량 → Safety 경량 → L3/L4 통제출력.
+13. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.

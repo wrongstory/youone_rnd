@@ -1,6 +1,5 @@
 import { availableProjectList, unavailableProjectList } from "@youone/ui/public";
-import Link from "next/link";
-
+import { PageBackLink, PreviewNotice, RecordCard, RecordGrid } from "../../interface/preview-ui";
 import { projectQuery } from "./query";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +19,10 @@ export default async function ProjectsPage() {
   return (
     <main className="shell">
       <section className="hero" aria-labelledby="projects-title">
+        <PageBackLink />
         <p className="eyebrow">PROJECT · SM-PROJECT-V1</p>
         <h1 id="projects-title">프로젝트</h1>
+        <PreviewNotice />
         <div className="status" role="status" data-availability={view.availability}>{view.message}</div>
         {view.availability === "UNAVAILABLE" ? (
           <p className="summary">
@@ -29,14 +30,11 @@ export default async function ProjectsPage() {
             정식 연구과제 표시는 연구소장 동의가 완료된 불변 지정 기록에서만 파생됩니다.
           </p>
         ) : (
-          <ul>
+          <RecordGrid>
             {view.items.map((project) => (
-              <li key={project.id}>
-                <Link href={`/projects/${project.id}`}>{project.projectCode} · {project.title}</Link>
-                {` · ${project.state}${project.formalResearch ? " · 정식 연구과제" : ""}`}
-              </li>
+              <RecordCard key={project.id} href={`/projects/${project.id}`} eyebrow={project.projectCode} title={project.title} meta={[`상태 ${project.state}`, project.formalResearch ? "정식 연구과제" : "일반 프로젝트"]} />
             ))}
-          </ul>
+          </RecordGrid>
         )}
       </section>
     </main>

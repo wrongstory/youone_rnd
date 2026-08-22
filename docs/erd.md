@@ -585,16 +585,80 @@ erDiagram
   NON_CONFORMANCE {
     uuid id PK
     uuid inspection_attempt_id FK
+    uuid requirement_revision_id FK
+    uuid deliverable_version_id FK
+    uuid contract_id FK
     string ncr_no UK
     enum severity
+    enum responsibility_status
+    uuid responsible_vendor_id FK
     enum state
+    int version_no
   }
   CORRECTIVE_ACTION {
     uuid id PK
     uuid ncr_id FK
     string car_no UK
+    enum owner_type
+    uuid owner_user_id FK
+    uuid owner_vendor_id FK
+    bool is_required
     enum state
     date due_date
+    int version_no
+  }
+  NCR_EVIDENCE {
+    uuid id PK
+    uuid ncr_id FK
+    uuid attachment_id FK
+    enum evidence_type
+    string sha256
+  }
+  CAR_ACTION_EXECUTION {
+    uuid id PK
+    uuid car_id FK
+    uuid ncr_id FK
+    int sequence_no
+    uuid performed_by_user_id FK
+    timestamptz performed_at
+  }
+  CAR_VERIFICATION {
+    uuid id PK
+    uuid car_id FK
+    uuid verifier_account_id FK
+    enum result
+    uuid evidence_id FK
+    timestamptz verified_at
+  }
+  CAR_REWORK_EVENT {
+    uuid id PK
+    uuid car_id FK
+    int effectiveness_cycle
+    string reason
+    uuid reworked_by_user_id FK
+  }
+  CAR_CLOSE_EVENT {
+    uuid id PK
+    uuid car_id FK
+    int closed_version
+    uuid closed_by_user_id FK
+  }
+  NCR_CLOSE_EVENT {
+    uuid id PK
+    uuid ncr_id FK
+    int closed_version
+    string reason
+    uuid closed_by_user_id FK
+  }
+  NCR_REOPEN_EVENT {
+    uuid id PK
+    uuid ncr_id FK
+    int reopen_count
+    uuid prior_close_event_id FK
+    timestamptz prior_closed_at
+    string reason
+    uuid evidence_id FK
+    timestamptz reopened_at
   }
   CHANGE_REQUEST {
     uuid id PK
@@ -632,6 +696,8 @@ erDiagram
     enum state
   }
 ```
+
+M09 physical constraints require at least one exact typed NCR source, but do not use a generic `subject_type + subject_id` fallback. The first physical slice requires an exact sealed `INSPECTION_ATTEMPT` lineage and may additionally bind its exact RequirementRevision and criterion result; all source columns resolve to the same scoped Contract/Project/Deliverable context. Responsibility status and responsible party are separate append-only assessments. `CAR_VERIFICATION.verifier_account_id` must differ from the CAR owner and every `CAR_ACTION_EXECUTION.performed_by_user_id`; this is revalidated in the guarded transition transaction. Evidence, verification, ineffective/rework, close and reopen records are append-only. NCR close is rejected unless every required non-cancelled CAR has a retained effective verification and is effective or closed. Reopen references the exact prior `NCR_CLOSE_EVENT`; `OD-031` leaves it without an exit transition.
 
 `CHANGE_TARGET` is a controlled change index, not permission to store all changed entities in JSON. Physical design should add typed target join tables where FK enforcement is required.
 

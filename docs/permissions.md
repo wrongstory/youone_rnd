@@ -92,6 +92,11 @@ Examples:
 - `contract.detail.finance.read`
 - `deliverable.record.submit`
 - `inspection.record.decide`
+- `ncr.record.issue`
+- `ncr.action.perform`
+- `ncr.plan.review`
+- `ncr.effectiveness.verify`
+- `ncr.record.close`
 - `approval.instance.submit`
 - `approval.step.review`
 - `approval.step.approve`
@@ -244,6 +249,15 @@ Example contract projections:
 
 The database may expose dedicated views/functions for these projections, but the application still verifies ActorContext and action.
 
+NCR/CAR projections:
+
+- `NCR_LIST_INTERNAL_V1`: NCR number, source, severity, state, responsibility status, owner and due/overdue facts.
+- `NCR_DETAIL_INTERNAL_V1`: internal list plus typed source/evidence, containment, root cause, every CAR, verification and immutable transition history.
+- `NCR_LIST_VENDOR_V1`: only exact assigned NCR number, external severity/state, due fact and scoped Contract/Deliverable reference.
+- `NCR_DETAIL_VENDOR_ACTION_V1`: only the containment, root-cause/action-plan and implementation fields/evidence that the assigned Vendor must perform. Internal responsibility deliberation, contract-remedy review and internal notes are absent from the DTO.
+
+Vendor action requires an active account and VendorMembership, an active exact Project or Contract grant, and assignment to that Vendor/NCR. Vendor actors cannot issue, accept a plan, verify effectiveness, close or reopen. Internal review authority does not imply independent verification when the same actor owned or performed the CAR. Senior Researcher review never becomes official approval authority through NCR/CAR.
+
 ## 14. Application and Database Enforcement
 
 ### Application server
@@ -289,7 +303,7 @@ Always audit:
 - approval submit/action/recall/reject/complete;
 - technical-document preview/download/access failure and every L3/L4 render/print/handover/return/destruction event;
 - access request/grant/revoke/expire;
-- contract, inspection, purchase, research-note, warranty, ECR/ECO critical transitions;
+- contract, inspection, NCR/CAR, purchase, research-note, warranty, ECR/ECO critical transitions;
 - technical-document delete request/approval/quarantine/purge;
 - field-protected vendor contract finance reads;
 - administrative use of service privilege.

@@ -98,6 +98,15 @@ Workflow ID: `WF-NCR-CAR-V1`.
 8. Close, reopen, or link ECR/ECO if design change is required.
 9. Repeated nonconformance updates vendor evaluation and may trigger contract remedies.
 
+M09 execution rules:
+
+- `PRELIMINARY`, `DISPUTED`, and `FINAL` responsibility assessments are explicit and append-only; disputed responsibility does not block immediate containment but is not treated as an admission.
+- One NCR may own multiple required CARs. Closure requires every required, non-cancelled CAR to have a retained effective independent verification and be `EFFECTIVE` or `CLOSED`.
+- The CAR owner and recorded implementation actors cannot perform effectiveness verification. An ineffective result is retained and the CAR returns through rework.
+- Reopening appends a new reason/evidence record and never deletes the earlier closure or verification.
+- Vendor commands require exact active membership, Project/Contract Scope and NCR assignment. NCR/CAR does not expose internal deliberation or financial fields to the Vendor.
+- Issue, acceptance, verification, closure and reopening are audited. None of these transitions automatically changes Contract, acceptance, warranty, payment, or responsibility-waiver state.
+
 ## 7. ECR/ECO
 
 Workflow ID: `WF-ECR-ECO-V1`.

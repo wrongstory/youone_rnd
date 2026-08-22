@@ -50,6 +50,7 @@ Blocking levels:
 | `OD-028-DB-PRINCIPAL` | Choose the least-privileged request DB execution pattern: user JWT versus validated transaction-local actor context; isolate service role | `DECIDED` | none; M02 PoC and RLS tests required before production use | `ADR-004`, 2026-08-21 | NOBYPASSRLS request principal + verified transaction-local ActorContext; service-role pool isolated |
 | `OD-029-APPROVAL-SUBJECT` | Approve common ApprovalInstance plus typed subject-link tables/adapters for non-Document subjects | `DECIDED` | none | `ADR-003`, 2026-08-21 | Common instance + exactly one typed FK link and subject adapter transaction |
 | `OD-030-RND-STATE-MACHINE` | Define the stable states, events, actors, and close/reopen rules for `RND_PROGRAM` | `OPEN` | `FEATURE_BLOCKER` for M11 R&D lifecycle; not a blocker for the M02 empty registry | R&D owner and agreement/settlement scenarios | `WF-RND-V1` exists but no canonical state machine does; M02 must not invent or seed one |
+| `OD-031-NCR-REOPEN-FOLLOWUP` | Define the canonical transition path after an NCR reaches `REOPENED` | `OPEN` | `FEATURE_BLOCKER` for post-reopen remediation/second closure; not a blocker for immutable `CLOSED → REOPENED` evidence | Quality owner and recurrence scenarios | M09 implements evidence-backed reopening and immutable history only; it must not invent a `REOPENED` exit transition |
 
 ## Decisions Already Fixed and Not Open
 
