@@ -56,6 +56,9 @@ importers:
       '@youone/feature-quality':
         specifier: workspace:*
         version: link:../../packages/features/quality
+      '@youone/feature-research-note':
+        specifier: workspace:*
+        version: link:../../packages/features/research-note
       '@youone/feature-rnd':
         specifier: workspace:*
         version: link:../../packages/features/rnd
@@ -179,7 +182,11 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/features/research-note: {}
+  packages/features/research-note:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/rnd:
     dependencies:

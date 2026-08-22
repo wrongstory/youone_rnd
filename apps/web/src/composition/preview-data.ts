@@ -36,7 +36,9 @@ export const PREVIEW_IDS = Object.freeze({
   purchaseThermalCamera: "92000000-0000-4000-8000-000000000001",
   purchaseCoolant: "92000000-0000-4000-8000-000000000002",
   rndCooling: "93000000-0000-4000-8000-000000000001",
-  rndFactory: "93000000-0000-4000-8000-000000000002"
+  rndFactory: "93000000-0000-4000-8000-000000000002",
+  researchNoteSeniorReview: "95000000-0000-4000-8000-000000000001",
+  researchNoteFinalized: "95000000-0000-4000-8000-000000000002"
 } as const);
 
 export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
@@ -543,5 +545,50 @@ export const previewRndPrograms: readonly RndProgramSummaryView[] = Object.freez
     },
     evidence: { expenditureCount: 1, expenditureWithEvidenceCount: 1, evidenceCount: 2, missingEvidenceCount: 0, overdueEvidenceCount: 0 },
     deadlines: { total: 4, dueSoon: 0, overdue: 0, evidenceIncomplete: 0 }
+  }
+]);
+
+export const previewResearchNotes = Object.freeze([
+  {
+    researchNoteId: PREVIEW_IDS.researchNoteSeniorReview,
+    noteNo: "RN-2026-041",
+    title: "배터리 냉각채널 2차 유동해석",
+    state: "DIRECTOR_FINALIZATION_PENDING" as const,
+    authorDisplayName: "이서연 연구원",
+    researchDate: "2026-08-20",
+    projectLinks: [{ projectId: PREVIEW_IDS.projectBattery, projectCode: "RND-2026-004", projectName: "고효율 배터리 냉각모듈 개발" }],
+    rndProgramLinks: [{ rndProgramId: PREVIEW_IDS.rndCooling, programCode: "RND-GOV-2026-02", title: "산업용 배터리 고효율 열관리 모듈 개발" }],
+    seniorReviewPath: "COMPLETED" as const,
+    nextAction: "research_note.finalize",
+    entries: [
+      { entryId: "rn-41-entry-1", sequenceNo: 1, entryType: "ORIGINAL" as const, heading: "해석 조건", summary: "입구 유량과 열원 조건을 고정하고 냉각채널 형상 세 가지를 비교했습니다.", contentChecksum: "4".repeat(64), recordedAt: "2026-08-20T01:10:00Z", finalized: false },
+      { entryId: "rn-41-entry-2", sequenceNo: 2, entryType: "ADDENDUM" as const, heading: "메시 독립성 확인", summary: "선임 검토 의견에 따라 고밀도 메시 결과를 추가했습니다.", contentChecksum: "5".repeat(64), recordedAt: "2026-08-21T02:20:00Z", finalized: false }
+    ],
+    seniorReview: { outcome: "RECOMMEND_FINALIZATION" as const, reviewerDisplayName: "김도윤 선임연구원", comment: "메시 독립성 근거가 보완되어 확정을 권고합니다.", reviewedAt: "2026-08-21T03:00:00Z", officialApproval: false as const },
+    correctionChain: [],
+    pdfEvidence: null
+  },
+  {
+    researchNoteId: PREVIEW_IDS.researchNoteFinalized,
+    noteNo: "RN-2026-038",
+    title: "열화상 카메라 수입검사 및 기준온도 측정",
+    state: "FINALIZED" as const,
+    authorDisplayName: "정수빈 연구원",
+    researchDate: "2026-08-18",
+    projectLinks: [{ projectId: PREVIEW_IDS.projectBattery, projectCode: "RND-2026-004", projectName: "고효율 배터리 냉각모듈 개발" }],
+    rndProgramLinks: [{ rndProgramId: PREVIEW_IDS.rndCooling, programCode: "RND-GOV-2026-02", title: "산업용 배터리 고효율 열관리 모듈 개발" }],
+    seniorReviewPath: "SKIPPED_BY_POLICY" as const,
+    nextAction: null,
+    entries: [
+      { entryId: "rn-38-entry-1", sequenceNo: 1, entryType: "ORIGINAL" as const, heading: "측정 절차와 결과", summary: "기준 흑체와 비교하여 허용오차 이내임을 확인했습니다.", contentChecksum: "6".repeat(64), recordedAt: "2026-08-18T04:00:00Z", finalized: true },
+      { entryId: "rn-38-entry-2", sequenceNo: 2, entryType: "CORRECTION" as const, correctsEntryId: "rn-38-entry-1", heading: "장비 일련번호 정정", summary: "원문을 덮어쓰지 않고 오기된 일련번호를 정정했습니다.", contentChecksum: "7".repeat(64), recordedAt: "2026-08-19T01:10:00Z", finalized: true },
+      { entryId: "rn-38-entry-3", sequenceNo: 3, entryType: "ADDENDUM" as const, correctsEntryId: "rn-38-entry-2", heading: "교정성적서 연결", summary: "확정 후 수령한 교정성적서의 증빙 참조를 추가했습니다.", contentChecksum: "8".repeat(64), recordedAt: "2026-08-20T02:30:00Z", finalized: true }
+    ],
+    correctionChain: [
+      { entryId: "rn-38-entry-2", correctsEntryId: "rn-38-entry-1", kind: "CORRECTION" as const },
+      { entryId: "rn-38-entry-3", correctsEntryId: "rn-38-entry-2", kind: "ADDENDUM" as const }
+    ],
+    directorFinalization: { finalizedByDisplayName: "박현우 연구소장", finalizedAt: "2026-08-18T07:30:00Z", finalizedVersion: 3, finalizedSnapshotChecksum: "9".repeat(64), representativeApprovalIncluded: false as const },
+    pdfEvidence: { documentVersionId: "rn-38-pdf-v3", manifestSchemaId: "RESEARCH_NOTE_PDF_MANIFEST_V1", manifestSchemaVersion: 1, manifestChecksum: "a".repeat(64), pdfContentHash: "b".repeat(64), pageCount: 7, rendererId: "GENERIC_RESEARCH_NOTE_PDF", rendererVersion: "1.0.0", generatedAt: "2026-08-18T07:31:00Z", delivery: "AUTHORIZED_PRIVATE_DELIVERY" as const }
   }
 ]);
