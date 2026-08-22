@@ -482,4 +482,12 @@ M08는 `Requirement`/immutable direct-next `RequirementRevision`, versioned `Tes
 
 `AcceptancePaymentDecision`은 exact sealed attempt에서 계산한 achievement, system-proposed rate, requested adjustment 및 final approved rate를 별도 값으로 보존한다. 승인 완료 시 milestone amount × final approved rate를 지급정책 버전의 금액 반올림 규칙으로 계산한 `approvedPayableAmount`를 함께 봉인한다. 조건부합격은 typed residual condition·due date·held amount를, 부분합격은 independently usable portion·unpaid remainder를 가지며, 현재 held amount와 unpaid remainder는 동일하고 approved payable amount를 초과할 수 없다. 모든 조건을 충족해 지급가능 상태가 되면 현재 보류·미지급 값은 0으로 해제하되 승인 지급가능액과 이력은 유지한다. `PaymentRateAdjustment`는 reason·evidence·actor·exact Approval snapshot을 요구하고 계산값을 수정하지 않는다. 지급 가능 상태는 외부 지급 실행과 분리되며 모든 snapshot에는 acceptance/payment non-waiver가 유지된다.
 
+### M12 physical baseline
+
+M12는 `ResearchNote` root를 정확히 한 Project와 작성자에 결합하고, 해당 시 선택된 하나의 typed `RndProgram` 문맥을 함께 보존한다. Root는 현재 exact `ResearchNoteEntryVersion`과 상태·낙관적 버전을 가리킨다. `ResearchNoteEntryVersion`은 연구일·제목·목적·방법·관찰·결과·결론을 각각 typed column으로 보존하며 범용 editor JSON에 핵심 내용을 위임하지 않는다. 최초 엔트리와 직접 수정본은 `ORIGINAL`, 최종확정 후 정정·추가는 `CORRECTION` 또는 `ADDENDUM`으로 구분한다. 모든 후속 엔트리는 같은 note의 바로 이전 버전을 가리키고, 정정·추가는 대상 최종확정 엔트리를 추가로 가리킨다.
+
+제출 시 entry content와 exact `ResearchNoteEntryAttachment`의 Attachment id·row version·checksum을 함께 봉인해 sealed snapshot checksum을 만든다. 봉인·최종확정된 엔트리와 첨부 연결은 수정하지 않으며, 수정 요구는 새 `ORIGINAL` 엔트리로 재제출한다. 선택적 `ResearchNoteSeniorReview`는 exact 봉인 엔트리·검토자·유효한 선임연구원 직위 배정·의견·결과를 기록하는 검토 증거일 뿐 공식 결재가 아니다.
+
+`ResearchNotePdfManifest`는 exact 봉인 엔트리, renderer id/version, page count, PDF checksum, private Attachment exact tuple, rendered timestamp 및 canonical manifest checksum을 불변 증거로 보존한다. `ResearchNoteFinalization`은 이 exact entry/PDF manifest와 당시 유효한 `POSITION_LAB_DIRECTOR` 배정을 결합한다. 연구소장만 최종확정할 수 있고 선임연구원·대표는 최종확정 권한이 없다. 최종확정 후 원본은 변경하지 않으며 정정·추가는 새 엔트리와 직접 계보로 남기고 기존 root는 `CORRECTED_BY_ADDENDUM`으로 전이한다.
+
 Additional superior-regulation concepts are covered by Safety Management and Research Allowance Evidence. Research outcomes and notes carry ownership provenance: company ownership by default with explicit law/agreement/contract exception records.
