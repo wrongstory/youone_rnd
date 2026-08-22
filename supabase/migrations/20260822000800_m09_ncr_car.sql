@@ -395,7 +395,7 @@ do $triggers$ declare table_name text; begin
     'car_close_event','car_close_evidence','ncr_close_event','ncr_close_evidence','ncr_reopen_event','ncr_reopen_evidence'
   ] loop
     execute format('create trigger %I before update or delete on public.%I for each row execute function app_private.reject_m09_append_only_change()',
-      table_name||'_append_only',table_name);
+      'm09_'||table_name||'_append_only',table_name);
   end loop;
 end $triggers$;
 
