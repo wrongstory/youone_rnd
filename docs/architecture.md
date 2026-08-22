@@ -188,6 +188,10 @@ M11은 `features.purchase`가 Supplier/Item, immutable PurchaseRequestVersion, q
 
 `features.rnd`는 RndProgram 등록정보, Project N:M, immutable BudgetVersion/Line, Expenditure, Evidence와 Deadline을 소유한다. Vendor는 모든 R&D 예산·집행 projection과 명령에서 거부하며 본사 직원은 별도 정책 확정 전 read-only다. `OD-030`이 열린 동안 Program lifecycle state/event를 registry나 임의 `status`로 만들지 않고, 종료·정산·재개 명령은 명시적으로 fail-closed 처리한다. 두 feature의 UI와 API는 application query/command port만 사용하고 provider SDK나 table에 직접 접근하지 않는다.
 
+M12는 `features.research-note`가 ResearchNote root, exact Entry version, 선택적 Senior review, Lab Director finalization, correction/addendum lineage와 generic PDF evidence manifest 계약을 소유한다. 이 전용 workflow는 공통 Approval Engine의 대표까지 이어지는 기본 결재선을 사용하지 않는다. Senior review는 별도 review evidence이며 공식 approval action이 아니고, finalization은 현재 exact entry snapshot을 대상으로 Lab Director가 수행한다.
+
+확정 Entry와 생성된 PDF manifest는 불변이며 정정은 원본을 수정하지 않고 direct linked correction/addendum Entry로 만든다. PDF renderer는 port 뒤에 있으며 source Attachment는 private exact tuple로만 참조한다. UI/API는 allowlisted metadata projection만 받고 editor source, Storage bucket/key, public/signed URL 또는 Admin-System의 자동 원문열람 capability를 노출하지 않는다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:
