@@ -27,6 +27,11 @@ const availablePages = [
     href: "/contracts",
     label: "외주 계약",
     description: "M07 업체·계약 Scope와 기본/재무 조회 분리 경계를 확인합니다."
+  },
+  {
+    href: "/inspections",
+    label: "검수 현황",
+    description: "M08 버전 고정 체크리스트·검수 판정과 외부용 안전 조회 경계를 확인합니다."
   }
 ] as const;
 
@@ -37,12 +42,12 @@ export default function HomePage() {
         <p className="eyebrow">YOUONE R&amp;D · P0 FOUNDATION</p>
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <p className="summary">
-          M00부터 M06까지 병합을 완료했고, 현재 M07 외주업체·계약·납품항목 기반을 개발하고 있습니다.
+          M00부터 M07까지 병합을 완료했고, 현재 M08 요구사항·시험·검수·차등지급 기반을 개발하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M07
+          IMPLEMENTATION_ACTIVE · M08
         </div>
       </section>
 

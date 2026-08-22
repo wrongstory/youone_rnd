@@ -172,6 +172,8 @@ M06는 `features.project`가 Project/WBS 순수 규칙과 application port를 �
 
 M07는 `features.vendor`와 `features.contract`가 Vendor/Contract/Deliverable 규칙과 application port를 소유한다. ContractVersion은 Approval Core에 exact typed subject adapter로 연결되지만 Approval Core가 Contract 내부 저장소나 엔티티에 의존하지 않는다. Vendor 목록·기본 상세·금융 상세은 서로 다른 public DTO와 DB projection이며, 금융 상세은 기본 DTO에 optional 필드를 추가하는 방식으로 우회하지 않는다. Contract Scope의 생성·회수는 계약 application service가 요청하고 Platform transaction이 상태·감사·outbox와 원자적으로 저장한다.
 
+M08는 `features.quality`가 Requirement/Test/Inspection과 immutable attempt 규칙을 소유하고, `processes.vendor-acceptance-payment`가 exact sealed InspectionAttempt와 Approval Core를 조합한다. Quality는 지급결정 내부 엔티티를 import하지 않고 finalized-inspection public port/event만 발행한다. 계산 달성도·시스템 제안률·조정 요청률·최종 승인률은 서로 다른 필드와 상태로 유지하며, 최종 승인 시 지급정책 버전의 반올림 규칙으로 산출한 지급가능액도 함께 봉인한다. UI·API는 검수 외부판정/내부검수상세/지급판정을 별도 DTO로 노출한다. `ELIGIBLE_FOR_EXTERNAL_PAYMENT`는 외부 지급 가능 표시에 불과하고 송금·회계 adapter를 호출하지 않는다.
+
 ## 9. PWA와 오프라인
 
 오프라인 허용 명령:

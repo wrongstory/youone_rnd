@@ -47,6 +47,9 @@ importers:
       '@youone/feature-project':
         specifier: workspace:*
         version: link:../../packages/features/project
+      '@youone/feature-quality':
+        specifier: workspace:*
+        version: link:../../packages/features/quality
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../packages/shared-kernel
@@ -147,7 +150,11 @@ importers:
 
   packages/features/purchase: {}
 
-  packages/features/quality: {}
+  packages/features/quality:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/research-note: {}
 
@@ -218,7 +225,17 @@ importers:
 
   packages/processes/purchase-receipt-inspection: {}
 
-  packages/processes/vendor-acceptance-payment: {}
+  packages/processes/vendor-acceptance-payment:
+    dependencies:
+      '@youone/core-approval':
+        specifier: workspace:*
+        version: link:../../core/approval
+      '@youone/feature-quality':
+        specifier: workspace:*
+        version: link:../../features/quality
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/shared-kernel: {}
 

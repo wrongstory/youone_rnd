@@ -216,6 +216,8 @@ M06 makes this Project scope physical. Internal Project access is evaluated from
 
 M07 makes `SCOPE_CONTRACT` physical with a real Contract FK and active VendorMembership. Vendor list access uses only `CONTRACT_LIST_VENDOR_V1`; it cannot return amount, payment schedule/status, guarantee amount or internal evaluation/risk fields. `CONTRACT_DETAIL_VENDOR_BASIC_V1` requires exact Contract Scope. `CONTRACT_DETAIL_VENDOR_FINANCE_V1` additionally requires `contract.detail.finance.read` and is a separate projection/result type, so omission cannot be bypassed by requesting optional fields. Contract close/termination or membership/grant expiry/revoke removes access immediately at application and RLS layers.
 
+M08 Vendor Inspection access requires the same active account, VendorMembership and exact Project/Contract grant used by the inspected Deliverable. `INSPECTION_VENDOR_EXTERNAL_V1` exposes only submitted-version identity, external disposition, residual/correction requests and due dates; it excludes internal inspector opinion, policy deliberation, amount, held amount, calculated/adjusted/final rate and Approval evidence. Finance decision projection remains a distinct `contract.detail.finance.read` path. A Vendor may submit evidence and correction but may never inspect, accept, adjust or approve its own work.
+
 ## 12. Research Note Permissions
 
 | Action | Author | Senior | Lab Director | Representative | Admin |

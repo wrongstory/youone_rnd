@@ -12,10 +12,12 @@
 
 `tests/m07/postgres.integration.test.ts` is the executable M07 Vendor/Contract/RLS harness. It applies M02 → M03 → M04 → M05 → M06 → M07 to the separate `M07_TEST_DATABASE_URL` and requires a clean database.
 
+`tests/m08/postgres.integration.test.ts` is the executable M08 Quality/Inspection/Acceptance/RLS harness. It applies M02 → M03 → M04 → M05 → M06 → M07 → M08 to the separate `M08_TEST_DATABASE_URL` and requires a clean database.
+
 - Without its matching database URL, that PostgreSQL suite is explicitly skipped.
 - The URL must point to an empty, dedicated database whose name contains `test`.
 - `PSQL_BIN` may override the `psql` executable.
-- CI provides `TEST_DATABASE_URL`, `M03_TEST_DATABASE_URL`, `M04_TEST_DATABASE_URL`, `M05_TEST_DATABASE_URL`, `M06_TEST_DATABASE_URL`, and `M07_TEST_DATABASE_URL`, so no PostgreSQL suite may skip.
+- CI provides `TEST_DATABASE_URL`, `M03_TEST_DATABASE_URL`, `M04_TEST_DATABASE_URL`, `M05_TEST_DATABASE_URL`, `M06_TEST_DATABASE_URL`, `M07_TEST_DATABASE_URL`, and an independent `M08_TEST_DATABASE_URL`, so no PostgreSQL suite may skip.
 
 It validates an upgrade fixture, clean migration, append-only evidence, direct
 request-role denial, transaction rollback, forbidden payload keys, and concurrent
@@ -30,3 +32,5 @@ The M05 suite validates clean ordered migration, exact composite evidence constr
 The M06 suite validates ordinary Project creation by active internal users, Product/member/WBS relational integrity, exact VendorMembership plus Project-grant isolation, Vendor transition restrictions, OD-014 close fail-closed behavior, immutable exact research-application approval subjects, Lab-Director-only consent, typed recall, atomic designation/audit/outbox persistence, and optimistic concurrency.
 
 The M07 suite validates ordered clean migration, normalized Contract/Version/Milestone and Deliverable evidence tables, exact typed ContractVersion approval constraints, FORCE RLS, forbidden-field-free list projection metadata, cross-Vendor isolation, immediate disabled/expired/revoked denial, atomic close/termination Scope revocation with rollback on outbox failure, and request/privileged-writer bypass denial.
+
+The M08 suite validates ordered clean migration, Requirement direct-next concurrency, TestPlan coverage and sealed-child immutability, exact Inspection/Attempt/Evidence composite constraints, Vendor self-accept denial, disabled internal-account denial, finance-field projection separation, and the real AcceptancePaymentDecision create/bind → submit → activate → Lab Director/Representative action → terminal outcome path without replica or direct-state shortcuts. Separate conditional and partial fixtures then exercise held amounts, post-seal AVAILABLE evidence, residual satisfaction, usable-portion release denial/success, and the final eligibility transition.
