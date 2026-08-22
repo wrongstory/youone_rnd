@@ -126,6 +126,16 @@ Links the sealed InspectionAttempt to its calculated achievement score and miles
 
 NCR records the observed nonconformance, requirement/criterion, severity, impact, evidence, and responsibility assessment. CAR records root cause, action plan, owner, due date, verification, and closure. One NCR may have multiple corrective actions.
 
+M09 invariants:
+
+- An issued NCR references at least one exact typed source and immutable evidence; an `inspection_attempt` source is identified by its exact sealed row and checksum.
+- Responsibility party and responsibility status are separate. Status is `PRELIMINARY`, `DISPUTED`, or `FINAL`; a dispute is never silently converted to final responsibility.
+- Containment, root-cause analysis, action-plan acceptance, implementation evidence, and effectiveness verification are separate records or transitions.
+- Every required, non-cancelled CAR must have a retained effective independent verification and be `EFFECTIVE` or `CLOSED` before the NCR can close.
+- A CAR owner or implementation actor cannot verify that CAR's effectiveness. Verification records the verifier, result, evidence, and timestamp immutably.
+- `INEFFECTIVE` returns through a new rework transition without deleting the failed verification. Reopening an NCR appends reason/evidence and preserves its prior closure.
+- NCR/CAR closure does not waive Vendor responsibility or automatically change Contract state, acceptance, warranty, or payment.
+
 ## 5. Vendor Contract
 
 ### `vendor_contract`

@@ -209,6 +209,16 @@ Key transitions:
 | CAR | `EVT-CAR-CLOSE` | `EFFECTIVE` → `CLOSED` | quality authority |
 | CAR | `EVT-CAR-REWORK` | `INEFFECTIVE` → `IN_PROGRESS` | action owner |
 
+M09 implementation notes:
+
+- NCR and CAR states/events are registered stable codes; arbitrary state strings and unregistered transitions are rejected.
+- `EVT-NCR-ISSUE` requires an exact typed source and evidence. `EVT-NCR-CLOSE` requires every required non-cancelled CAR to have retained `EFFECTIVE` verification and currently be `EFFECTIVE` or `CLOSED`.
+- `EVT-CAR-VERIFY-EFFECTIVE` and `EVT-CAR-VERIFY-INEFFECTIVE` require an internal verifier independent from the CAR owner and every recorded implementation actor.
+- `EVT-CAR-REWORK` preserves the ineffective verification and appends a new version/transition. `EVT-NCR-REOPEN` preserves prior close history and requires reason plus evidence.
+- `REOPENED` has no canonical exit transition yet. `OD-031-NCR-REOPEN-FOLLOWUP` blocks post-reopen remediation/second closure; M09 must not invent that transition.
+- Vendor actors may perform only assigned containment, plan submission and implementation transitions within an exact active membership and Project/Contract grant. They cannot issue, accept, verify, close or reopen.
+- NCR/CAR transitions emit review signals only; they never transition Contract automatically and never record a responsibility waiver.
+
 ## 8. ECR and ECO
 
 ECR machine `SM-ECR-V1`: `DRAFT`, `IMPACT_ANALYSIS`, `REVIEW_PENDING`, `APPROVAL_PENDING`, `APPROVED`, `REJECTED`, `CANCELLED`, `CONVERTED_TO_ECO`.
@@ -471,3 +481,7 @@ Calculation and tax classification are evidence-backed functions. No transition 
 - Applying the KRW 200,000 non-taxable cap separately to each project instead of once per person/month.
 - Vendor downloading or self-printing an L3/L4 source file.
 - Adjusted inspection payment rate overwriting the calculated rate or lacking approval.
+- CAR owner or implementation actor verifying their own corrective action.
+- NCR closing while any required CAR lacks retained effective verification or an eligible `EFFECTIVE`/`CLOSED` state.
+- Reopen or rework overwriting prior closure/ineffective-verification history.
+- NCR/CAR transition automatically changing Contract state or waiving Vendor responsibility.
