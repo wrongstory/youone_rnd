@@ -1185,6 +1185,8 @@ erDiagram
   }
 ```
 
+M13 물리 범위는 `SAFETY_MANAGER_ASSIGNMENT`, `SAFETY_INSPECTION`/item/finding/correction/verification, `SAFETY_TRAINING`/attendance, `SAFETY_INCIDENT`/investigation/action으로 제한한다. Assignment는 연구소장 지정과 유효기간을, stop-work 해제는 exact 시정·검증 evidence를, Incident는 report time에서 계산한 immutable 48시간 조사 due-at을 보존한다. Vendor 조회는 active membership과 exact Project/Contract grant를 통과한 allowlist projection만 제공한다. 위 개념도에 포함된 `HAZARDOUS_MATERIAL`, `MSDS_VERSION`, `WASTE_LOG`, `EMERGENCY_PLAN`, `EMERGENCY_DRILL`은 P1이며 M13 table/UI가 아니다.
+
 These allowance records support project-policy calculation and evidence-backed tax classification. They export a payroll reference but do not perform payroll or transfer funds.
 
 ## 9. Audit, Notification, and Offline Sync

@@ -62,6 +62,9 @@ importers:
       '@youone/feature-rnd':
         specifier: workspace:*
         version: link:../../packages/features/rnd
+      '@youone/feature-safety':
+        specifier: workspace:*
+        version: link:../../packages/features/safety
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../packages/shared-kernel
@@ -194,7 +197,11 @@ importers:
         specifier: workspace:*
         version: link:../../shared-kernel
 
-  packages/features/safety: {}
+  packages/features/safety:
+    dependencies:
+      '@youone/shared-kernel':
+        specifier: workspace:*
+        version: link:../../shared-kernel
 
   packages/features/tech-copy: {}
 

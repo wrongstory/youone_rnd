@@ -92,7 +92,7 @@ infrastructure/
 | `feature.purchase` | Supplier, Item, BOM, PurchaseRequest, PurchaseResolution, Receipt, PurchaseInspection |
 | `feature.rnd` | RndProgram, Budget, Expenditure, Evidence, Deadline |
 | `feature.research-note` | ResearchNote, correction/addendum, evidence export |
-| `feature.safety` | SafetyManagerAssignment, SafetyInspection, Training, HazardousMaterial, WasteLog, Drill, Incident |
+| `feature.safety` | SafetyManagerAssignment, SafetyInspection/Finding, Training/Attendance, SafetyIncident/Investigation; HazardousMaterial/WasteLog/Drill are P1 ports only |
 | `feature.allowance` | ProjectAllowancePolicyVersion, eligibility/tax snapshots, evaluation, calculation decision, payroll export reference |
 | `feature.tech-copy` | L3/L4 controlled print rendering, numbered copy, handover, return/destruction evidence |
 
@@ -185,6 +185,8 @@ ECO는 승인된 ECR의 exact version 또는 감사 가능한 EmergencyException
 계약 범위·금액·납기·검수기준에 영향을 주는 ECO는 별도 서명·발효된 ContractVersion/변경계약 snapshot 없이는 `EFFECTIVE`가 될 수 없다. 적용자와 독립된 내부 검증자가 exact serial/lot/equipment scope와 재시험·재검수 evidence를 확인한다. Vendor 명령은 활성 VendorMembership 및 exact Project/Contract Scope와 할당을 재검증하며, 외주 projection에는 내부 영향검토·결재선·계약금액·법무메모를 포함하지 않는다. BOM은 P1 public extension port만 두고 M10 물리 table/UI를 만들지 않는다.
 
 M11은 `features.purchase`가 Supplier/Item, immutable PurchaseRequestVersion, quotation evidence, PurchaseResolution, external payment fact, line Receipt와 PurchaseInspection을 소유하고, Approval Core에는 exact `PURCHASE_REQUEST_VERSION` subject adapter만 연결한다. 결재 완료는 exact request version과 Approval outcome을 trusted port로 재조회하며, 승인 전 Resolution 생성이나 승인본 덮어쓰기를 허용하지 않는다. 지급은 외부 본사 사실을 기록할 뿐 송금·회계 명령을 제공하지 않는다.
+
+M13은 `features.safety`가 유효기간형 담당 지정, 주/월 점검과 finding/stop-work/correction/verification, 교육·참석·보충교육, 사고·응급조치·현장보존·48시간 내부 조사·재발방지를 소유한다. 안전 상태 변경은 trusted ActorContext, 현재 유효한 SafetyManager/Coordinator assignment, exact Project/Vendor Scope, 낙관적 버전을 한 transaction에서 검증하고 audit/transition/outbox를 함께 기록한다. 48시간 SLA 작업은 idempotency key로 경고만 생성하며 조사 완료를 조작하지 않는다. MSDS·유해물질·폐기물·비상훈련은 P1 public port만 남기고 M13 table·route·menu를 만들지 않는다.
 
 `features.rnd`는 RndProgram 등록정보, Project N:M, immutable BudgetVersion/Line, Expenditure, Evidence와 Deadline을 소유한다. Vendor는 모든 R&D 예산·집행 projection과 명령에서 거부하며 본사 직원은 별도 정책 확정 전 read-only다. `OD-030`이 열린 동안 Program lifecycle state/event를 registry나 임의 `status`로 만들지 않고, 종료·정산·재개 명령은 명시적으로 fail-closed 처리한다. 두 feature의 UI와 API는 application query/command port만 사용하고 provider SDK나 table에 직접 접근하지 않는다.
 

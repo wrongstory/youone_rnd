@@ -437,21 +437,23 @@ Safety Incident machine `SM-SAFETY-INCIDENT-V1`: `REPORTED`, `EMERGENCY_RESPONSE
 | Machine | Event | From → To | Actor / condition |
 |---|---|---|---|
 | Inspection | `EVT-SAFETY-INSPECTION-START` | `PLANNED` → `IN_PROGRESS` | Safety Manager/team coordinator |
+| Inspection | `EVT-SAFETY-INSPECTION-CLOSE-CLEAR` | `IN_PROGRESS` → `CLOSED` | inspector; completed checklist and no open finding |
 | Inspection | `EVT-SAFETY-FINDINGS-ISSUE` | `IN_PROGRESS` → `FINDINGS_OPEN` | inspector; evidence |
 | Inspection | `EVT-SAFETY-STOP-WORK` | `IN_PROGRESS`,`FINDINGS_OPEN` → `STOP_WORK` | Safety Manager/Director; imminent risk |
 | Inspection | `EVT-SAFETY-CORRECTION-ASSIGN` | `FINDINGS_OPEN`,`STOP_WORK` → `CORRECTION_PENDING` | Safety Manager/Director |
 | Inspection | `EVT-SAFETY-SUBMIT-VERIFY` | `CORRECTION_PENDING` → `VERIFICATION` | responsible owner |
 | Inspection | `EVT-SAFETY-VERIFY-CLOSE` | `VERIFICATION` → `CLOSED` | Safety Manager/Director |
 | Inspection | `EVT-SAFETY-VERIFY-FAIL` | `VERIFICATION` → `CORRECTION_PENDING` | verifier |
+| Inspection | `EVT-SAFETY-INSPECTION-CANCEL` | `PLANNED` → `CANCELLED` | Safety Manager/Director; reason required |
 | Incident | `EVT-SAFETY-INCIDENT-REPORT` | — → `REPORTED` | any authorized reporter |
 | Incident | `EVT-SAFETY-EMERGENCY-RESPOND` | `REPORTED` → `EMERGENCY_RESPONSE` | Safety Manager/emergency actor |
 | Incident | `EVT-SAFETY-SECURE-SITE` | `EMERGENCY_RESPONSE` → `SITE_SECURED` | authorized responder |
-| Incident | `EVT-SAFETY-START-INVESTIGATION` | `SITE_SECURED` → `INVESTIGATION` | Safety Manager; 48-hour SLA clock |
+| Incident | `EVT-SAFETY-START-INVESTIGATION` | `SITE_SECURED` → `INVESTIGATION` | Safety Manager; due-at remains report time + 48 hours |
 | Incident | `EVT-SAFETY-SET-RECURRENCE-ACTION` | `INVESTIGATION` → `RECURRENCE_ACTION` | Director/Safety Manager |
 | Incident | `EVT-SAFETY-SUBMIT-VERIFY` | `RECURRENCE_ACTION` → `VERIFICATION` | action owner |
 | Incident | `EVT-SAFETY-CLOSE` | `VERIFICATION` → `CLOSED` | Director; effectiveness verified |
 
-Missed inspection/training/investigation SLAs create alerts and audit events; they do not fabricate completion.
+Missed inspection/training/investigation SLAs create alerts and audit events; they do not fabricate completion. M13 SLA jobs use a stable idempotency key per record/deadline. Stop-work release is represented only by an authorized verification-close transition with exact corrective and verification evidence; a UI toggle or finding edit cannot release it.
 
 ## 16. Research Allowance Evaluation
 

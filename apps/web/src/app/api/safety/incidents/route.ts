@@ -1,0 +1,3 @@
+import { safetyQuery } from "../../../safety/query";
+export const dynamic = "force-dynamic";
+export async function GET() { const result = await safetyQuery().getInternalDashboard(); if (result.availability !== "AVAILABLE") return Response.json({ availability: result.availability, items: [], ...(result.availability === "UNAVAILABLE" ? { reason: result.reason } : {}) }, { status: result.availability === "FORBIDDEN" ? 403 : 503, headers: { "Cache-Control": "private, no-store" } }); return Response.json({ availability: "AVAILABLE", items: result.dashboard.incidents }, { headers: { "Cache-Control": "private, no-store" } }); }

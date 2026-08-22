@@ -105,6 +105,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 10. `M09`: NCR/CAR 부적합·시정조치·독립 효과검증 구현 및 PR #27 병합 완료.
 11. `M10`: ECR/ECO 변경요청·변경지시·재검증 구현 및 PR #29 `dev` 병합 완료.
 12. `M11`: Purchase/R&D 진행·예산·집행·증빙 구현 및 PR #30 `dev` 병합 완료.
-13. `M12`: ResearchNote 경량·불변 Entry·선택적 선임검토·연구소장 확정·generic PDF 증빙 구현 진행 중.
-14. `M13~M14`: Safety 경량 → L3/L4 통제출력.
-15. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
+13. `M12`: ResearchNote 경량·불변 Entry·선택적 선임검토·연구소장 확정·generic PDF 증빙 구현 및 PR #31 `dev` 병합 완료.
+14. `M13`: Safety 경량 담당지정·주/월 점검·교육·사고 48시간 조사 구현 진행 중.
+15. `M14`: L3/L4 통제출력.
+16. `M15~M16`: PWA/offline → 통합 보안·운영 Gate.
