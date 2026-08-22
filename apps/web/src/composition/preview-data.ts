@@ -38,7 +38,10 @@ export const PREVIEW_IDS = Object.freeze({
   rndCooling: "93000000-0000-4000-8000-000000000001",
   rndFactory: "93000000-0000-4000-8000-000000000002",
   researchNoteSeniorReview: "95000000-0000-4000-8000-000000000001",
-  researchNoteFinalized: "95000000-0000-4000-8000-000000000002"
+  researchNoteFinalized: "95000000-0000-4000-8000-000000000002",
+  safetyInspectionWeekly: "96000000-0000-4000-8000-000000000001",
+  safetyInspectionMonthly: "96000000-0000-4000-8000-000000000002",
+  safetyIncident: "97000000-0000-4000-8000-000000000001"
 } as const);
 
 export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
@@ -588,5 +591,59 @@ export const previewResearchNotes = Object.freeze([
     ],
     directorFinalization: { finalizedByDisplayName: "박현우 연구소장", finalizedAt: "2026-08-18T07:30:00Z", finalizedVersion: 1, finalizedSnapshotChecksum: "6".repeat(64), representativeApprovalIncluded: false as const },
     pdfEvidence: { documentVersionId: "rn-38-pdf-v3", manifestSchemaId: "RESEARCH_NOTE_PDF_MANIFEST_V1", manifestSchemaVersion: 1, manifestChecksum: "a".repeat(64), pdfContentHash: "b".repeat(64), pageCount: 7, rendererId: "GENERIC_RESEARCH_NOTE_PDF", rendererVersion: "1.0.0", generatedAt: "2026-08-18T07:31:00Z", delivery: "AUTHORIZED_PRIVATE_DELIVERY" as const }
+  }
+]);
+
+export const previewSafetyOverview = Object.freeze({
+  assignments: Object.freeze([
+    { assignmentId: "safety-assignment-manager-2026", role: "SAFETY_MANAGER" as const, assigneeDisplayName: "김도윤 선임연구원", scopeLabel: "연구소 전체", effectiveFrom: "2026-01-01" },
+    { assignmentId: "safety-assignment-team-cooling", role: "TEAM_COORDINATOR" as const, assigneeDisplayName: "이서연 연구원", scopeLabel: "냉각모듈 연구팀", effectiveFrom: "2026-07-01", effectiveTo: "2027-06-30" }
+  ]),
+  trainings: Object.freeze([
+    { trainingId: "safety-training-2026-08", title: "실험실 전기·화재 예방 정기교육", scheduledAt: "2026-08-19T00:30:00Z", instructorDisplayName: "김도윤 안전관리자", attendeeCount: 12, absentCount: 1, makeUpRequiredCount: 1, completionRate: "91.7" },
+    { trainingId: "safety-training-vendor-controller", title: "제어기 시제품 반입 작업 안전교육", scheduledAt: "2026-08-21T00:00:00Z", instructorDisplayName: "이서연 팀 안전담당", attendeeCount: 5, absentCount: 0, makeUpRequiredCount: 0, completionRate: "100.0" }
+  ])
+});
+
+export const previewSafetyInspections = Object.freeze([
+  {
+    inspectionId: PREVIEW_IDS.safetyInspectionWeekly, inspectionNo: "SAF-W-2026-034", cadence: "WEEKLY" as const, areaLabel: "시제품 조립구역", state: "STOP_WORK" as const, assignedInspectorDisplayName: "김도윤 안전관리자", scheduledAt: "2026-08-22T00:00:00Z", openFindingCount: 2, stopWorkActive: true, checklistTitle: "주간 연구실 안전점검 v3",
+    vendorId: "vendor-hanseong", projectId: PREVIEW_IDS.projectBattery, contractId: PREVIEW_IDS.contractController,
+    vendorInstruction: "임시전원 케이블 교체와 통로 정리 완료 전 해당 조립구역 작업을 중지하고 담당 시정과제의 증빙을 제출하세요.", securityOriginalReference: "private://safety/inspection/weekly-034/source",
+    findings: [
+      { findingId: "safety-finding-cable", criterionLabel: "임시전원 배선", riskLevel: "CRITICAL" as const, summary: "피복 손상 임시전원 케이블이 금속 작업대와 접촉함", stopWorkRequired: true, issuedAt: "2026-08-22T00:22:00Z" },
+      { findingId: "safety-finding-aisle", criterionLabel: "피난통로 확보", riskLevel: "HIGH" as const, summary: "부품 상자가 피난통로 폭을 축소함", stopWorkRequired: false, issuedAt: "2026-08-22T00:25:00Z" }
+    ],
+    tasks: [
+      { taskId: "safety-task-vendor-cable", title: "임시전원 케이블 교체 및 절연상태 증빙", responsibleParty: "VENDOR" as const, responsibleDisplayName: "한성정밀 현장책임자", dueAt: "2026-08-22T06:00:00Z", state: "IN_PROGRESS" as const, evidenceStatus: "NOT_SUBMITTED" as const },
+      { taskId: "safety-task-internal-aisle", title: "피난통로 적치물 이동", responsibleParty: "INTERNAL" as const, responsibleDisplayName: "이서연 연구원", dueAt: "2026-08-22T04:00:00Z", state: "VERIFICATION" as const, evidenceStatus: "SUBMITTED" as const }
+    ], verifications: [],
+    timeline: [
+      { eventId: "EVT-SAFETY-INSPECTION-START", label: "주간점검 시작", occurredAt: "2026-08-22T00:05:00Z" },
+      { eventId: "EVT-SAFETY-FINDINGS-ISSUE", label: "위험 finding 등록", occurredAt: "2026-08-22T00:25:00Z" },
+      { eventId: "EVT-SAFETY-STOP-WORK", label: "해당 작업구역 작업중지", occurredAt: "2026-08-22T00:27:00Z" },
+      { eventId: "EVT-SAFETY-CORRECTION-ASSIGN", label: "시정 담당 지정", occurredAt: "2026-08-22T00:35:00Z" }
+    ]
+  },
+  {
+    inspectionId: PREVIEW_IDS.safetyInspectionMonthly, inspectionNo: "SAF-M-2026-008", cadence: "MONTHLY" as const, areaLabel: "열유동 시험실", state: "CLOSED" as const, assignedInspectorDisplayName: "이서연 팀 안전담당", scheduledAt: "2026-08-05T01:00:00Z", openFindingCount: 0, stopWorkActive: false, checklistTitle: "월간 연구설비 안전점검 v2",
+    vendorInstruction: "현재 외주업체에 할당된 안전 지시가 없습니다.", securityOriginalReference: "private://safety/inspection/monthly-008/source",
+    findings: [{ findingId: "safety-finding-label", criterionLabel: "비상정지 표지", riskLevel: "MEDIUM" as const, summary: "비상정지 버튼 안내표지 시인성 저하", stopWorkRequired: false, issuedAt: "2026-08-05T01:35:00Z" }],
+    tasks: [{ taskId: "safety-task-label", title: "비상정지 안내표지 교체", responsibleParty: "INTERNAL" as const, responsibleDisplayName: "정수빈 연구원", dueAt: "2026-08-07T09:00:00Z", state: "CLOSED" as const, evidenceStatus: "VERIFIED" as const }],
+    verifications: [{ verificationId: "safety-verification-label", verifierDisplayName: "김도윤 안전관리자", outcome: "PASSED" as const, verifiedAt: "2026-08-07T07:20:00Z", evidenceCount: 2 }],
+    timeline: [{ eventId: "EVT-SAFETY-INSPECTION-START", label: "월간점검 시작", occurredAt: "2026-08-05T01:00:00Z" }, { eventId: "EVT-SAFETY-FINDINGS-ISSUE", label: "finding 등록", occurredAt: "2026-08-05T01:35:00Z" }, { eventId: "EVT-SAFETY-CORRECTION-ASSIGN", label: "시정 담당 지정", occurredAt: "2026-08-05T01:42:00Z" }, { eventId: "EVT-SAFETY-SUBMIT-VERIFY", label: "시정 증빙 제출", occurredAt: "2026-08-07T05:00:00Z" }, { eventId: "EVT-SAFETY-VERIFY-CLOSE", label: "효과 검증 후 종결", occurredAt: "2026-08-07T07:20:00Z" }]
+  }
+]);
+
+export const previewSafetyIncidents = Object.freeze([
+  {
+    incidentId: PREVIEW_IDS.safetyIncident, incidentNo: "SAF-INC-2026-003", title: "시제품 냉각수 누출에 따른 미끄러짐", state: "RECURRENCE_ACTION" as const, occurredAt: "2026-08-20T04:10:00Z", areaLabel: "열유동 시험실", investigationDueAt: "2026-08-22T04:10:00Z", investigationSla: "COMPLETED" as const,
+    reporterDisplayName: "정수빈 연구원", emergencyResponseSummary: "부상자 응급처치 후 추가 누출을 차단하고 해당 시험설비 전원을 격리했습니다.", sitePreservationStatus: "SECURED" as const, investigationStartedAt: "2026-08-20T07:30:00Z", internalCauseAnalysis: "임시 호스 체결 후 압력 유지 확인 단계가 작업 체크리스트에 누락되어 연결부 풀림을 조기에 발견하지 못했습니다.",
+    vendorId: "vendor-hanseong", projectId: PREVIEW_IDS.projectBattery, contractId: PREVIEW_IDS.contractController, vendorInstruction: "한성정밀 담당자는 지정된 호스 체결 토크 증빙 과제만 수행하고 내부 사고조사 내용은 별도 요청 없이 열람할 수 없습니다.", securityOriginalReference: "private://safety/incident/003/investigation", personalTrainingDetails: [{ userId: "internal-user-1", attendance: "MAKE_UP_REQUIRED" }],
+    recurrenceTasks: [
+      { taskId: "safety-task-vendor-torque", title: "호스 체결 토크 기록 및 사진 증빙 제출", responsibleParty: "VENDOR" as const, responsibleDisplayName: "한성정밀 현장책임자", dueAt: "2026-08-25T09:00:00Z", state: "IN_PROGRESS" as const, evidenceStatus: "SUBMITTED" as const },
+      { taskId: "safety-task-internal-checklist", title: "압력 유지 확인을 작업 체크리스트에 추가", responsibleParty: "INTERNAL" as const, responsibleDisplayName: "김도윤 안전관리자", dueAt: "2026-08-26T09:00:00Z", state: "OPEN" as const, evidenceStatus: "NOT_SUBMITTED" as const }
+    ], verificationSummary: "모든 재발방지 조치 완료 후 연구소장 효과성 검증 예정", protectedEvidenceCount: 6,
+    timeline: [{ eventId: "EVT-SAFETY-INCIDENT-REPORT", label: "사고 보고", occurredAt: "2026-08-20T04:15:00Z" }, { eventId: "EVT-SAFETY-EMERGENCY-RESPOND", label: "응급대응", occurredAt: "2026-08-20T04:17:00Z" }, { eventId: "EVT-SAFETY-SECURE-SITE", label: "현장보존", occurredAt: "2026-08-20T04:35:00Z" }, { eventId: "EVT-SAFETY-START-INVESTIGATION", label: "48시간 조사 시작", occurredAt: "2026-08-20T07:30:00Z" }, { eventId: "EVT-SAFETY-SET-RECURRENCE-ACTION", label: "재발방지 과제 지정", occurredAt: "2026-08-21T06:00:00Z" }]
   }
 ]);
