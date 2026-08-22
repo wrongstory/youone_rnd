@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@youone/core-approval": "workspace:*",
+    "@youone/feature-change": "workspace:*",
     "@youone/feature-contract": "workspace:*",
     "@youone/feature-quality": "workspace:*",
     "@youone/feature-project": "workspace:*",
