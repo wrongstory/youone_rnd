@@ -130,8 +130,8 @@ dbDescribe.sequential("M10 PostgreSQL ECR/ECO boundary", () => {
     const targets = ["change_order_requirement_target", "change_order_document_target", "change_order_deliverable_target",
       "change_order_inspection_checklist_target", "change_order_test_plan_target", "change_order_contract_target"];
     expect(run(`select count(*) from information_schema.tables where table_schema='public' and table_name in (${targets.map((name) => `'${name}'`).join(",")});`)).toBe("6");
-    expect(run("select count(*) from pg_constraint where conrelid='public.approval_subject_change_request_version'::regclass and contype='f';")).toBe("2");
-    expect(run("select count(*) from pg_constraint where conrelid='public.approval_subject_change_order_version'::regclass and contype='f';")).toBe("2");
+    expect(run("select count(*) from pg_constraint where conrelid='public.approval_subject_change_request_version'::regclass and contype='f';")).toBe("3");
+    expect(run("select count(*) from pg_constraint where conrelid='public.approval_subject_change_order_version'::regclass and contype='f';")).toBe("3");
   });
 
   it("forces RLS on every M10 record and grants request role no direct write", () => {

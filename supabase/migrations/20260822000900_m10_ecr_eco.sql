@@ -912,11 +912,15 @@ end $triggers$;
 
 create or replace function app_private.protect_m10_aggregate()
 returns trigger language plpgsql set search_path=pg_catalog,app_private
-as $$ begin
+as $$ declare target_aggregate_id text;
+begin
   if tg_op='DELETE' then raise exception 'ECR/ECO aggregate and version are retained' using errcode='55000'; end if;
-  if app_private.optional_setting('app.m10_command') is distinct from
-      (case tg_table_name when 'change_request' then old.id::text when 'change_order' then old.id::text
-        when 'change_request_version' then old.change_request_id::text else old.change_order_id::text end) then
+  target_aggregate_id:=case
+    when tg_table_name in ('change_request','change_order') then to_jsonb(old)->>'id'
+    when tg_table_name='change_request_version' then to_jsonb(old)->>'change_request_id'
+    else to_jsonb(old)->>'change_order_id'
+  end;
+  if app_private.optional_setting('app.m10_command') is distinct from target_aggregate_id then
     raise exception 'ECR/ECO updates require a trusted command' using errcode='42501';
   end if;
   if tg_table_name in ('change_request_version','change_order_version') and old.state<>'DRAFT'
