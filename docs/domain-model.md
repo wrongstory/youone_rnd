@@ -180,7 +180,7 @@ Invariants:
 - ECO effectiveness requires independent verification, exact applied serial/lot/equipment scope, and required retest/reinspection evidence.
 - BOM integration is a public extension port in P0; BOM persistence and UI remain P1.
 
-## 6. Purchase and BOM
+## 6. Purchase
 
 ### `supplier`
 
@@ -190,13 +190,13 @@ Supplier master separate from Vendor because a purchasing supplier need not be a
 
 Item master with item code, name, specification, manufacturer, unit, preferred supplier, recent-price projection, and lifecycle.
 
-### `bom`, `bom_line`
-
-Versioned BOM aggregate associated with Product/Project and Item. Approved BOM revisions are immutable; change is a new revision and may link to ECR/ECO.
-
 ### `purchase_request`
 
-Purchase request/proposal with purpose, lines, quotes, supplier candidates, project/R&D links, amount, and approval subject version.
+Purchase aggregate root and its constrained `SM-PURCHASE-V1` lifecycle. It points to the current immutable request version but never stores line or quotation facts in a generic JSON field.
+
+### `purchase_request_version`, `purchase_request_line`, `purchase_quotation`
+
+Immutable purchase proposal snapshot with purpose, VAT-inclusive total, anti-splitting review window/effective amount, exact policy snapshot, normalized Item lines, Supplier quotations, private evidence, and typed Project/R&D links. Approval binds this exact sealed version, version number, checksum, and sealed time.
 
 ### `purchase_resolution`
 
@@ -206,19 +206,29 @@ Purchase resolution that reuses approved request data through a snapshot/referen
 
 Receipt records physical arrival and quantities. PurchaseInspection records quantity/specification/appearance/performance/photo/verdict and links to the receipt. It may reuse the generic Inspection engine while retaining a typed relation.
 
+M11 invariants:
+
+- Supplier is not Vendor; a reviewed, evidenced link may connect them without collapsing either identity.
+- PurchaseResolution references the exact approved PurchaseRequestVersion and selected quotation. A later request version cannot retarget the completed Approval or resolution.
+- Receipt lines reference exact request-version lines. Partial receipt remains visible; an overage is retained only as an explicit discrepancy and is never silently counted as accepted quantity.
+- PurchaseInspection retains exact Receipt and Inspection/InspectionAttempt lineage. A failed result enters correction handling rather than rewriting the receipt.
+- ExternalPaymentFact is evidence of a headquarters-system fact. It cannot create a transfer, payment instruction, accounting journal, or RCMS operation.
+- Headquarters users remain read-only until a later explicit authority policy; Vendor actors have no internal purchase capability.
+- BOM remains a P1 extension and M11 does not add BOM persistence or screens.
+
 ## 7. R&D Program
 
 ### `rnd_program`
 
-Government/agency program aggregate with agreement period, agencies, total budget, progress, and reporting deadlines. It is independent from Project.
+Government/agency program registration root with agreement period, agencies, currency, Project N:M links, budget/expenditure totals, and reporting deadlines. It is independent from Project. M11 deliberately has no lifecycle state field because `OD-030` is open.
 
-### `budget`, `budget_line`
+### `rnd_budget`, `rnd_budget_version`, `rnd_budget_line`
 
-Versioned program budget and category allocations.
+Versioned program budget and normalized category allocations. A new version links to the prior immutable version; Expenditure references the exact current BudgetVersion and line used when recorded.
 
 ### `expenditure`
 
-Internal tracking record with amount, date, counterparty, category, and typed links to contract/purchase/project. It is not a ledger journal or payment instruction.
+Internal tracking record with amount, date, counterparty, category, and exact typed links to ContractVersion/PurchaseResolution/Project. It is not a ledger journal or payment instruction.
 
 ### `evidence`
 
@@ -227,6 +237,15 @@ Evidence record linking an attachment to an expenditure, report, test, inspectio
 ### `report_deadline`
 
 Report/evaluation/settlement milestone and notification source.
+
+M11 invariants:
+
+- Only an active, explicitly authorized internal actor may register or mutate R&D facts. Vendor is always denied, and headquarters remains read-only until a later role policy.
+- Budget versions, expenditures, evidence, Project links and deadlines are structured records with optimistic versions and append-only audit/outbox evidence.
+- Evidence binds an exact Expenditure, BudgetVersion, or ReportDeadline and a private Attachment/checksum; missing and overdue evidence remain visible in summaries and alerts.
+- Deadline alert delivery is idempotent and preserves the selected alert-policy version and recipient.
+- No lifecycle state/event, close, settle, or reopen command is inferred from registration events. `OD-030` keeps those commands fail-closed.
+- No bank transfer, payment instruction, accounting journal, VAT-refund workflow, or RCMS workflow clone is exposed.
 
 ## 8. Research Note
 

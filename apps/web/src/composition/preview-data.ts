@@ -10,6 +10,8 @@ import type {
   VendorContractListSafeItem
 } from "@youone/feature-contract/public";
 import type { ProjectDetailView, ProjectListItemView } from "@youone/feature-project/public";
+import type { PurchaseDetailView, PurchaseListItemView } from "@youone/feature-purchase/public";
+import type { RndProgramSummaryView } from "@youone/feature-rnd/public";
 import type {
   NcrVendorDetailView,
   NcrVendorListItemView,
@@ -30,7 +32,11 @@ export const PREVIEW_IDS = Object.freeze({
   ncrController: "e0000000-0000-4000-8000-000000000001",
   ncrJig: "e0000000-0000-4000-8000-000000000002",
   changeController: "91000000-0000-4000-8000-000000000001",
-  changeJig: "91000000-0000-4000-8000-000000000002"
+  changeJig: "91000000-0000-4000-8000-000000000002",
+  purchaseThermalCamera: "92000000-0000-4000-8000-000000000001",
+  purchaseCoolant: "92000000-0000-4000-8000-000000000002",
+  rndCooling: "93000000-0000-4000-8000-000000000001",
+  rndFactory: "93000000-0000-4000-8000-000000000002"
 } as const);
 
 export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
@@ -419,3 +425,123 @@ export const previewChanges: readonly VendorChangeDetailView[] = Object.freeze([
 export const previewChangeList: readonly VendorChangeListItemView[] = Object.freeze(
   previewChanges.map(projectVendorChangeListItem)
 );
+
+export const previewPurchases: readonly PurchaseDetailView[] = Object.freeze([
+  {
+    purchaseRequestId: PREVIEW_IDS.purchaseThermalCamera,
+    requestNo: "PUR-2026-034",
+    purpose: "냉각모듈 시제품 열분포 검증용 계측기 구매",
+    state: "INSPECTION_PENDING",
+    totalExpectedAmount: { amount: "8650000", currency: "KRW" },
+    selectedSupplierName: "대한계측",
+    receivedLineCount: 1,
+    totalLineCount: 1,
+    inspectionStatus: "PENDING",
+    nextAction: stableCode("purchase.inspection.record"),
+    lines: [
+      {
+        lineId: "purchase-line-thermal-camera",
+        itemCode: "EQ-THERMAL-001",
+        name: "산업용 열화상 카메라",
+        specification: "해상도 640×480, 측정범위 -20~650℃",
+        quantity: "1",
+        receivedQuantity: "1",
+        unitCode: "UNIT_EA"
+      }
+    ],
+    quotationSummaries: [
+      { supplierName: "대한계측", quotedAmount: { amount: "8650000", currency: "KRW" }, evidenceAvailable: true },
+      { supplierName: "한국센서솔루션", quotedAmount: { amount: "9120000", currency: "KRW" }, evidenceAvailable: true }
+    ],
+    externalPaymentStatus: "CONFIRMED"
+  },
+  {
+    purchaseRequestId: PREVIEW_IDS.purchaseCoolant,
+    requestNo: "PUR-2026-037",
+    purpose: "2차 시제품 냉각수 및 배관 소모품 확보",
+    state: "PARTIALLY_RECEIVED",
+    totalExpectedAmount: { amount: "742000", currency: "KRW" },
+    selectedSupplierName: "유진산업자재",
+    receivedLineCount: 1,
+    totalLineCount: 2,
+    inspectionStatus: "NOT_REQUESTED",
+    nextAction: stableCode("purchase.receipt.record"),
+    lines: [
+      {
+        lineId: "purchase-line-coolant",
+        itemCode: "MAT-COOLANT-020",
+        name: "저전도 냉각수",
+        specification: "20L, 전기전도도 5μS/cm 이하",
+        quantity: "10",
+        receivedQuantity: "6",
+        unitCode: "UNIT_CAN"
+      },
+      {
+        lineId: "purchase-line-hose",
+        itemCode: "MAT-HOSE-012",
+        name: "내열 실리콘 호스",
+        specification: "내경 12mm, 연속사용 180℃",
+        quantity: "30",
+        receivedQuantity: "0",
+        unitCode: "UNIT_M"
+      }
+    ],
+    quotationSummaries: [
+      { supplierName: "유진산업자재", quotedAmount: { amount: "742000", currency: "KRW" }, evidenceAvailable: true }
+    ],
+    externalPaymentStatus: "CONFIRMED"
+  }
+]);
+
+export const previewPurchaseList: readonly PurchaseListItemView[] = previewPurchases;
+
+export const previewRndPrograms: readonly RndProgramSummaryView[] = Object.freeze([
+  {
+    rndProgramId: PREVIEW_IDS.rndCooling,
+    programCode: "RND-GOV-2026-02",
+    title: "산업용 배터리 고효율 열관리 모듈 개발",
+    agreementFrom: "2026-07-01",
+    agreementTo: "2027-06-30",
+    managingAgency: "한국산업기술진흥원",
+    projectIds: [PREVIEW_IDS.projectBattery],
+    budget: {
+      currentBudgetVersionId: "budget-cooling-v2",
+      currentBudgetVersionNo: 2,
+      totalBudget: { amount: "180000000", currency: "KRW" },
+      totalExpenditure: { amount: "68450000", currency: "KRW" },
+      balance: { amount: "111550000", currency: "KRW" },
+      executionRate: "38.03",
+      categoryTotals: [
+        { categoryCode: "MATERIAL", budgetAmount: "70000000", expenditureAmount: "31500000" },
+        { categoryCode: "EQUIPMENT", budgetAmount: "55000000", expenditureAmount: "26950000" },
+        { categoryCode: "OUTSOURCING", budgetAmount: "55000000", expenditureAmount: "10000000" }
+      ]
+    },
+    evidence: { expenditureCount: 18, expenditureWithEvidenceCount: 17, evidenceCount: 32, missingEvidenceCount: 1, overdueEvidenceCount: 0 },
+    deadlines: { total: 6, dueSoon: 1, overdue: 0, evidenceIncomplete: 1 }
+  },
+  {
+    rndProgramId: PREVIEW_IDS.rndFactory,
+    programCode: "RND-INT-2026-05",
+    title: "센서 검사 자동화 및 데이터 추적성 개선",
+    agreementFrom: "2026-09-01",
+    agreementTo: "2027-02-28",
+    managingAgency: "유원산업기술 기업부설연구소",
+    projectIds: [PREVIEW_IDS.projectSensor],
+    budget: {
+      currentBudgetVersionId: "budget-factory-v1",
+      currentBudgetVersionNo: 1,
+      totalBudget: { amount: "42000000", currency: "KRW" },
+      totalExpenditure: { amount: "742000", currency: "KRW" },
+      balance: { amount: "41258000", currency: "KRW" },
+      executionRate: "1.77",
+      categoryTotals: [
+        { categoryCode: "MATERIAL", budgetAmount: "12000000", expenditureAmount: "742000" },
+        { categoryCode: "EQUIPMENT", budgetAmount: "20000000", expenditureAmount: "0" },
+        { categoryCode: "TEST", budgetAmount: "10000000", expenditureAmount: "0" }
+      ]
+    },
+    evidence: { expenditureCount: 1, expenditureWithEvidenceCount: 1, evidenceCount: 2, missingEvidenceCount: 0, overdueEvidenceCount: 0 },
+    deadlines: { total: 4, dueSoon: 0, overdue: 0, evidenceIncomplete: 0 }
+  }
+]);

@@ -733,23 +733,22 @@ M09 physical constraints require at least one exact typed NCR source, but do not
 
 `CHANGE_IMPACT_ASSESSMENT` has one row per required dimension (`COST`, `SCHEDULE`, `QUALITY`, `SAFETY`, `SECURITY`, `REGULATORY`) and stores structured finding, rationale and evidence rather than an impact JSON blob. `CHANGE_ORDER` references exactly one approved ChangeRequestVersion or sealed EmergencyChangeException version. Contract-affecting targets require a separately signed/effective ContractVersion snapshot before effectiveness. Implementation, applied-scope, verification, retest/reinspection and emergency history are append-only. BOM persistence remains P1 and is not added by M10.
 
-## 6. Purchase, Supplier, Item, BOM, Receipt, and Inspection
+## 6. Purchase, Supplier, Item, Receipt, and Inspection
 
 ```mermaid
 erDiagram
   SUPPLIER ||--o{ SUPPLIER_ITEM : supplies
   ITEM ||--o{ SUPPLIER_ITEM : sourced
-  PRODUCT ||--o{ BOM : owns
-  PROJECT ||--o{ BOM : uses
-  BOM ||--o{ BOM_VERSION : versions
-  BOM_VERSION ||--o{ BOM_LINE : contains
-  ITEM ||--o{ BOM_LINE : component
-  PURCHASE_REQUEST ||--o{ PURCHASE_REQUEST_LINE : contains
+  PURCHASE_REQUEST ||--o{ PURCHASE_REQUEST_VERSION : versions
+  PURCHASE_REQUEST_VERSION ||--o{ PURCHASE_REQUEST_LINE : contains
   ITEM ||--o{ PURCHASE_REQUEST_LINE : requests
   SUPPLIER ||--o{ QUOTATION : quotes
-  PURCHASE_REQUEST ||--o{ QUOTATION : compares
-  PURCHASE_REQUEST ||--o| APPROVAL_INSTANCE : approved_by
+  PURCHASE_REQUEST_VERSION ||--o{ QUOTATION : compares
+  PURCHASE_REQUEST_VERSION ||--o| APPROVAL_SUBJECT_PURCHASE_REQUEST_VERSION : exact_subject
+  APPROVAL_INSTANCE ||--o| APPROVAL_SUBJECT_PURCHASE_REQUEST_VERSION : binds
+  PURCHASE_REQUEST_VERSION ||--o| PURCHASE_REQUEST_APPROVAL_OUTCOME : completed_by
   PURCHASE_REQUEST ||--o{ PURCHASE_RESOLUTION : resolves
+  PURCHASE_REQUEST_VERSION ||--o{ PURCHASE_RESOLUTION : exact_snapshot
   PURCHASE_RESOLUTION ||--o{ RECEIPT : receives
   RECEIPT ||--o{ RECEIPT_LINE : contains
   PURCHASE_REQUEST_LINE ||--o{ RECEIPT_LINE : fulfills
@@ -774,40 +773,29 @@ erDiagram
     decimal latest_observed_price
     string currency
   }
-  BOM {
-    uuid id PK
-    uuid product_id FK
-    uuid project_id FK
-    string bom_code UK
-  }
-  BOM_VERSION {
-    uuid id PK
-    uuid bom_id FK
-    int version_no
-    enum state
-  }
-  BOM_LINE {
-    uuid id PK
-    uuid bom_version_id FK
-    uuid item_id FK
-    decimal quantity
-  }
   PURCHASE_REQUEST {
     uuid id PK
     string request_no UK
     enum state
-    uuid approved_version_id
+    uuid current_version_id FK
+  }
+  PURCHASE_REQUEST_VERSION {
+    uuid id PK
+    uuid purchase_request_id FK
+    int version_no
+    string sealed_snapshot_checksum
+    uuid approval_policy_version_id FK
   }
   PURCHASE_REQUEST_LINE {
     uuid id PK
-    uuid request_id FK
+    uuid purchase_request_version_id FK
     uuid item_id FK
     decimal quantity
     decimal expected_amount
   }
   QUOTATION {
     uuid id PK
-    uuid request_id FK
+    uuid purchase_request_version_id FK
     uuid supplier_id FK
     decimal total_amount
     uuid attachment_id FK
@@ -815,6 +803,7 @@ erDiagram
   PURCHASE_RESOLUTION {
     uuid id PK
     uuid request_id FK
+    uuid purchase_request_version_id FK
     int generation
     enum state
   }
@@ -835,16 +824,31 @@ erDiagram
     uuid receipt_id FK
     uuid inspection_id FK
   }
+  APPROVAL_SUBJECT_PURCHASE_REQUEST_VERSION {
+    uuid instance_id FK
+    uuid purchase_request_version_id FK
+    string subject_checksum
+  }
+  PURCHASE_REQUEST_APPROVAL_OUTCOME {
+    uuid purchase_request_version_id FK
+    uuid approval_instance_id FK
+    uuid terminal_action_id FK
+  }
 ```
+
+M11 does not add BOM tables. Purchase lines, quotations, Project/R&D links, request versions, approval outcome, resolution, receipts and inspection relations are normalized. The exact `PURCHASE_REQUEST_VERSION` Approval binding includes its version/checksum/sealed time, and a resolution cannot be created without the immutable completed outcome. External payment is a separately audited fact with no transfer or accounting command. Partial receipt is retained by exact line; overage requires explicit discrepancy evidence and is not silently accepted.
 
 ## 7. R&D, Evidence, and Research Note
 
 ```mermaid
 erDiagram
-  RND_PROGRAM ||--o{ BUDGET : budgets
-  BUDGET ||--o{ BUDGET_LINE : allocates
+  PROJECT ||--o{ PROJECT_RND_PROGRAM : links
+  RND_PROGRAM ||--o{ PROJECT_RND_PROGRAM : links
+  RND_PROGRAM ||--o{ RND_BUDGET : budgets
+  RND_BUDGET ||--o{ RND_BUDGET_VERSION : versions
+  RND_BUDGET_VERSION ||--o{ RND_BUDGET_LINE : allocates
   RND_PROGRAM ||--o{ EXPENDITURE : spends
-  BUDGET_LINE ||--o{ EXPENDITURE : categorized
+  RND_BUDGET_LINE ||--o{ EXPENDITURE : categorized
   SUPPLIER ||--o{ EXPENDITURE : counterparty
   EXPENDITURE ||--o{ EXPENDITURE_EVIDENCE : evidenced
   EVIDENCE ||--o{ EXPENDITURE_EVIDENCE : supports
@@ -863,17 +867,26 @@ erDiagram
     string program_code UK
     decimal total_budget
     string currency
-    enum state
   }
-  BUDGET {
+  PROJECT_RND_PROGRAM {
+    uuid project_id FK
+    uuid rnd_program_id FK
+  }
+  RND_BUDGET {
     uuid id PK
     uuid rnd_program_id FK
-    int version_no
-    enum state
+    uuid current_version_id FK
   }
-  BUDGET_LINE {
+  RND_BUDGET_VERSION {
     uuid id PK
-    uuid budget_id FK
+    uuid rnd_budget_id FK
+    int version_no
+    uuid prior_version_id FK
+    string checksum
+  }
+  RND_BUDGET_LINE {
+    uuid id PK
+    uuid rnd_budget_version_id FK
     string category_code
     decimal allocated_amount
   }
@@ -927,6 +940,8 @@ erDiagram
     datetime reviewed_at
   }
 ```
+
+`RND_PROGRAM` has no M11 lifecycle state column or state-machine registry row. Registration, Project linking, budget versioning, expenditure, evidence and deadline events are auditable record changes only; lifecycle commands remain fail-closed under `OD-030`. Expenditure links to Project, ContractVersion or PurchaseResolution through distinct typed relations, and Vendor has no R&D projection or RLS scope path.
 
 Expenditure may use typed join tables such as `EXPENDITURE_PROJECT`, `EXPENDITURE_CONTRACT`, and `EXPENDITURE_PURCHASE`; it must not use an unchecked generic foreign ID.
 

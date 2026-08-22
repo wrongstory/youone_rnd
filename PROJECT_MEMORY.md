@@ -70,7 +70,7 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 `M10`은 PR #29로 `dev`에 병합됐다. ECR/ECO의 immutable version, 구조화된 6개 영향검토, exact typed before/after target, 승인된 변경지시, 적용범위 및 독립 재검증을 구현한다. 계약 영향 변경은 별도 서명·발효된 ContractVersion snapshot 없이는 효력이 발생하지 않으며, 긴급변경 정책과 결재 부정결과 상태전이는 각각 `OD-032`, `OD-033`을 임의 결정하지 않고 fail-closed로 유지한다. BOM은 P1 extension port만 두고 M10 물리 저장소와 화면에 포함하지 않았다.
 
-로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다.
+로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 

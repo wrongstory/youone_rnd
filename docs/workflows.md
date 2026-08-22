@@ -150,6 +150,7 @@ Headquarters staff remain read-only until a future explicit role policy grants m
 M11 execution rules:
 
 - PurchaseRequest approval binds the exact immutable PurchaseRequestVersion; edits create a newer version and never retarget a completed Approval.
+- Rejection or recall retains the exact negative Approval outcome and uses `EVT-PURCHASE-REVISE-AFTER-NEGATIVE-APPROVAL` to create a direct, strictly newer changed version. The prior version is never returned to an editable state.
 - The amount band and approval route come from a versioned internal policy snapshot. VAT-inclusive totals and anti-splitting review facts are retained; presets are not described as statutory values.
 - PurchaseResolution may be created only from an approved exact version. External payment information is a recorded fact, not a transfer, accounting journal, or RCMS action.
 - Receipt is line/quantity based and may be partial or exceed the expected quantity only through explicit discrepancy handling. PurchaseInspection references the exact Receipt and PurchaseRequest line through typed relations.

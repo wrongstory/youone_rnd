@@ -289,6 +289,7 @@ States: `QUOTE_COLLECTION`, `REQUEST_DRAFT`, `APPROVAL_PENDING`, `REQUEST_APPROV
 | `EVT-PURCHASE-CREATE` | — → `QUOTE_COLLECTION` | authorized researcher |
 | `EVT-PURCHASE-DRAFT-REQUEST` | `QUOTE_COLLECTION` → `REQUEST_DRAFT` | requester; quote policy checked |
 | `EVT-PURCHASE-SUBMIT` | `REQUEST_DRAFT` → `APPROVAL_PENDING` | requester; immutable request version |
+| `EVT-PURCHASE-REVISE-AFTER-NEGATIVE-APPROVAL` | `APPROVAL_PENDING` → `REQUEST_DRAFT` | requester; exact Approval `REJECTED` or `RECALLED` outcome retained, direct strictly newer PurchaseRequestVersion required |
 | `EVT-PURCHASE-APPROVED` | `APPROVAL_PENDING` → `REQUEST_APPROVED` | Approval Engine completed |
 | `EVT-PURCHASE-CREATE-RESOLUTION` | `REQUEST_APPROVED` → `RESOLUTION_DRAFT` | authorized internal |
 | `EVT-PURCHASE-RESOLVE` | `RESOLUTION_DRAFT` → `RESOLVED` | applicable approval/policy |
@@ -301,7 +302,7 @@ States: `QUOTE_COLLECTION`, `REQUEST_DRAFT`, `APPROVAL_PENDING`, `REQUEST_APPROV
 | `EVT-PURCHASE-INSPECTION-PASS` | `INSPECTION_PENDING` → `COMPLETED` | inspector |
 | `EVT-PURCHASE-RESOLVE-CORRECTION` | `CORRECTION_REQUIRED` → `INSPECTION_PENDING` | supplier/internal owner |
 
-Cancellation is policy-limited and cannot erase approved/payment/receipt evidence.
+Cancellation is policy-limited and cannot erase approved/payment/receipt evidence. A rejected or recalled request is never edited in place: the negative Approval outcome remains append-only, and the revision transition creates a direct next version with changed content/checksum before resubmission. `CANCELLED` has no general exit transition.
 
 ## 11. Research Note
 

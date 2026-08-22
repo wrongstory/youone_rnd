@@ -223,6 +223,20 @@ M07 makes `SCOPE_CONTRACT` physical with a real Contract FK and active VendorMem
 
 M08 Vendor Inspection access requires the same active account, VendorMembership and exact Project/Contract grant used by the inspected Deliverable. `INSPECTION_VENDOR_EXTERNAL_V1` exposes only submitted-version identity, external disposition, residual/correction requests and due dates; it excludes internal inspector opinion, policy deliberation, amount, held amount, calculated/adjusted/final rate and Approval evidence. Finance decision projection remains a distinct `contract.detail.finance.read` path. A Vendor may submit evidence and correction but may never inspect, accept, adjust or approve its own work.
 
+M11 Purchase/R&D permissions:
+
+| Action | Authorized internal owner | Lab Director/Representative | Headquarters | Vendor |
+|---|---:|---:|---:|---:|
+| Draft and submit PurchaseRequest | explicit purchase permission | only with explicit purchase permission | read only | deny |
+| Official PurchaseRequest approval | exact policy participant and acting authority | amount-policy participant only | read only | deny |
+| Create Resolution / record Receipt / Inspection | explicit function-specific permission | only with explicit function permission | read only | deny |
+| Record external payment fact | explicit `purchase.payment.record` | only with explicit permission | read only until role policy | deny |
+| Read R&D budget/expenditure/evidence | explicit internal R&D read | explicit internal R&D read | read only | deny |
+| Mutate R&D budget/expenditure/evidence/deadline | explicit function-specific permission | only with explicit function permission | deny until role policy | deny |
+| Start/close/settle/reopen RndProgram | deny while `OD-030` is open | deny while `OD-030` is open | deny | deny |
+
+`PURCHASE_LIST_INTERNAL_V1`, `PURCHASE_DETAIL_INTERNAL_V1`, `RND_PROGRAM_LIST_INTERNAL_V1`, and `RND_PROGRAM_SUMMARY_INTERNAL_V1` are versioned internal-only projections. Vendor has no Purchase/R&D projection variant and cannot gain one from Project, Contract, Supplier/Vendor linkage, or an Approval participant row. API handlers derive trusted ActorContext, and RLS/guarded command functions recheck active account, internal actor kind, exact action, current state/version, and immutable subject lineage.
+
 ## 12. Research Note Permissions
 
 | Action | Author | Senior | Lab Director | Representative | Admin |
