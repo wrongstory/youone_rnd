@@ -9,7 +9,7 @@ export type ApprovalActionKind = "SUBMIT" | "ACTIVATE" | "REVIEW" | "AGREE" | "A
 export type ApprovalSubject =
   | { kind: "DOCUMENT_VERSION"; documentVersionId: Uuid }
   | { kind: "RESEARCH_PROJECT_APPLICATION"; researchProjectApplicationVersionId: Uuid }
-  | { kind: "PURCHASE_REQUEST"; purchaseRequestVersionId: Uuid }
+  | { kind: "PURCHASE_REQUEST_VERSION"; purchaseRequestVersionId: Uuid }
   | { kind: "CONTRACT_VERSION"; contractVersionId: Uuid }
   | { kind: "TECHNICAL_ACCESS_REQUEST"; technicalAccessRequestId: Uuid }
   | { kind: "TECHNICAL_COPY_REQUEST"; technicalCopyRequestId: Uuid }
