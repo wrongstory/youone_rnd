@@ -207,7 +207,7 @@ dbDescribe.sequential("M14 PostgreSQL controlled-copy boundary", () => {
 
   it("denies Vendor and Admin-System raw rows, source, render, and print surfaces", () => {
     for (const actor of [vendorActor, admin]) expect(run(`begin;set local role youone_request;${userContext(actor)}select count(*) from public.technical_document_copy;rollback;`).split("\n").at(-1)).toBe("0");
-    expect(run("select has_function_privilege('youone_request','public.render_technical_document_copy(uuid,bigint,uuid,text,text,text,uuid,uuid,uuid,uuid,timestamptz)','execute');")).toBe("false");
+    expect(run("select has_function_privilege('youone_request','public.render_technical_document_copy(uuid,bigint,uuid,text,text,text,uuid,uuid,uuid,uuid,timestamptz)','execute');")).toBe("f");
     run(`begin;set local role youone_request;${userContext(vendorActor)}select public.print_technical_document_copy('${copy}',9,2,'FORGED','e1400000-0000-4000-8000-000000000001','e1400000-0000-4000-8000-000000000002','e1400000-0000-4000-8000-000000000003','e1400000-0000-4000-8000-000000000004','${now}');rollback;`, false);
   });
 
