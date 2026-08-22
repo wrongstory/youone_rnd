@@ -57,8 +57,9 @@ describe("SM-ECR-V1 / SM-ECO-V1", () => {
     const created = EngineeringChangeRequest.create({ ecrId: ecrId!, ecrNo: "ECR-002", title: "변경", priority: "NORMAL", projectId: projectId!, linkedNcrIds: [], rationale: "근거", requestedChange: "변경", originatorUserId: ownerId! }, createCommand(internal(ownerId!, "change.request.create")));
     const ecr = EngineeringChangeRequest.restore(created.snapshot); ecr.startAnalysis(command(internal(ownerId!, "change.request.manage"), 1));
     expect(() => ecr.submitReview(command(internal(ownerId!, "change.impact.analyze"), 2), { ...impacts(), safety: { effect: "AFFECTED", analysis: "위험 증가", evidenceIds: [] } })).toThrowError(expect.objectContaining({ code: "ECR_SAFETY_IMPACT_EVIDENCE_REQUIRED" }));
-    ecr.submitReview(command(internal(ownerId!, "change.impact.analyze"), 2), impacts()); ecr.review(command(internal(reviewerId!, "change.request.review"), 3), { comment: "검토", evidenceIds: [evidenceId!] });
+    ecr.submitReview(command(internal(ownerId!, "change.impact.analyze"), 2), impacts()); const reviewed = ecr.review(command(internal(reviewerId!, "change.request.review"), 3), { comment: "검토", evidenceIds: [evidenceId!] });
     const sealed = ecr.snapshot();
+    expect(reviewed.immutableReview).toMatchObject({ changeRequestVersionId: sealed.sealedSubjectVersionId, ecrSealedVersion: sealed.sealedSubjectVersion, sealedChecksum: sealed.sealedSubjectChecksum, sealedAt: sealed.sealedSubjectAt, officialApproval: false });
     expect(() => ecr.approve(command({ ...internal(approverId!, "change.request.approve"), positionIds: [stableCode("POSITION_SENIOR_RESEARCHER")] }, 4), approval(sealed.sealedSubjectVersionId!, 3, sealed.sealedSubjectChecksum!, sealed.sealedSubjectAt!))).toThrowError(expect.objectContaining({ code: "CHANGE_OFFICIAL_APPROVER_INVALID" }));
   });
 

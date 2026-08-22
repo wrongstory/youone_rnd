@@ -52,6 +52,7 @@ describe("explicit screen-review preview data", () => {
     expect(JSON.stringify(contracts.items)).not.toMatch(/amount|payment|internalEvaluation/i);
     expect(JSON.stringify(ncrs.items)).not.toMatch(/responsibilityHistory|approval|payment|amount/i);
     expect(JSON.stringify(changes.items)).not.toMatch(/approvalParticipants|contractAmount|legalNotes|securityFindings|internalNotes/i);
+    expect(JSON.stringify(changes.items)).not.toMatch(/assignedImplementationEvidenceIds|appliedScope/i);
   });
 
   it("labels L3 preview content with controlled-copy restrictions", async () => {

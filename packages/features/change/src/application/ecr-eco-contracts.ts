@@ -1,9 +1,10 @@
-import type { StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
+import type { Sha256, StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
 import {
   EngineeringChangeOrder,
   EngineeringChangeRequest,
   type ApprovedEcrOrigin,
   type ChangeAuditObligation,
+  type ChangeActorSnapshot,
   type ChangeCommand,
   type ChangeDomainEvent,
   type ChangePriority,
@@ -23,7 +24,15 @@ import {
   type EmergencyChangeExceptionSnapshot,
   type ExecutedSignedChangeContractSnapshot,
   type OfficialChangeApprovalEvidence
-} from "../domain/ecr-eco.js";
+} from "../domain/ecr-eco";
+import {
+  assertTrustedChangeApprovalOutcome,
+  type CompletedChangeApprovalSnapshot,
+  type TrustedChangeOrderApprovalOutcome,
+  type TrustedChangeRequestApprovalOutcome,
+  type VerifiedChangeOrderApprovalOutcomePort,
+  type VerifiedChangeRequestApprovalOutcomePort
+} from "../approval/contracts";
 
 export const CHANGE_PERMISSION_IDS = Object.freeze({
   REQUEST_CREATE: "change.request.create",
@@ -32,7 +41,7 @@ export const CHANGE_PERMISSION_IDS = Object.freeze({
   REQUEST_REVIEW: "change.request.review",
   REQUEST_APPROVE: "change.request.approve",
   ORDER_MANAGE: "change.order.manage",
-  ORDER_EMERGENCY_RELEASE: "change.order.emergency.release",
+  ORDER_EMERGENCY_RELEASE: "change.order.emergency_release",
   ORDER_IMPLEMENT: "change.order.implement",
   ORDER_VERIFY: "change.order.verify"
 } as const);
@@ -59,6 +68,35 @@ export interface EcoRepository {
   appendImmutableRetrospectiveApproval(ecoId: Uuid, snapshot: OfficialChangeApprovalEvidence): Promise<void>;
   appendImmutableSignedChangeContract(snapshot: ExecutedSignedChangeContractSnapshot): Promise<void>;
 }
+
+export interface NegativeChangeApprovalOutcomeSnapshot {
+  readonly negativeOutcomeId: Uuid;
+  readonly aggregateKind: "ECR" | "ECO";
+  readonly aggregateId: Uuid;
+  readonly subjectVersionId: Uuid;
+  readonly subjectVersion: Version;
+  readonly decision: "REJECTED" | "RECALLED" | "CANCELLED";
+  readonly approvalInstanceId: Uuid;
+  readonly approvalVersion: Version;
+  readonly terminalActionId: Uuid;
+  readonly reasonCode?: StableCode;
+  readonly occurredAt: UtcInstant;
+}
+export interface NegativeChangeApprovalOutcomeRepository {
+  append(snapshot: NegativeChangeApprovalOutcomeSnapshot): Promise<void>;
+  loadLatestForUpdate(input: { readonly aggregateKind: "ECR" | "ECO"; readonly aggregateId: Uuid }): Promise<NegativeChangeApprovalOutcomeSnapshot | null>;
+}
+
+export interface NextChangeVersionInput {
+  readonly aggregateKind: "ECR" | "ECO";
+  readonly aggregateId: Uuid;
+  readonly previousSubjectVersionId: Uuid;
+  readonly nextSubjectVersionId: Uuid;
+  readonly nextSubjectVersion: Version;
+  readonly checksum: Sha256;
+  readonly sealedAt: UtcInstant;
+}
+export interface ChangeRevisionPort { insertNextImmutableVersion(input: NextChangeVersionInput): Promise<void> }
 
 /** Adapters must validate entity identity, immutable before revision, and distinct newly-created after revision. */
 export interface EcoTargetValidationPort {
@@ -106,6 +144,8 @@ export interface ChangeTransactionContext {
   readonly targets: EcoTargetValidationPort;
   readonly emergencyAuthority: EmergencyChangeAuthorityPort;
   readonly signedChangeContracts: ExecutedChangeContractValidationPort;
+  readonly negativeOutcomes: NegativeChangeApprovalOutcomeRepository;
+  readonly revisions: ChangeRevisionPort;
   readonly links: ChangeLinkValidationPort;
   readonly evidence: ChangeEvidencePort;
 }
@@ -162,6 +202,7 @@ async function saveEco(context: ChangeTransactionContext, mutation: EcoMutation)
 }
 
 export async function persistEcrMutation(unitOfWork: ChangeUnitOfWork, mutation: EcrMutation): Promise<void> {
+  if (["EVT-ECR-APPROVE", "EVT-ECR-REJECT"].includes(mutation.event.eventType) || mutation.snapshot.state === "APPROVED" || mutation.snapshot.state === "REJECTED") throw new ChangeApplicationError("ECR_VERIFIED_APPROVAL_OUTCOME_REQUIRED" as StableCode, "Approval terminal transitions must enter through the verified Core Approval outcome boundary.");
   await unitOfWork.transact((context) => saveEcr(context, mutation));
 }
 
@@ -177,7 +218,121 @@ export async function persistEmergencyEcoCreation(unitOfWork: ChangeUnitOfWork, 
 
 export async function persistEcoMutation(unitOfWork: ChangeUnitOfWork, mutation: EcoMutation): Promise<void> {
   if (mutation.expectedVersion === 0) throw new ChangeApplicationError("ECO_CREATE_UOW_REQUIRED" as StableCode, "Use the approved-ECR or emergency ECO creation UoW.");
+  if (["EVT-ECO-RELEASE", "EVT-ECO-RECORD-RETROSPECTIVE-APPROVAL"].includes(mutation.event.eventType) || mutation.snapshot.state === "RELEASED" || mutation.immutableOfficialApproval || mutation.immutableRetrospectiveApproval) throw new ChangeApplicationError("ECO_VERIFIED_APPROVAL_OR_EMERGENCY_BOUNDARY_REQUIRED" as StableCode, "Release and retrospective approval must enter through their verified application boundary.");
   await unitOfWork.transact((context) => saveEco(context, mutation));
+}
+
+/** Emergency operational release rechecks the policy assignment at command time; a stale snapshot never authorizes release. */
+export async function releaseEmergencyEco(unitOfWork: ChangeUnitOfWork, input: { readonly ecoId: Uuid; readonly command: ChangeCommand }): Promise<EcoSnapshot> {
+  return unitOfWork.transact(async (context) => {
+    const snapshot = await context.ecos.loadForUpdate(input.ecoId);
+    if (!snapshot) throw new ChangeApplicationError("ECO_NOT_FOUND" as StableCode, "ECO was not found.");
+    if (snapshot.origin.kind !== "EMERGENCY_EXCEPTION") throw new ChangeApplicationError("ECO_EMERGENCY_RELEASE_REQUIRED" as StableCode, "This path is limited to a documented emergency ECO.");
+    await context.emergencyAuthority.assertExactActiveException({ ...snapshot.origin, projectId: snapshot.projectId, ...(snapshot.contractId ? { contractId: snapshot.contractId } : {}) });
+    const mutation = EngineeringChangeOrder.restore(snapshot).release(input.command);
+    await saveEco(context, mutation);
+    return mutation.snapshot;
+  });
+}
+
+function trustedApprovalActor(input: TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome, official = false): ChangeActorSnapshot {
+  const completed = input.completedApproval;
+  const userId = completed?.officialApproverUserId ?? input.provenance.actor.effectiveUserId ?? input.provenance.actor.authenticatedUserId;
+  if (!userId) throw new ChangeApplicationError("CHANGE_APPROVAL_ACTOR_MISSING" as StableCode, "Verified terminal Approval outcome has no effective actor.");
+  return Object.freeze({ actorKind: "INTERNAL", userId, active: true, positionIds: completed ? [completed.officialApproverPositionId] : [...input.provenance.actor.positionIds], authorities: official || input.decision === "REJECTED" ? [CHANGE_PERMISSION_IDS.REQUEST_APPROVE as StableCode] : [] });
+}
+
+function trustedCommand(input: TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome, expectedVersion: Version, official = false): ChangeCommand {
+  return { actor: trustedApprovalActor(input, official), expectedVersion, at: input.provenance.occurredAt, eventId: input.provenance.terminalAction.actionId, correlationId: input.provenance.correlationId, idempotencyKey: input.provenance.idempotencyKey };
+}
+
+function completedEvidence(completed: CompletedChangeApprovalSnapshot, subjectVersionId: Uuid): OfficialChangeApprovalEvidence {
+  return Object.freeze({ approvalInstanceId: completed.approvalInstanceId, approvalVersion: completed.approvalVersion, subjectVersionId, subjectVersion: completed.subjectVersion, subjectChecksum: completed.subjectChecksum, subjectSealedAt: completed.subjectSealedAt, completedAt: completed.completedAt, officialApproverUserId: completed.officialApproverUserId, officialApproverPositionId: completed.officialApproverPositionId });
+}
+
+function assertCompletedExact(input: TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome, subjectVersionId: Uuid): CompletedChangeApprovalSnapshot {
+  const completed = input.completedApproval;
+  if (!completed || input.outcome !== "COMPLETED" || completed.approvalInstanceId !== input.approvalInstanceId || completed.approvalVersion !== input.approvalVersion || completed.subjectVersion !== input.snapshot.subjectVersion || completed.subjectChecksum !== input.snapshot.checksum || completed.subjectSealedAt !== input.snapshot.sealedAt) throw new ChangeApplicationError("CHANGE_COMPLETED_APPROVAL_NOT_EXACT" as StableCode, "Completed Approval must bind the exact typed subject version/checksum/sealedAt and terminal instance.");
+  const completedSubjectId = completed.subject.kind === "CHANGE_REQUEST_VERSION" ? completed.subject.changeRequestVersionId : completed.subject.kind === "CHANGE_ORDER_VERSION" ? completed.subject.changeOrderVersionId : undefined;
+  if (completedSubjectId !== subjectVersionId) throw new ChangeApplicationError("CHANGE_COMPLETED_APPROVAL_SUBJECT_MISMATCH" as StableCode, "Completed Approval subject ID differs from the exact Business version.");
+  return completed;
+}
+
+function negativeSnapshot(input: TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome, aggregateKind: "ECR" | "ECO", aggregateId: Uuid, subjectVersionId: Uuid): NegativeChangeApprovalOutcomeSnapshot {
+  if (input.decision !== "REJECTED" && input.decision !== "RECALLED" && input.decision !== "CANCELLED") throw new ChangeApplicationError("CHANGE_NEGATIVE_OUTCOME_REQUIRED" as StableCode, "A negative terminal outcome is required.");
+  return Object.freeze({ negativeOutcomeId: input.provenance.terminalAction.actionId, aggregateKind, aggregateId, subjectVersionId, subjectVersion: input.snapshot.subjectVersion, decision: input.decision, approvalInstanceId: input.approvalInstanceId, approvalVersion: input.approvalVersion, terminalActionId: input.provenance.terminalAction.actionId, ...(input.provenance.terminalReasonCode ? { reasonCode: input.provenance.terminalReasonCode } : {}), occurredAt: input.provenance.occurredAt });
+}
+
+async function appendNegativeOutcome(context: ChangeTransactionContext, input: TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome, record: NegativeChangeApprovalOutcomeSnapshot, aggregateVersion: Version, emitStandaloneEvidence = true): Promise<void> {
+  await context.negativeOutcomes.append(record);
+  if (!emitStandaloneEvidence) return;
+  const actor = trustedApprovalActor(input);
+  const eventType = `${record.aggregateKind === "ECR" ? "EVT-ECR" : "EVT-ECO"}-APPROVAL-NEGATIVE-RECORDED` as StableCode;
+  await context.evidence.appendAudit({ eventType, actor, aggregateId: record.aggregateId, occurredAt: record.occurredAt, correlationId: input.provenance.correlationId, ...(record.reasonCode ? { reason: record.reasonCode } : {}), evidenceIds: [record.terminalActionId] });
+  await context.evidence.enqueue({ eventId: record.negativeOutcomeId, eventType, machineId: record.aggregateKind === "ECR" ? "SM-ECR-V1" : "SM-ECO-V1", aggregateId: record.aggregateId, aggregateVersion, occurredAt: record.occurredAt, correlationId: input.provenance.correlationId, idempotencyKey: input.provenance.idempotencyKey, payload: { decision: record.decision, subjectVersionId: record.subjectVersionId, stateTransitionApplied: false } });
+}
+
+/** Only the branded outcome minted by ChangeRequestApprovalSubjectAdapter reaches this UoW. */
+export class EcrVerifiedApprovalOutcomeApplicationService implements VerifiedChangeRequestApprovalOutcomePort {
+  public constructor(private readonly unitOfWork: ChangeUnitOfWork) {}
+  public async applyVerifiedOutcome(input: TrustedChangeRequestApprovalOutcome): Promise<void> {
+    assertTrustedChangeApprovalOutcome(input);
+    await this.unitOfWork.transact(async (context) => {
+      const snapshot = await context.ecrs.loadForUpdate(input.exactVersion.changeRequestId);
+      if (!snapshot || snapshot.ecrId !== input.exactVersion.changeRequestId || input.snapshot.subject.kind !== "CHANGE_REQUEST_VERSION" || input.snapshot.subject.changeRequestVersionId !== input.exactVersion.changeRequestVersionId || input.exactVersion.subjectVersion !== input.snapshot.subjectVersion || input.exactVersion.sealedSnapshotChecksum !== input.snapshot.checksum || input.exactVersion.sealedAt !== input.snapshot.sealedAt || snapshot.sealedSubjectVersionId !== input.exactVersion.changeRequestVersionId || snapshot.sealedSubjectVersion !== input.snapshot.subjectVersion || snapshot.sealedSubjectChecksum !== input.snapshot.checksum || snapshot.sealedSubjectAt !== input.snapshot.sealedAt) throw new ChangeApplicationError("ECR_APPROVAL_EXACT_VERSION_MISMATCH" as StableCode, "Verified Approval outcome no longer matches the locked ECR version.");
+      if (!(["REVIEW_PENDING", "APPROVAL_PENDING"] as const).includes(snapshot.state as "REVIEW_PENDING" | "APPROVAL_PENDING") || input.decision === "APPROVED" && snapshot.state !== "APPROVAL_PENDING") throw new ChangeApplicationError("ECR_APPROVAL_STATE_MISMATCH" as StableCode, "Terminal Approval outcome may affect only the exact pending ECR lifecycle state.");
+      const aggregate = EngineeringChangeRequest.restore(snapshot);
+      if (input.decision === "APPROVED") {
+        const completed = assertCompletedExact(input, input.exactVersion.changeRequestVersionId);
+        await saveEcr(context, aggregate.approve(trustedCommand(input, snapshot.version, true), completedEvidence(completed, input.exactVersion.changeRequestVersionId)));
+        return;
+      }
+      const negative = negativeSnapshot(input, "ECR", snapshot.ecrId, input.exactVersion.changeRequestVersionId);
+      await appendNegativeOutcome(context, input, negative, snapshot.version, input.decision !== "REJECTED");
+      if (input.decision === "REJECTED") {
+        if (!input.provenance.terminalReasonCode) throw new ChangeApplicationError("ECR_REJECT_REASON_REQUIRED" as StableCode, "Verified ECR rejection requires a terminal reason code.");
+        await saveEcr(context, aggregate.reject(trustedCommand(input, snapshot.version), { reason: input.provenance.terminalReasonCode, evidenceIds: [input.provenance.terminalAction.actionId] }));
+      }
+      // RECALLED/CANCELLED have no canonical ECR transition under OD-033; evidence is retained without inventing one.
+    });
+  }
+}
+
+/** Standard completion releases once; emergency completion only appends retrospective approval to an already released exact ECO. */
+export class EcoVerifiedApprovalOutcomeApplicationService implements VerifiedChangeOrderApprovalOutcomePort {
+  public constructor(private readonly unitOfWork: ChangeUnitOfWork) {}
+  public async applyVerifiedOutcome(input: TrustedChangeOrderApprovalOutcome): Promise<void> {
+    assertTrustedChangeApprovalOutcome(input);
+    await this.unitOfWork.transact(async (context) => {
+      const snapshot = await context.ecos.loadForUpdate(input.exactVersion.changeOrderId);
+      if (!snapshot || snapshot.ecoId !== input.exactVersion.changeOrderId || input.snapshot.subject.kind !== "CHANGE_ORDER_VERSION" || input.snapshot.subject.changeOrderVersionId !== input.exactVersion.changeOrderVersionId || input.exactVersion.subjectVersion !== input.snapshot.subjectVersion || input.exactVersion.sealedSnapshotChecksum !== input.snapshot.checksum || input.exactVersion.sealedAt !== input.snapshot.sealedAt || snapshot.sealedDefinitionVersionId !== input.exactVersion.changeOrderVersionId || snapshot.sealedDefinitionVersion !== input.snapshot.subjectVersion || snapshot.sealedDefinitionChecksum !== input.snapshot.checksum || snapshot.sealedDefinitionAt !== input.snapshot.sealedAt) throw new ChangeApplicationError("ECO_APPROVAL_EXACT_VERSION_MISMATCH" as StableCode, "Verified Approval outcome no longer matches the locked ECO version.");
+      const expectedApprovalState = input.exactVersion.releaseMode === "STANDARD" ? "APPROVAL_PENDING" : "RELEASED";
+      if (snapshot.state !== expectedApprovalState) throw new ChangeApplicationError("ECO_APPROVAL_STATE_MISMATCH" as StableCode, "Standard and emergency retrospective outcomes require their exact pending or already-released lifecycle state.");
+      if (input.businessEffect.kind === "RETAIN_NEGATIVE_APPROVAL_OUTCOME") { await appendNegativeOutcome(context, input, negativeSnapshot(input, "ECO", snapshot.ecoId, input.exactVersion.changeOrderVersionId), snapshot.version); return; }
+      const completed = assertCompletedExact(input, input.exactVersion.changeOrderVersionId);
+      const aggregate = EngineeringChangeOrder.restore(snapshot);
+      if (input.businessEffect.kind === "RELEASE_STANDARD_CHANGE_ORDER") {
+        if (input.exactVersion.releaseMode !== "STANDARD") throw new ChangeApplicationError("ECO_STANDARD_RELEASE_MODE_REQUIRED" as StableCode, "Standard release cannot consume an emergency retrospective Approval outcome.");
+        await saveEco(context, aggregate.release(trustedCommand(input, snapshot.version, true), completedEvidence(completed, input.exactVersion.changeOrderVersionId)));
+        return;
+      }
+      if (input.exactVersion.releaseMode !== "EMERGENCY_RETROSPECTIVE" || snapshot.origin.kind !== "EMERGENCY_EXCEPTION" || snapshot.state !== "RELEASED") throw new ChangeApplicationError("ECO_RETROSPECTIVE_RELEASED_STATE_REQUIRED" as StableCode, "Emergency retrospective Approval may append only to an already RELEASED exact emergency ECO and never release again.");
+      await saveEco(context, aggregate.recordRetrospectiveApproval(trustedCommand(input, snapshot.version, true), completedEvidence(completed, input.exactVersion.changeOrderVersionId)));
+    });
+  }
+}
+
+/** Creates only a direct immutable successor after a retained REJECTED/RECALLED outcome; no OD-033 lifecycle transition is invented. */
+export async function createNextChangeVersionAfterNegativeOutcome(unitOfWork: ChangeUnitOfWork, input: NextChangeVersionInput & { readonly negativeOutcomeId: Uuid; readonly command: Omit<ChangeCommand, "expectedVersion"> }): Promise<void> {
+  await unitOfWork.transact(async (context) => {
+    const negative = await context.negativeOutcomes.loadLatestForUpdate({ aggregateKind: input.aggregateKind, aggregateId: input.aggregateId });
+    if (!negative || negative.negativeOutcomeId !== input.negativeOutcomeId || !["REJECTED", "RECALLED"].includes(negative.decision) || negative.subjectVersionId !== input.previousSubjectVersionId || input.nextSubjectVersion !== negative.subjectVersion + 1 || input.nextSubjectVersionId === input.previousSubjectVersionId) throw new ChangeApplicationError("CHANGE_RESUBMISSION_LINEAGE_INVALID" as StableCode, "Resubmission requires the latest retained negative outcome and a direct strictly newer immutable version.");
+    const revision: NextChangeVersionInput = { aggregateKind: input.aggregateKind, aggregateId: input.aggregateId, previousSubjectVersionId: input.previousSubjectVersionId, nextSubjectVersionId: input.nextSubjectVersionId, nextSubjectVersion: input.nextSubjectVersion, checksum: input.checksum, sealedAt: input.sealedAt };
+    await context.revisions.insertNextImmutableVersion(revision);
+    const eventType = `${input.aggregateKind === "ECR" ? "EVT-ECR" : "EVT-ECO"}-RESUBMISSION-VERSION-CREATED` as StableCode;
+    await context.evidence.appendAudit({ eventType, actor: input.command.actor, aggregateId: input.aggregateId, occurredAt: input.command.at, correlationId: input.command.correlationId, evidenceIds: [negative.terminalActionId] });
+    await context.evidence.enqueue({ eventId: input.command.eventId, eventType, machineId: input.aggregateKind === "ECR" ? "SM-ECR-V1" : "SM-ECO-V1", aggregateId: input.aggregateId, aggregateVersion: input.nextSubjectVersion, occurredAt: input.command.at, correlationId: input.command.correlationId, idempotencyKey: input.command.idempotencyKey, payload: { previousSubjectVersionId: input.previousSubjectVersionId, nextSubjectVersionId: input.nextSubjectVersionId, lifecycleTransitionApplied: false } });
+  });
 }
 
 export type StandardEcoCreateInput = Omit<Parameters<typeof EngineeringChangeOrder.create>[0], "origin">;
@@ -233,6 +388,25 @@ export interface VendorChangeListItemView {
 export interface VendorChangeDetailView extends VendorChangeListItemView {
   readonly assignedImplementationEvidenceIds: readonly string[];
   readonly appliedScope?: { readonly serialNumbers: readonly string[]; readonly lotNumbers: readonly string[]; readonly equipmentIds: readonly string[] };
+}
+export type VendorChangeProjectionSource = VendorChangeListItemView;
+export type VendorChangeDetailProjectionSource = VendorChangeDetailView;
+
+/** Runtime allowlist: never spread repository rows into an external response. */
+export function projectVendorChangeListItem<T extends VendorChangeProjectionSource>(source: T): VendorChangeListItemView {
+  return Object.freeze({
+    changeRequestId: source.changeRequestId, ecrNo: source.ecrNo, title: source.title, priority: source.priority, state: source.state,
+    ...(source.changeOrderId !== undefined ? { changeOrderId: source.changeOrderId } : {}), ...(source.ecoNo !== undefined ? { ecoNo: source.ecoNo } : {}), ...(source.ecoState !== undefined ? { ecoState: source.ecoState } : {}),
+    projectId: source.projectId, ...(source.contractId !== undefined ? { contractId: source.contractId } : {}),
+    impactSummary: Object.freeze({ cost: source.impactSummary.cost, schedule: source.impactSummary.schedule, quality: source.impactSummary.quality, safety: source.impactSummary.safety, security: source.impactSummary.security, regulatory: source.impactSummary.regulatory }),
+    exactTargetDisplayRefs: Object.freeze(source.exactTargetDisplayRefs.map((target) => Object.freeze({ kind: target.kind, targetId: target.targetId, displayRef: target.displayRef }))),
+    progress: Object.freeze({ implementedTargets: source.progress.implementedTargets, totalTargets: source.progress.totalTargets, verification: source.progress.verification }), nextAction: source.nextAction
+  });
+}
+
+export function projectVendorChangeDetail<T extends VendorChangeDetailProjectionSource>(source: T): VendorChangeDetailView {
+  const list = projectVendorChangeListItem(source);
+  return Object.freeze({ ...list, assignedImplementationEvidenceIds: Object.freeze([...source.assignedImplementationEvidenceIds]), ...(source.appliedScope ? { appliedScope: Object.freeze({ serialNumbers: Object.freeze([...source.appliedScope.serialNumbers]), lotNumbers: Object.freeze([...source.appliedScope.lotNumbers]), equipmentIds: Object.freeze([...source.appliedScope.equipmentIds]) }) } : {}) });
 }
 export interface InternalChangeDetailView { readonly ecr: EcrSnapshot; readonly eco?: EcoSnapshot; readonly reviews: readonly EcrReviewSnapshot[]; readonly implementations: readonly EcoImplementationSnapshot[] }
 export type ChangeVendorListResult = { readonly availability: "AVAILABLE"; readonly items: readonly VendorChangeListItemView[] } | { readonly availability: "UNAVAILABLE"; readonly items: readonly []; readonly reason: "QUERY_ADAPTER_NOT_CONFIGURED" };

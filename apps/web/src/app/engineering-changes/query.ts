@@ -1,8 +1,10 @@
-import type {
-  ChangeInternalDetailResult,
-  ChangeQueryPort,
-  ChangeVendorDetailResult,
-  ChangeVendorListResult
+import {
+  projectVendorChangeDetail,
+  projectVendorChangeListItem,
+  type ChangeInternalDetailResult,
+  type ChangeQueryPort,
+  type ChangeVendorDetailResult,
+  type ChangeVendorListResult
 } from "@youone/feature-change/public";
 
 import { previewChangeList, previewChanges } from "../../composition/preview-data";
@@ -26,12 +28,12 @@ class UnavailableChangeQuery implements ChangeQueryPort {
 
 class PreviewChangeQuery implements ChangeQueryPort {
   async listMineExternal(): Promise<ChangeVendorListResult> {
-    return { availability: "AVAILABLE", items: previewChangeList };
+    return { availability: "AVAILABLE", items: previewChangeList.map(projectVendorChangeListItem) };
   }
 
   async getMineExternal(changeRequestId: string): Promise<ChangeVendorDetailResult> {
     const detail = previewChanges.find((change) => change.changeRequestId === changeRequestId);
-    return detail ? { availability: "AVAILABLE", detail } : { availability: "NOT_FOUND", detail: null };
+    return detail ? { availability: "AVAILABLE", detail: projectVendorChangeDetail(detail) } : { availability: "NOT_FOUND", detail: null };
   }
 
   async getInternalDetail(): Promise<ChangeInternalDetailResult> {

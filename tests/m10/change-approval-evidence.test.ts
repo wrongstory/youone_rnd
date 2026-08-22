@@ -40,6 +40,7 @@ const completedResolver = { resolve: async (input: ApprovalOutcomeInput) => ({
   approvalInstanceId: input.approvalInstanceId, approvalVersion: input.approvalVersion, approvalPolicyVersionId: id(12),
   approvalPolicyChecksum: checksumTwo, approvalStepId: id(13), approvalParticipantId: id(14), approvalStepRole: "APPROVAL" as const,
   authorityPolicyEvidenceId: id(15), subjectVersion: input.snapshot.subjectVersion,
+  subject: input.snapshot.subject,
   subjectChecksum: input.snapshot.checksum, subjectSealedAt: input.snapshot.sealedAt, completedAt: input.provenance.occurredAt,
   officialApproverUserId: input.provenance.actor.effectiveUserId!, officialApproverPositionId: stableCode("POSITION_LAB_DIRECTOR")
 }) };
@@ -103,7 +104,8 @@ describe("ECR/ECO exact typed Approval subjects", () => {
     const adapter = new ChangeOrderApprovalSubjectAdapter({ loadExact: async () => emergency, loadPrevious: async () => null }, { applyVerifiedOutcome }, completedResolver);
     const snapshot = await adapter.sealExactVersion({ kind: "CHANGE_ORDER_VERSION", changeOrderVersionId: orderId });
     await adapter.applyApprovalOutcome({ snapshot, approvalInstanceId: approvalId, approvalVersion: version(4), outcome: "COMPLETED", provenance: provenance("COMPLETED") });
-    expect(applyVerifiedOutcome).toHaveBeenCalledWith(expect.objectContaining({ decision: "RELEASED", retrospectiveEvidence: emergency.emergencyEvidence,
+    expect(applyVerifiedOutcome).toHaveBeenCalledWith(expect.objectContaining({ decision: "RETROSPECTIVE_APPROVAL_RECORDED",
+      businessEffect: { kind: "APPEND_EMERGENCY_RETROSPECTIVE_APPROVAL", releaseTransitionAllowed: false }, retrospectiveEvidence: emergency.emergencyEvidence,
       completedApproval: expect.objectContaining({ approvalInstanceId: approvalId, subjectChecksum: checksumOne, officialApproverPositionId: stableCode("POSITION_LAB_DIRECTOR") }) }));
   });
 

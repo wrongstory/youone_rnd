@@ -1,5 +1,9 @@
 import type { ApprovalDetailView, ApprovalInboxItem } from "@youone/core-approval/public";
-import type { VendorChangeDetailView } from "@youone/feature-change/public";
+import {
+  projectVendorChangeListItem,
+  type VendorChangeDetailView,
+  type VendorChangeListItemView
+} from "@youone/feature-change/public";
 import type {
   VendorContractBasicDetail,
   VendorContractFinanceDetail,
@@ -412,4 +416,6 @@ export const previewChanges: readonly VendorChangeDetailView[] = Object.freeze([
   }
 ]);
 
-export const previewChangeList = previewChanges;
+export const previewChangeList: readonly VendorChangeListItemView[] = Object.freeze(
+  previewChanges.map(projectVendorChangeListItem)
+);

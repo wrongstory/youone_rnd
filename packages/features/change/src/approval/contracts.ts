@@ -15,8 +15,8 @@ export type ChangeRequestApprovalSubject = Extract<ApprovalSubject, { kind: "CHA
 export type ChangeOrderApprovalSubject = Extract<ApprovalSubject, { kind: "CHANGE_ORDER_VERSION" }>;
 export type ChangeApprovalSubject = ChangeRequestApprovalSubject | ChangeOrderApprovalSubject;
 export type ChangeRequestApprovalDecision = "APPROVED" | "REJECTED" | "RECALLED" | "CANCELLED";
-export type ChangeOrderApprovalDecision = "RELEASED" | "REJECTED" | "RECALLED" | "CANCELLED";
-export type ChangeApprovalState = "APPROVAL_PENDING" | ChangeRequestApprovalDecision | ChangeOrderApprovalDecision;
+export type ChangeOrderApprovalDecision = "RELEASED" | "RETROSPECTIVE_APPROVAL_RECORDED" | "REJECTED" | "RECALLED" | "CANCELLED";
+export type ChangeApprovalState = "APPROVAL_PENDING" | ChangeRequestApprovalDecision | Exclude<ChangeOrderApprovalDecision, "RETROSPECTIVE_APPROVAL_RECORDED">;
 
 /** Exact private-file identity. Storage keys, URLs and delivery tokens are deliberately absent. */
 export interface OpaquePrivateFileRef {
@@ -43,7 +43,7 @@ export interface EmergencyRetrospectiveApprovalEvidence {
   readonly recordedAt: UtcInstant;
 }
 
-export interface CompletedChangeApprovalSnapshot {
+export interface CompletedChangeApprovalSnapshot<Subject extends ChangeApprovalSubject = ChangeApprovalSubject> {
   readonly approvalInstanceId: Uuid;
   readonly approvalVersion: Version;
   readonly approvalPolicyVersionId: Uuid;
@@ -52,6 +52,8 @@ export interface CompletedChangeApprovalSnapshot {
   readonly approvalParticipantId: Uuid;
   readonly approvalStepRole: "APPROVAL";
   readonly authorityPolicyEvidenceId: Uuid;
+  /** Exact typed subject identity resolved from the terminal ApprovalInstance link. */
+  readonly subject: Subject;
   readonly subjectVersion: Version;
   readonly subjectChecksum: Sha256;
   readonly subjectSealedAt: UtcInstant;
@@ -116,6 +118,7 @@ export interface ChangeApprovalObligations {
   readonly privateFilesRemainOpaqueAndAuthorized: true;
   readonly vendorProfessionalResponsibilityIsNotWaived: true;
   readonly approvalDoesNotImplementOrVerifyChange: true;
+  readonly emergencyRetrospectiveApprovalNeverReleasesAgain: true;
 }
 
 export const CHANGE_APPROVAL_OBLIGATIONS: ChangeApprovalObligations = Object.freeze({
@@ -125,26 +128,44 @@ export const CHANGE_APPROVAL_OBLIGATIONS: ChangeApprovalObligations = Object.fre
   evidenceReferencesAreAppendOnly: true,
   privateFilesRemainOpaqueAndAuthorized: true,
   vendorProfessionalResponsibilityIsNotWaived: true,
-  approvalDoesNotImplementOrVerifyChange: true
+  approvalDoesNotImplementOrVerifyChange: true,
+  emergencyRetrospectiveApprovalNeverReleasesAgain: true
 });
 
+declare const trustedChangeApprovalOutcomeBrand: unique symbol;
+interface TrustedChangeApprovalOutcomeBrand {
+  readonly [trustedChangeApprovalOutcomeBrand]: true;
+}
+
+export type ChangeOrderApprovalBusinessEffect =
+  | { readonly kind: "RELEASE_STANDARD_CHANGE_ORDER"; readonly releaseTransitionAllowed: true }
+  | { readonly kind: "APPEND_EMERGENCY_RETROSPECTIVE_APPROVAL"; readonly releaseTransitionAllowed: false }
+  | { readonly kind: "RETAIN_NEGATIVE_APPROVAL_OUTCOME"; readonly releaseTransitionAllowed: false };
+
+export type TrustedChangeRequestApprovalOutcome = Readonly<ApprovalOutcomeInput & {
+  readonly decision: ChangeRequestApprovalDecision;
+  readonly exactVersion: ChangeRequestApprovalRecord;
+  readonly completedApproval?: CompletedChangeApprovalSnapshot<ChangeRequestApprovalSubject>;
+  readonly obligations: ChangeApprovalObligations;
+}> & TrustedChangeApprovalOutcomeBrand;
+
+export type TrustedChangeOrderApprovalOutcome = Readonly<ApprovalOutcomeInput & {
+  readonly decision: ChangeOrderApprovalDecision;
+  readonly businessEffect: ChangeOrderApprovalBusinessEffect;
+  readonly exactVersion: ChangeOrderApprovalRecord;
+  readonly retrospectiveEvidence?: EmergencyRetrospectiveApprovalEvidence;
+  readonly completedApproval?: CompletedChangeApprovalSnapshot<ChangeOrderApprovalSubject>;
+  readonly obligations: ChangeApprovalObligations;
+}> & TrustedChangeApprovalOutcomeBrand;
+
 export interface VerifiedChangeRequestApprovalOutcomePort {
-  applyVerifiedOutcome(input: ApprovalOutcomeInput & {
-    readonly decision: ChangeRequestApprovalDecision;
-    readonly exactVersion: ChangeRequestApprovalRecord;
-    readonly completedApproval?: CompletedChangeApprovalSnapshot;
-    readonly obligations: ChangeApprovalObligations;
-  }): Promise<void>;
+  /** Input can only be minted after the Approval adapter re-loads and verifies exact terminal evidence. */
+  applyVerifiedOutcome(input: TrustedChangeRequestApprovalOutcome): Promise<void>;
 }
 
 export interface VerifiedChangeOrderApprovalOutcomePort {
-  applyVerifiedOutcome(input: ApprovalOutcomeInput & {
-    readonly decision: ChangeOrderApprovalDecision;
-    readonly exactVersion: ChangeOrderApprovalRecord;
-    readonly retrospectiveEvidence?: EmergencyRetrospectiveApprovalEvidence;
-    readonly completedApproval?: CompletedChangeApprovalSnapshot;
-    readonly obligations: ChangeApprovalObligations;
-  }): Promise<void>;
+  /** Emergency completion appends retrospective evidence and is never a second release transition. */
+  applyVerifiedOutcome(input: TrustedChangeOrderApprovalOutcome): Promise<void>;
 }
 
 export class ChangeApprovalContractError extends Error {
@@ -157,6 +178,35 @@ export class ChangeApprovalContractError extends Error {
 const fail = (code: string, message: string): never => {
   throw new ChangeApprovalContractError(code as StableCode, message);
 };
+
+const trustedChangeApprovalOutcomes = new WeakSet<object>();
+
+function deepFreeze<T>(value: T): T {
+  const seen = new WeakSet<object>();
+  const freeze = (candidate: unknown): void => {
+    if (candidate === null || typeof candidate !== "object" || seen.has(candidate)) return;
+    seen.add(candidate);
+    for (const nested of Object.values(candidate)) freeze(nested);
+    Object.freeze(candidate);
+  };
+  freeze(value);
+  return value;
+}
+
+function mintTrustedChangeApprovalOutcome<T extends object>(value: T): T & TrustedChangeApprovalOutcomeBrand {
+  const envelope = deepFreeze(structuredClone(value)) as T & TrustedChangeApprovalOutcomeBrand;
+  trustedChangeApprovalOutcomes.add(envelope);
+  return envelope;
+}
+
+/** Runtime gate for Business UoW implementations; structural lookalikes are rejected. */
+export function assertTrustedChangeApprovalOutcome(
+  value: unknown
+): asserts value is TrustedChangeRequestApprovalOutcome | TrustedChangeOrderApprovalOutcome {
+  if (value === null || typeof value !== "object" || !trustedChangeApprovalOutcomes.has(value)) {
+    fail("CHANGE_APPROVAL_OUTCOME_NOT_TRUSTED", "Only an outcome minted by the exact Approval subject adapter may drive a Business transition.");
+  }
+}
 
 function sameActor(left: ApprovalActorSnapshot, right: ApprovalActorSnapshot): boolean {
   const a = left.actingAuthority;
@@ -189,7 +239,18 @@ function assertTerminalProvenance(input: ApprovalOutcomeInput): void {
   }
 }
 
-async function completedApproval(input: ApprovalOutcomeInput, resolver: CompletedChangeApprovalSnapshotPort): Promise<CompletedChangeApprovalSnapshot | undefined> {
+function sameChangeSubject(left: unknown, right: ChangeApprovalSubject): left is ChangeApprovalSubject {
+  if (left === null || typeof left !== "object" || !("kind" in left) || left.kind !== right.kind) return false;
+  return left.kind === "CHANGE_REQUEST_VERSION"
+    ? "changeRequestVersionId" in left && left.changeRequestVersionId === (right as ChangeRequestApprovalSubject).changeRequestVersionId
+    : "changeOrderVersionId" in left && left.changeOrderVersionId === (right as ChangeOrderApprovalSubject).changeOrderVersionId;
+}
+
+async function completedApproval<Subject extends ChangeApprovalSubject>(
+  input: ApprovalOutcomeInput,
+  subject: Subject,
+  resolver: CompletedChangeApprovalSnapshotPort
+): Promise<CompletedChangeApprovalSnapshot<Subject> | undefined> {
   if (input.outcome !== "COMPLETED") return undefined;
   const resolved = await resolver.resolve(input);
   const actor = input.provenance.actor;
@@ -199,12 +260,13 @@ async function completedApproval(input: ApprovalOutcomeInput, resolver: Complete
     !resolved.approvalPolicyVersionId || !resolved.approvalPolicyChecksum || !resolved.approvalStepId ||
     !resolved.approvalParticipantId || !resolved.authorityPolicyEvidenceId ||
     resolved.approvalInstanceId !== input.approvalInstanceId || resolved.approvalVersion !== input.approvalVersion ||
+    !sameChangeSubject(resolved.subject, subject) ||
     resolved.subjectVersion !== input.snapshot.subjectVersion || resolved.subjectChecksum !== input.snapshot.checksum ||
     resolved.subjectSealedAt !== input.snapshot.sealedAt || resolved.completedAt !== input.provenance.occurredAt ||
     resolved.officialApproverUserId !== actor.effectiveUserId || resolved.actingAuthorityEvidenceId !== input.provenance.actingAuthorityEvidenceId) {
     fail("CHANGE_OFFICIAL_APPROVAL_SNAPSHOT_INVALID", "Resolved official approval must bind the exact terminal participant, subject triple and trusted actor provenance.");
   }
-  return resolved;
+  return resolved as CompletedChangeApprovalSnapshot<Subject>;
 }
 
 function assertEmergencyEvidence(record: ChangeOrderApprovalRecord): void {
@@ -279,8 +341,10 @@ export class ChangeRequestApprovalSubjectAdapter extends BaseChangeApprovalAdapt
     await this.assertExactVersion(input.snapshot); assertTerminalProvenance(input);
     const subject = requireChangeRequestSubject(input.snapshot.subject);
     const exactVersion = await this.requireExact(subject.changeRequestVersionId);
-    await this.outcomes.applyVerifiedOutcome({ ...input, decision: input.outcome === "COMPLETED" ? "APPROVED" : input.outcome,
-      exactVersion, completedApproval: await completedApproval(input, this.completedApprovals), obligations: CHANGE_APPROVAL_OBLIGATIONS });
+    const completed = await completedApproval(input, subject, this.completedApprovals);
+    const outcome = mintTrustedChangeApprovalOutcome({ ...input, decision: input.outcome === "COMPLETED" ? "APPROVED" as const : input.outcome,
+      exactVersion, ...(completed ? { completedApproval: completed } : {}), obligations: CHANGE_APPROVAL_OBLIGATIONS });
+    await this.outcomes.applyVerifiedOutcome(outcome);
   }
   private async requireExact(id: Uuid): Promise<ChangeRequestApprovalRecord> {
     const record = await this.store.loadExact(id);
@@ -324,9 +388,20 @@ export class ChangeOrderApprovalSubjectAdapter extends BaseChangeApprovalAdapter
     await this.assertExactVersion(input.snapshot); assertTerminalProvenance(input);
     const subject = requireChangeOrderSubject(input.snapshot.subject);
     const exactVersion = await this.requireExact(subject.changeOrderVersionId);
-    await this.outcomes.applyVerifiedOutcome({ ...input, decision: input.outcome === "COMPLETED" ? "RELEASED" : input.outcome,
-      exactVersion, retrospectiveEvidence: exactVersion.emergencyEvidence,
-      completedApproval: await completedApproval(input, this.completedApprovals), obligations: CHANGE_APPROVAL_OBLIGATIONS });
+    const completed = await completedApproval(input, subject, this.completedApprovals);
+    const completedEmergency = input.outcome === "COMPLETED" && exactVersion.releaseMode === "EMERGENCY_RETROSPECTIVE";
+    const decision: ChangeOrderApprovalDecision = input.outcome === "COMPLETED"
+      ? completedEmergency ? "RETROSPECTIVE_APPROVAL_RECORDED" : "RELEASED"
+      : input.outcome;
+    const businessEffect: ChangeOrderApprovalBusinessEffect = input.outcome !== "COMPLETED"
+      ? { kind: "RETAIN_NEGATIVE_APPROVAL_OUTCOME", releaseTransitionAllowed: false }
+      : completedEmergency
+        ? { kind: "APPEND_EMERGENCY_RETROSPECTIVE_APPROVAL", releaseTransitionAllowed: false }
+        : { kind: "RELEASE_STANDARD_CHANGE_ORDER", releaseTransitionAllowed: true };
+    const outcome = mintTrustedChangeApprovalOutcome({ ...input, decision, businessEffect, exactVersion,
+      ...(exactVersion.emergencyEvidence ? { retrospectiveEvidence: exactVersion.emergencyEvidence } : {}),
+      ...(completed ? { completedApproval: completed } : {}), obligations: CHANGE_APPROVAL_OBLIGATIONS });
+    await this.outcomes.applyVerifiedOutcome(outcome);
   }
   private async requireExact(id: Uuid): Promise<ChangeOrderApprovalRecord> {
     const record = await this.store.loadExact(id);
