@@ -126,6 +126,8 @@ Examples:
 
 For vendor data, `SCOPE_VENDOR` alone is insufficient. The action also requires the appropriate active Project or Contract scope.
 
+Vendor WBS commands additionally require an exact `projectScopeProjectId` match and a trusted `[validFrom, validUntil)` interval evaluated at the command time. A bare Scope record ID, or Project/validity values copied from the command, is insufficient.
+
 ## 7. Deny by Default for Vendors
 
 Vendor authorization algorithm `AUTHZ-VENDOR-V1`:

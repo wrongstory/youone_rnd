@@ -48,6 +48,7 @@ Never silently choose between unresolved sources. Record the conflict in `docs/s
 - `docs/p0-scope-checklist.md`: user-owned P0/P1/P2 implementation cut and Development Gate confirmation.
 - `docs/project-structure.md`: workspace, package, route, dependency, DB, and P0 physical-boundary specification.
 - `docs/agent-workstreams.md`: subagent ownership, delivery waves, merge order, handoff packet, and Definition of Done.
+- `docs/security-operations.md`: M16 trusted runtime, readiness, logging, recovery, incident, and production-activation gate.
 
 When a stable decision changes, update every affected canonical document in the same change.
 

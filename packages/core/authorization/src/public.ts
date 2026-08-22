@@ -35,6 +35,7 @@ export class TrustedActorContextFactory {
   async create(accessToken: string, correlationId: CorrelationId, actingAuthorityId?: Uuid): Promise<TrustedActorContext> {
     const session = await this.verifier.verify(accessToken);
     const now = this.clock.now();
+    if (session.authSubject.trim().length === 0 || session.sessionId.trim().length === 0) throw new IdentityVerificationError("verified session identity is incomplete");
     if (session.expiresAt <= now) throw new IdentityVerificationError("verified session is expired");
     const snapshot = await this.source.load(session.authSubject, now);
     if (snapshot === null || snapshot.identity.authSubject !== session.authSubject) throw new IdentityVerificationError("verified session has no matching server identity");
@@ -67,7 +68,7 @@ export class TrustedActorContextFactory {
 export type ServerResourceContextRecord = Readonly<{
   resourceType: StableCode; resourceId: Uuid; resourceVersion?: Version; owningOrganizationId?: Uuid;
   departmentId?: Uuid; projectId?: Uuid; contractId?: Uuid; vendorId?: Uuid; documentVersionId?: Uuid;
-  ownerUserId?: Uuid; securityLevel?: "SEC_L1_PUBLIC_GENERAL" | "SEC_L2_INTERNAL" | "SEC_L3_CONFIDENTIAL" | "SEC_L4_CORE_SECRET";
+  ownerUserId?: Uuid; authSubject?: string; securityLevel?: "SEC_L1_PUBLIC_GENERAL" | "SEC_L2_INTERNAL" | "SEC_L3_CONFIDENTIAL" | "SEC_L4_CORE_SECRET";
   workflowState?: StableCode; approvalParticipantUserId?: Uuid; approvalParticipantEvidenceId?: Uuid;
   externalReleaseApprovalEvidenceId?: Uuid;
   workflowAllows: boolean; securityAllows: boolean; explicitDeny: boolean;
@@ -116,28 +117,66 @@ export type AuthorizationObligation = "AUDIT_DENIAL" | "AUDIT_SENSITIVE_READ" | 
 export type AuthorizationDecision = Readonly<{ effect: "ALLOW" | "DENY"; reason: StableCode; scopeEvidence: readonly Uuid[]; projectionProfileId?: StableCode; obligations: readonly AuthorizationObligation[] }>;
 export type AuthorizationRequest = Readonly<{ action: StableCode; resource: TrustedResourceContext; projectionProfileId?: StableCode; projectionProfileVersion?: Version }>;
 
+declare const trustedDecisionBrand: unique symbol;
+export type TrustedAuthorizationDecision = AuthorizationDecision & Readonly<{ [trustedDecisionBrand]: true }>;
+const trustedDecisions = new WeakMap<object, Readonly<{
+  actor: TrustedActorContext;
+  action: StableCode;
+  resource: TrustedResourceContext;
+}>>();
+
+export function assertTrustedAuthorizationDecision(
+  decision: AuthorizationDecision
+): asserts decision is TrustedAuthorizationDecision {
+  if (!trustedDecisions.has(decision)) throw new Error("AuthorizationDecision was not produced by AuthorizationService");
+}
+
+/** Privileged adapters use this to prove an ALLOW decision belongs to the exact actor, action, and server-loaded resource. */
+export function assertAuthorizedDecisionFor(
+  decision: AuthorizationDecision,
+  actor: TrustedActorContext,
+  request: AuthorizationRequest
+): asserts decision is TrustedAuthorizationDecision {
+  assertTrustedActorContext(actor);
+  assertTrustedResourceContext(request.resource);
+  assertTrustedAuthorizationDecision(decision);
+  const provenance = trustedDecisions.get(decision);
+  if (
+    decision.effect !== "ALLOW" ||
+    provenance?.actor !== actor ||
+    provenance.action !== request.action ||
+    provenance.resource !== request.resource
+  ) {
+    throw new Error("AuthorizationDecision is not an ALLOW for the exact actor, action, and resource");
+  }
+}
+
 export class AuthorizationService {
-  decide(actor: TrustedActorContext, request: AuthorizationRequest, projection?: TrustedProjectionProfile): AuthorizationDecision {
+  decide(actor: TrustedActorContext, request: AuthorizationRequest, projection?: TrustedProjectionProfile): TrustedAuthorizationDecision {
     assertTrustedActorContext(actor);
     assertTrustedResourceContext(request.resource);
-    if (request.resource.explicitDeny) return deny("AUTHZ_EXPLICIT_DENY", []);
+    const finish = (decision: AuthorizationDecision): TrustedAuthorizationDecision => {
+      trustedDecisions.set(decision, Object.freeze({ actor, action: request.action, resource: request.resource }));
+      return decision as TrustedAuthorizationDecision;
+    };
+    if (request.resource.explicitDeny) return finish(deny("AUTHZ_EXPLICIT_DENY", []));
     const vendorDeny = vendorHardDeny(actor, request.action, request.resource);
-    if (vendorDeny !== null) return deny(vendorDeny, ["AUDIT_DENIAL"]);
+    if (vendorDeny !== null) return finish(deny(vendorDeny, ["AUDIT_DENIAL"]));
     const authorityAllows = actor.actingAuthorities.some((authority) => authority.allowedActions.includes(request.action));
-    if (!actor.permissions.includes(request.action) && !authorityAllows) return deny("AUTHZ_PERMISSION_MISSING", []);
+    if (!actor.permissions.includes(request.action) && !authorityAllows) return finish(deny("AUTHZ_PERMISSION_MISSING", []));
     const approvalDeny = officialApprovalDeny(actor, request.action, request.resource);
-    if (approvalDeny !== null) return deny(approvalDeny, ["AUDIT_DENIAL"]);
-    if (isSystemAdminSensitiveSourceDenied(actor, request.resource)) return deny("AUTHZ_SYSTEM_ADMIN_SOURCE_DENIED", []);
-    if (!request.resource.workflowAllows) return deny("AUTHZ_WORKFLOW_STATE_DENIED", []);
-    if (!request.resource.securityAllows) return deny("AUTHZ_SECURITY_LEVEL_DENIED", ["AUDIT_DENIAL"]);
+    if (approvalDeny !== null) return finish(deny(approvalDeny, ["AUDIT_DENIAL"]));
+    if (isSystemAdminSensitiveSourceDenied(actor, request.resource)) return finish(deny("AUTHZ_SYSTEM_ADMIN_SOURCE_DENIED", []));
+    if (!request.resource.workflowAllows) return finish(deny("AUTHZ_WORKFLOW_STATE_DENIED", []));
+    if (!request.resource.securityAllows) return finish(deny("AUTHZ_SECURITY_LEVEL_DENIED", ["AUDIT_DENIAL"]));
     const scope = resolveScope(actor, request.action, request.resource);
-    if (scope === null) return deny("AUTHZ_SCOPE_DENIED", ["AUDIT_DENIAL"]);
+    if (scope === null) return finish(deny("AUTHZ_SCOPE_DENIED", ["AUDIT_DENIAL"]));
     const projectionDeny = validateProjection(actor, request, projection);
-    if (projectionDeny !== null) return deny(projectionDeny, ["AUDIT_DENIAL"]);
+    if (projectionDeny !== null) return finish(deny(projectionDeny, ["AUDIT_DENIAL"]));
     const obligations: AuthorizationObligation[] = request.resource.securityLevel === undefined ? [] : ["REAUTHORIZE_ON_DELIVERY", "AUDIT_SENSITIVE_READ"];
     const participantEvidence = request.action === "approval.step.approve" && request.resource.approvalParticipantEvidenceId !== undefined ? [request.resource.approvalParticipantEvidenceId] : [];
     const releaseEvidence = request.resource.externalReleaseApprovalEvidenceId === undefined ? [] : [request.resource.externalReleaseApprovalEvidenceId];
-    return Object.freeze({ effect: "ALLOW", reason: "AUTHZ_ALLOWED" as StableCode, scopeEvidence: frozenValues([...scope, ...participantEvidence, ...releaseEvidence]), projectionProfileId: projection?.profileId, obligations: frozenValues(obligations) });
+    return finish(Object.freeze({ effect: "ALLOW", reason: "AUTHZ_ALLOWED" as StableCode, scopeEvidence: frozenValues([...scope, ...participantEvidence, ...releaseEvidence]), projectionProfileId: projection?.profileId, obligations: frozenValues(obligations) }));
   }
 }
 

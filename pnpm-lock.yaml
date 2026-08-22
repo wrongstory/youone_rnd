@@ -277,6 +277,9 @@ importers:
 
   packages/infrastructure/supabase-auth:
     dependencies:
+      '@youone/core-authorization':
+        specifier: workspace:*
+        version: link:../../core/authorization
       '@youone/core-identity':
         specifier: workspace:*
         version: link:../../core/identity

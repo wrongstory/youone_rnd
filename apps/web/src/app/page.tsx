@@ -85,12 +85,12 @@ export default function HomePage() {
         <h1 id="page-title">연구개발 업무관리 기반을 구축하고 있습니다.</h1>
         <PreviewNotice />
         <p className="summary">
-          M00부터 M14까지 개발 통합 브랜치에 병합했고, 현재 M15 PWA·오프라인 동기화를 개발하고 있습니다.
+          M00부터 M15까지 개발 통합 브랜치에 병합했고, 현재 M16 보안·운영 통합 게이트를 검증하고 있습니다.
           아래 화면 목록에서 지금까지 구현된 사용자 경로를 확인할 수 있습니다.
         </p>
         <div className="status" role="status">
           <span className="statusDot" aria-hidden="true" />
-          IMPLEMENTATION_ACTIVE · M15
+          IMPLEMENTATION_ACTIVE · M16
         </div>
       </section>
 
