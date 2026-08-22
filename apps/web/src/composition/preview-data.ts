@@ -41,7 +41,10 @@ export const PREVIEW_IDS = Object.freeze({
   researchNoteFinalized: "95000000-0000-4000-8000-000000000002",
   safetyInspectionWeekly: "96000000-0000-4000-8000-000000000001",
   safetyInspectionMonthly: "96000000-0000-4000-8000-000000000002",
-  safetyIncident: "97000000-0000-4000-8000-000000000001"
+  safetyIncident: "97000000-0000-4000-8000-000000000001",
+  technicalCopyL4Pending: "98000000-0000-4000-8000-000000000001",
+  technicalCopyL3HandedOver: "98000000-0000-4000-8000-000000000002",
+  technicalCopyL3Overdue: "98000000-0000-4000-8000-000000000003"
 } as const);
 
 export const previewApprovalInbox: readonly ApprovalInboxItem[] = Object.freeze([
@@ -645,5 +648,124 @@ export const previewSafetyIncidents = Object.freeze([
       { taskId: "safety-task-internal-checklist", title: "압력 유지 확인을 작업 체크리스트에 추가", responsibleParty: "INTERNAL" as const, responsibleDisplayName: "김도윤 안전관리자", dueAt: "2026-08-26T09:00:00Z", state: "OPEN" as const, evidenceStatus: "NOT_SUBMITTED" as const }
     ], verificationSummary: "모든 재발방지 조치 완료 후 연구소장 효과성 검증 예정", protectedEvidenceCount: 6,
     timeline: [{ eventId: "EVT-SAFETY-INCIDENT-REPORT", label: "사고 보고", occurredAt: "2026-08-20T04:15:00Z" }, { eventId: "EVT-SAFETY-EMERGENCY-RESPOND", label: "응급대응", occurredAt: "2026-08-20T04:17:00Z" }, { eventId: "EVT-SAFETY-SECURE-SITE", label: "현장보존", occurredAt: "2026-08-20T04:35:00Z" }, { eventId: "EVT-SAFETY-START-INVESTIGATION", label: "48시간 조사 시작", occurredAt: "2026-08-20T07:30:00Z" }, { eventId: "EVT-SAFETY-SET-RECURRENCE-ACTION", label: "재발방지 과제 지정", occurredAt: "2026-08-21T06:00:00Z" }]
+  }
+]);
+
+export const previewTechnicalCopies = Object.freeze([
+  {
+    technicalCopyId: PREVIEW_IDS.technicalCopyL4Pending,
+    requestNo: "TCREQ-2026-021",
+    copyNo: null,
+    state: "APPROVAL_PENDING" as const,
+    securityLevel: "L4" as const,
+    documentVersionId: "document-controller-schematic-v3",
+    documentNo: "TD-EL-2026-014",
+    documentTitle: "배터리 제어기 핵심 회로도",
+    versionNo: 3,
+    versionChecksum: "8".repeat(64),
+    projectId: PREVIEW_IDS.projectBattery,
+    projectLabel: "RND-2026-004 · 고효율 배터리 냉각모듈 개발",
+    vendorId: "vendor-hanseong",
+    recipientDisplayName: "한성정밀 최민석 현장책임자",
+    purpose: "시제품 제어기 조립 배선 확인",
+    requestedByDisplayName: "이서연 연구원",
+    requestedAt: "2026-08-22T01:15:00Z",
+    approvalInstanceId: "approval-tech-copy-l4-21",
+    approvalSteps: [
+      { role: "LAB_DIRECTOR" as const, label: "연구소장 승인", outcome: "APPROVED" as const, actorDisplayName: "박현우 연구소장", actedAt: "2026-08-22T02:20:00Z" },
+      { role: "REPRESENTATIVE" as const, label: "대표 승인 (2명 중 1명)", outcome: "PENDING" as const }
+    ],
+    pageCount: null,
+    sourceHash: null,
+    outputHash: null,
+    returnDueAt: "2026-08-29T09:00:00Z",
+    watermark: null,
+    custodyEvents: [
+      { eventId: "copy-l4-event-request", kind: "REQUEST" as const, label: "통제사본 신청", actorDisplayName: "이서연 연구원", occurredAt: "2026-08-22T01:15:00Z" },
+      { eventId: "copy-l4-event-submit", kind: "SUBMIT" as const, label: "L4 결재선 상신", actorDisplayName: "이서연 연구원", occurredAt: "2026-08-22T01:18:00Z" },
+      { eventId: "copy-l4-event-director", kind: "APPROVE" as const, label: "연구소장 승인", actorDisplayName: "박현우 연구소장", occurredAt: "2026-08-22T02:20:00Z" }
+    ],
+    reprintOfCopyId: null,
+    reprintReason: null,
+    sourceObjectKey: "private/technical-document/controller-v3.pdf",
+    sourceContent: "L4 원문",
+    rendererCredential: "server-only-secret",
+    publicUrl: "https://public.invalid/l4.pdf"
+  },
+  {
+    technicalCopyId: PREVIEW_IDS.technicalCopyL3HandedOver,
+    requestNo: "TCREQ-2026-014",
+    copyNo: "TC-2026-014",
+    state: "HANDED_OVER" as const,
+    securityLevel: "L3" as const,
+    documentVersionId: "document-cooling-process-v5",
+    documentNo: "TD-MF-2026-008",
+    documentTitle: "냉각채널 제조 공정서",
+    versionNo: 5,
+    versionChecksum: "9".repeat(64),
+    projectId: PREVIEW_IDS.projectBattery,
+    projectLabel: "RND-2026-004 · 고효율 배터리 냉각모듈 개발",
+    vendorId: "vendor-hanseong",
+    recipientDisplayName: "한성정밀 최민석 현장책임자",
+    purpose: "공정 치수와 검사 위치 확인",
+    requestedByDisplayName: "김도윤 선임연구원",
+    requestedAt: "2026-08-19T00:30:00Z",
+    approvalInstanceId: "approval-tech-copy-l3-14",
+    approvalSteps: [
+      { role: "LAB_DIRECTOR" as const, label: "연구소장 승인", outcome: "APPROVED" as const, actorDisplayName: "박현우 연구소장", actedAt: "2026-08-19T01:40:00Z" }
+    ],
+    pageCount: 12,
+    sourceHash: "a".repeat(64),
+    outputHash: "b".repeat(64),
+    returnDueAt: "2026-08-26T09:00:00Z",
+    watermark: { recipientVendor: "한성정밀 / 최민석", project: "RND-2026-004", copyNo: "TC-2026-014", securityLevel: "L3" as const, issuer: "유원산업기술 기업부설연구소", printedAt: "2026-08-19T02:12:00Z", prohibition: "수령인 외 열람·복제·재배포 금지" },
+    custodyEvents: [
+      { eventId: "copy-l3-event-request", kind: "REQUEST" as const, label: "통제사본 신청", actorDisplayName: "김도윤 선임연구원", occurredAt: "2026-08-19T00:30:00Z" },
+      { eventId: "copy-l3-event-approve", kind: "APPROVE" as const, label: "연구소장 승인", actorDisplayName: "박현우 연구소장", occurredAt: "2026-08-19T01:40:00Z" },
+      { eventId: "copy-l3-event-render", kind: "RENDER" as const, label: "워터마크 PDF 생성", actorDisplayName: "정수빈 연구원", occurredAt: "2026-08-19T02:10:00Z" },
+      { eventId: "copy-l3-event-print", kind: "PRINT" as const, label: "내부 통제 출력", actorDisplayName: "정수빈 연구원", occurredAt: "2026-08-19T02:12:00Z" },
+      { eventId: "copy-l3-event-handover", kind: "HANDOVER" as const, label: "수령 확인 후 인계", actorDisplayName: "정수빈 연구원 → 최민석", occurredAt: "2026-08-19T04:00:00Z", evidenceCount: 2 }
+    ],
+    reprintOfCopyId: null,
+    reprintReason: null,
+    sourceObjectKey: "private/technical-document/cooling-process-v5.pdf",
+    renderedObjectKey: "private/controlled-copy/tc-2026-014.pdf",
+    signedUrl: "https://signed.invalid/tc-2026-014.pdf"
+  },
+  {
+    technicalCopyId: PREVIEW_IDS.technicalCopyL3Overdue,
+    requestNo: "TCREQ-2026-009-R1",
+    copyNo: "TC-2026-011",
+    state: "OVERDUE" as const,
+    securityLevel: "L3" as const,
+    documentVersionId: "document-sensor-inspection-v2",
+    documentNo: "TD-QA-2026-003",
+    documentTitle: "센서 모듈 수입검사 기준서",
+    versionNo: 2,
+    versionChecksum: "c".repeat(64),
+    projectId: PREVIEW_IDS.projectSensor,
+    projectLabel: "RND-2026-009 · 센서 검사 자동화",
+    vendorId: "vendor-seojin",
+    recipientDisplayName: "서진계측 윤하늘 품질담당",
+    purpose: "재검사 판정 기준 확인",
+    requestedByDisplayName: "정수빈 연구원",
+    requestedAt: "2026-08-11T00:20:00Z",
+    approvalInstanceId: "approval-tech-copy-l3-09-r1",
+    approvalSteps: [{ role: "LAB_DIRECTOR" as const, label: "연구소장 승인", outcome: "APPROVED" as const, actorDisplayName: "박현우 연구소장", actedAt: "2026-08-11T01:10:00Z" }],
+    pageCount: 8,
+    sourceHash: "d".repeat(64),
+    outputHash: "e".repeat(64),
+    returnDueAt: "2026-08-20T09:00:00Z",
+    watermark: { recipientVendor: "서진계측 / 윤하늘", project: "RND-2026-009", copyNo: "TC-2026-011", securityLevel: "L3" as const, issuer: "유원산업기술 기업부설연구소", printedAt: "2026-08-11T01:33:00Z", prohibition: "수령인 외 열람·복제·재배포 금지" },
+    custodyEvents: [
+      { eventId: "copy-overdue-event-print", kind: "PRINT" as const, label: "재출력 사유 확인 후 새 사본번호 발급", actorDisplayName: "정수빈 연구원", occurredAt: "2026-08-11T01:33:00Z" },
+      { eventId: "copy-overdue-event-handover", kind: "HANDOVER" as const, label: "수령 확인 후 인계", actorDisplayName: "정수빈 연구원 → 윤하늘", occurredAt: "2026-08-11T03:00:00Z", evidenceCount: 2 },
+      { eventId: "copy-overdue-event-due", kind: "RETURN_DUE" as const, label: "반납 기한 도래", actorDisplayName: "시스템", occurredAt: "2026-08-20T09:00:00Z" },
+      { eventId: "copy-overdue-event-overdue", kind: "OVERDUE" as const, label: "미반납 경고 및 담당자 알림", actorDisplayName: "시스템", occurredAt: "2026-08-20T09:05:00Z" }
+    ],
+    reprintOfCopyId: "98000000-0000-4000-8000-000000000004",
+    reprintReason: "인계 전 첫 출력물의 6페이지 토너 번짐 확인",
+    sourceObjectKey: "private/technical-document/sensor-inspection-v2.pdf",
+    renderedPdfBytes: "secret-binary-not-for-projection"
   }
 ]);
