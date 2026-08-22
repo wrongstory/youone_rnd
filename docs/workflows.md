@@ -225,10 +225,12 @@ Workflow ID: `WF-SAFETY-V1`.
 3. Record checklist results and findings. Critical imminent risk issues a stop-work/area restriction and immediate Lab Director report.
 4. Assign corrective action and deadline, verify the result, and retain evidence.
 5. Plan new-joiner, semiannual regular, and event-driven special training; track attendance and supplementary training.
-6. Register hazardous materials and current MSDS, storage/handling controls, and waste disposal logs.
-7. Maintain emergency plan/contact network and conduct at least annual evacuation drills.
+6. P1 only: register hazardous materials/current MSDS and waste disposal logs; M13 creates no table or UI for them.
+7. P1 only: maintain emergency plans and drills; M13 creates no table or UI for them.
 8. On incident, perform emergency response/reporting, preserve the site, investigate within the 48-hour internal-regulation SLA, establish recurrence prevention, verify, and close.
 9. Preserve safety records for at least the canonical five-year general period or longer law/legal-hold requirement.
+
+M13에서 Vendor는 활성 VendorMembership과 exact Project/Contract grant가 모두 맞는 경우에도 자신에게 전달된 안전지시·확인·시정 task와 허용된 사건 요약만 조회한다. 내부 원인분석, 개인 교육 상세, 다른 Vendor 또는 내부 전용 증거는 응답 projection에 존재하지 않는다. 48시간 기준은 incident report 시각에서 계산한 내부 조사 SLA이며, 초과 작업은 한 번만 경고·감사하고 상태를 자동 변경하지 않는다.
 
 ## 14. Research Allowance
 

@@ -305,9 +305,9 @@ M05 uses a private `PRIVATE_BUSINESS` bucket, server-issued object keys and an a
 ## 15. Safety and Allowance Permissions
 
 - The Lab Director designates `ROLE_SAFETY_MANAGER`; designation is effective-dated and audited.
-- Safety Manager may schedule/record inspections, education, material/waste registers, incident investigation, and corrective verification.
+- M13 Safety Manager may schedule/record inspections, education, incident investigation, and corrective verification. Material/waste/drill capabilities remain P1 and have no M13 physical route or table.
 - A critical safety finding may place the affected work area/task into stop-work state; release requires the authorized safety/Lab Director transition and evidence.
-- Vendors/visitors see only applicable safety instructions, acknowledgements, and incidents/tasks within their scope.
+- Vendors/visitors see only allowlisted safety instructions, acknowledgements, assigned corrective tasks, and permitted incident summaries after active VendorMembership plus exact Project/Contract grant validation. Internal cause analysis, other users' training detail, and unrestricted evidence fields are excluded at application and DB projection layers.
 - Research allowance eligibility/evaluation data is restricted HR-like data. Project membership does not imply access.
 - The Lab Director evaluates contribution under the superior regulation; Representative-approved ratios/decisions are separate records.
 - Allowance calculation and tax classification require an approved project policy, exact calculation/tax-rule version, and HR-like restricted permission. No project role may self-approve or mark external payment complete.

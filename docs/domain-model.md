@@ -367,6 +367,12 @@ Incident report, immediate response, site preservation, notifications, cause inv
 
 Safety records use the longer of the canonical five-year general retention, applicable regulation/law, and legal hold.
 
+### M13 physical baseline
+
+M13는 `SafetyManagerAssignment`을 지정자 Lab Director, 대상 사용자, assignment type, 선택 Project/team scope, 유효기간의 독립 record로 보존하며 겹치는 모순된 활성 지정을 허용하지 않는다. `SafetyInspection`은 inspection type·policy version·schedule·inspector assignment snapshot·상태·낙관적 버전을, `SafetyInspectionItem`은 criterion/verdict/evidence를, `SafetyFinding`은 severity·stop-work scope·시정 책임자/기한을 typed field로 가진다. 시정 제출과 독립 검증은 exact finding/evidence snapshot을 새 append-only record로 남기고 stop-work는 성공한 권한 검증 전이 외에는 해제되지 않는다.
+
+`SafetyTrainingSession`과 `SafetyTrainingAttendance`는 교육 유형·일시·대상·출석/이수·보충교육 due/completion을 분리한다. `SafetyIncident`는 발생·보고·Project/Vendor scope·응급조치·현장보존·상태·version을, `IncidentInvestigation`과 `SafetyRecurrenceAction`은 원인·증거·책임자·효과검증을 정규화한다. `investigation_due_at`은 report time + 48시간으로 고정하고 SLA 초과는 idempotent alert/audit만 추가한다. 모든 record는 최소 5년 보존일과 더 긴 policy/legal hold를 별도 field로 유지한다. M13 migration에는 `HazardousMaterial`, `MsdsVersion`, `WasteLog`, `EmergencyPlan`, `EmergencyDrill` table을 만들지 않는다.
+
 ## 12. Research Allowance
 
 ### `project_allowance_policy`, `project_allowance_policy_version`
