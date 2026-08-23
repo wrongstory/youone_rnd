@@ -94,6 +94,8 @@ P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
+`P0-UI-COMPLETION-V1`은 2026-08-24 사용자가 선택한 모바일 대시보드 시안과 화면 마감 지시로 승인됐다. P0에는 모바일 상단 앱 바, 대시보드/결재/프로젝트/문서/더보기 하단 메뉴, 계층형 전체 메뉴, 같은 IA의 PC 고정 사이드바, 상신·완료 결재 및 versioned 결재정책 조회, 알림과 공통 loading/error/not-found 상태를 포함한다. 개인 actionable count·프로젝트 진행·최근 업데이트까지만 `OD-006`의 P0 최소 대시보드로 확정했으며 고급 역할 KPI·재무예측·평가차트는 여전히 미승인이다. 메뉴 표시는 권한이 아니며 운영 ActorContext/Query/Command/RLS 결합 전에는 실제 변경 기능을 열지 않는다. 상세 누락·운영 준비 목록은 `docs/p0-ui-completion.md`가 정본이다. 이 UI 변경 병합 뒤 Staging evidence는 새 exact `dev` merge SHA로 다시 생성한다.
+
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
 ## Known Gaps
@@ -102,7 +104,7 @@ P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이
 - 연구수당 규정의 잘못된 조문 참조는 규정 개정사항으로 남는다. 시스템 정책은 현행 세법과 과제별 승인 버전을 근거로 별도 추적한다.
 - `P0-SCOPE-V1.0`으로 권장 범위를 확정했다. P0에는 연구노트 경량, 시험/성능, 검수 달성도/차등지급, NCR/CAR, ECR/ECO, 안전 경량, L3/L4 통제출력을 포함한다.
 - BOM, 연구수당, 연구장비/교정, 권한필터 검색은 P1이다. 특허/IP와 하이웍스/외부시스템은 P2다.
-- 실제 회사 양식, 역할별 KPI, 하이웍스 범위, 모바일 탭, 캘린더 위치, 검색 범위가 미확정이다.
+- 실제 회사 양식, 고급 역할별 KPI, 하이웍스 범위, 캘린더 위치, 검색 범위가 미확정이다. 모바일 주요 탭과 계층형 메뉴는 `P0-UI-COMPLETION-V1`로 확정했다.
 - `WF-RND-V1`의 `RND_PROGRAM` 정식 상태머신은 미확정이며 `OD-030`으로 기록했다. M11은 Program 등록·Project 연결·예산·집행·증빙·기한 조회를 구현하되 lifecycle 상태/전이/종료·재개 명령은 fail-closed로 두고 registry에 임의 등록하지 않는다.
 - NCR `REOPENED` 이후 재시정·재종료 전이 경로는 `OD-031`로 남긴다. M09는 증거가 있는 `CLOSED → REOPENED`와 과거 이력 보존까지만 구현하고 후속 상태를 임의로 만들지 않는다.
 - 긴급 ECO의 실제 권한·소급승인 기한·위험기준은 `OD-032`의 버전형 운영정책으로 남기며, 미설정 시 긴급경로를 차단한다.

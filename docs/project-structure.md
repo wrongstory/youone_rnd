@@ -251,6 +251,18 @@ M04의 최초 물리 adapter는 `approval_subject_policy_version`이다. 이는 
 
 P1/P2용 Port/typed link는 둘 수 있지만 빈 메뉴, 추측 table, 임시 JSON 저장은 만들지 않는다.
 
+### P0 사용자 화면 셸
+
+`P0-UI-COMPLETION-V1`은 기존 App Router를 다음 공통 셸에 결합한다.
+
+- 모바일 `< 1024px`: 상단 앱 바 + 하단 주요 메뉴 + 계층형 전체 메뉴 drawer
+- PC `>= 1024px`: 같은 stable route 목록을 쓰는 왼쪽 고정 사이드바
+- 대시보드: 미승인 고급 KPI 없이 개인 결재·할 일·프로젝트 진행·최근 알림의 최소 현황
+- 결재 하위 route: `/approvals`, `/approvals/submitted`, `/approvals/completed`, `/settings/approval`
+- 공통 route state: `loading.tsx`, `error.tsx`, `not-found.tsx`
+
+Client AppShell은 내비게이션과 브라우저 연결상태만 담당한다. 업무 데이터 조회와 권한 판정은 Server Component/Application Query 및 DB policy에 남으며 UI 메뉴 숨김을 권한으로 사용하지 않는다.
+
 ## 9. 구현 전 ADR
 
 - `ADR-001`: 이 workspace/package 구조와 import boundary.

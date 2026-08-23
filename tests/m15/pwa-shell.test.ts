@@ -23,6 +23,15 @@ describe("M15 installable PWA shell", () => {
     expect(serviceWorker).toContain('url.pathname.startsWith("/api/")');
     expect(serviceWorker).toContain('caches.match("/offline.html")');
     expect(serviceWorker).not.toMatch(/cache\.put\([^\n]*(?:api|technical-copies|documents|approvals)/i);
+    expect(serviceWorker).toContain('url.pathname.startsWith("/_next/static/")');
+    expect(serviceWorker.indexOf("fetch(request)")).toBeLessThan(serviceWorker.indexOf("caches.match(request)", serviceWorker.indexOf('url.pathname.startsWith("/_next/static/")')));
+  });
+
+  it("does not keep a stale service worker attached to the local development preview", () => {
+    const registration = readFileSync(resolve(root, "apps/web/src/interface/pwa/service-worker-registration.tsx"), "utf8");
+    expect(registration).toContain('process.env.NODE_ENV !== "production"');
+    expect(registration).toContain("registration.unregister()");
+    expect(registration).toContain('key.startsWith("youone-pwa-shell-")');
   });
 
   it("explains the allowlist, online-only boundary, and no-auto-overwrite policy", () => {

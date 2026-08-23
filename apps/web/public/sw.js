@@ -1,4 +1,4 @@
-const CACHE_VERSION = "youone-pwa-shell-v1";
+const CACHE_VERSION = "youone-pwa-shell-v2";
 const SHELL_ALLOWLIST = ["/", "/offline.html", "/manifest.webmanifest", "/icons/app-icon.svg", "/icons/app-icon-maskable.svg"];
 
 self.addEventListener("install", (event) => {
@@ -27,7 +27,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/") || SHELL_ALLOWLIST.includes(url.pathname)) {
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  if (SHELL_ALLOWLIST.includes(url.pathname)) {
     event.respondWith(
       caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
         if (response.ok) {
