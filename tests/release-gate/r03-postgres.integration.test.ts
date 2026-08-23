@@ -309,8 +309,8 @@ databaseDescribe.sequential("R03 reviewed offline handler PostgreSQL boundary", 
       select app_private.record_offline_command_result('${command}','APPLIED',99,null,'${now}'); commit;`, false);
     expect(run(`select (select count(*) from public.offline_command where command_id='${command}')||':'||
       (select count(*) from public.field_note_draft where id='${draft}')||':'||
-      (select count(*) from public.state_transition_log where aggregate_id='${draft}')||':'||
-      (select count(*) from public.audit_log where aggregate_id='${draft}')||':'||
+      (select count(*) from public.state_transition_history where aggregate_id='${draft}')||':'||
+      (select count(*) from public.audit_log where resource_id='${draft}')||':'||
       (select count(*) from public.outbox_event where aggregate_id='${draft}');`)).toBe("0:0:0:0:0");
   });
 });

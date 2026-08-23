@@ -457,12 +457,12 @@ create or replace function app_private.r03_guard_draft_write()
 returns trigger language plpgsql set search_path=pg_catalog,app_private as $$
 declare target_id uuid;
 begin
- target_id:=case tg_table_name
-  when 'safety_checklist_draft' then coalesce(new.id,old.id)
-  when 'inspection_attempt_draft' then coalesce(new.id,old.id)
-  when 'field_note_draft' then coalesce(new.id,old.id)
-  when 'field_record_draft' then coalesce(new.id,old.id)
-  else coalesce(new.draft_id,old.draft_id) end;
+ target_id:=coalesce(
+  nullif(to_jsonb(new)->>'id','')::uuid,
+  nullif(to_jsonb(old)->>'id','')::uuid,
+  nullif(to_jsonb(new)->>'draft_id','')::uuid,
+  nullif(to_jsonb(old)->>'draft_id','')::uuid
+ );
  if app_private.optional_setting('app.r03_draft_write') is distinct from target_id::text then raise exception 'R03 draft writes require the guarded command path' using errcode='42501'; end if;
  if tg_op='DELETE' then return old; end if;
  return new;
