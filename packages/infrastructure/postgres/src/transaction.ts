@@ -31,10 +31,8 @@ select
   set_config('app.causation_id', $7, true)
 `;
 
-const REQUEST_TRANSACTION_BOUNDARY = `
-set local role youone_request;
-set local row_security = on
-`;
+const APPLY_REQUEST_ROLE = "set local role youone_request";
+const APPLY_ROW_SECURITY = "set local row_security = on";
 
 export type PostgresTransactionOptions = Readonly<{
   principal?: "youone_request";
@@ -208,7 +206,8 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
       await connection.query("begin");
       began = true;
       if (this.options.principal === "youone_request") {
-        await connection.query(REQUEST_TRANSACTION_BOUNDARY);
+        await connection.query(APPLY_REQUEST_ROLE);
+        await connection.query(APPLY_ROW_SECURITY);
       }
       await connection.query(SET_TRANSACTION_CONTEXT, [
         actor.actorKind,

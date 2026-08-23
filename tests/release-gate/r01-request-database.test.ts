@@ -59,7 +59,8 @@ describe("R01 concrete request PostgreSQL pool", () => {
     });
     expect(current.query.mock.calls.map(([sql]) => sql)).toEqual([
       "begin read only",
-      "set local role youone_request; set local row_security = on",
+      "set local role youone_request",
+      "set local row_security = on",
       expect.stringContaining("request_context_clean"),
       "rollback"
     ]);

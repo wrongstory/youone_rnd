@@ -4,7 +4,8 @@ import type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";
 
 const REQUEST_ROLE = "youone_request";
 const PROBE_TRANSACTION = "begin read only";
-const APPLY_REQUEST_ROLE = "set local role youone_request; set local row_security = on";
+const APPLY_REQUEST_ROLE = "set local role youone_request";
+const APPLY_ROW_SECURITY = "set local row_security = on";
 const VERIFY_REQUEST_BOUNDARY = `
 select
   current_user = 'youone_request' as request_role_active,
@@ -139,6 +140,7 @@ export class NodePostgresRequestPool implements SqlPool {
       await client.query(PROBE_TRANSACTION);
       began = true;
       await client.query(APPLY_REQUEST_ROLE);
+      await client.query(APPLY_ROW_SECURITY);
       const result = await client.query<BoundaryProbeRow>(VERIFY_REQUEST_BOUNDARY);
       if (result.rowCount !== 1 || !isValidBoundary(result.rows[0])) {
         throw new RequestDatabaseBoundaryError("REQUEST_DATABASE_PRINCIPAL_INVALID");
