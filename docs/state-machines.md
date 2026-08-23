@@ -480,6 +480,8 @@ Calculation and tax classification are evidence-backed functions. No transition 
 
 ## 17. Required Negative Tests
 
+R03 offline replay does not introduce a generic state machine. The four draft aggregates each have a single constrained `DRAFT` state with explicit create/update events, while WBS progress uses the existing `SM-WBS-V1` self-transition `EVT-WBS-PROGRESS-UPDATED` only from `IN_PROGRESS`. Every replay validates the exact base version and writes the business transition, audit, outbox and terminal offline result in one transaction. A stale base creates an immutable `SYNC_CONFLICT`; it never advances the business machine or overwrites the server state.
+
 - Transition with arbitrary state string.
 - Transition from stale `version_no`.
 - Vendor transition outside exact project/contract scope.

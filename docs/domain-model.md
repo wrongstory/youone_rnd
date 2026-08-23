@@ -437,6 +437,10 @@ M15 `OfflineCommand`은 stable allowlisted command type, authenticated/effective
 
 `SyncConflict`는 정확한 OfflineCommand, base/server version, 원본 local payload/hash와 allowlisted safe server comparison projection/hash를 보존한다. 충돌 자체와 terminal resolution은 append-only다. P0 resolution은 `RESOLVED_DISCARD_LOCAL` 또는 동일 actor·command type·aggregate와 최신 server version에 묶인 successor command를 갖는 `RESOLVED_RETRY_AS_NEW`뿐이며 자동 overwrite와 미승인 field merge 상태는 없다.
 
+R03의 `SafetyChecklistDraft`, `InspectionAttemptDraft`, `FieldNoteDraft`, `FieldRecordDraft`는 공식 업무증거와 분리된 mutable `DRAFT` aggregate다. 생성은 version `1`, 이후 exact base version 편집은 `+1`이며 stale write는 적용하지 않는다. ChecklistDraft는 exact SafetyInspection과 typed item rows, InspectionAttemptDraft는 exact open M08 InspectionAttempt와 typed criterion result rows를 소유한다. FieldNoteDraft는 Project와 optional same-Project WBS에 묶인 서술형 관찰이고, FieldRecordDraft는 Project/optional WBS와 typed measurement rows를 소유한다. 어느 draft도 ResearchNote, SafetyIncident, finalized checklist/attempt 또는 Attachment source를 대신하지 않는다.
+
+`CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE`는 exact `WBS_NODE`의 `IN_PROGRESS` self-transition만 허용하고 정수 `0..99`로 제한한다. `100`, DONE/ACCEPT/CANCEL 또는 상태변경은 온라인 전용 canonical WBS command를 거쳐야 한다.
+
 ## 14. Aggregate Boundaries
 
 | Aggregate | Owns | References, does not own |

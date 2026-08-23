@@ -2,7 +2,7 @@
 
 - 계획 ID: `DELIVERY-PLAN-P1-V0.1`
 - 작성일: 2026-08-23 (Asia/Seoul)
-- 상태: `PROPOSED` — 범위 체크리스트와 P1 Development Gate 승인 전에는 설계 초안만 유효
+- 상태: `APPROVED_PLAN` — 권장 범위와 순서는 승인됐으며 P1 Implementation은 선행 Gate 완료 전까지 잠김
 - 기준: `P0-SCOPE-V1.0`, `docs/p1-scope-checklist.md`, P0 정본 설계 및 구현 결과
 - 추적 이슈: GitHub `#39`
 

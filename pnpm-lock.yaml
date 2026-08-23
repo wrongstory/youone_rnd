@@ -280,6 +280,9 @@ importers:
       '@youone/core-identity':
         specifier: workspace:*
         version: link:../../core/identity
+      '@youone/core-sync':
+        specifier: workspace:*
+        version: link:../../core/sync
       '@youone/shared-kernel':
         specifier: workspace:*
         version: link:../../shared-kernel

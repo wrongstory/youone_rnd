@@ -138,7 +138,7 @@ function validatePackageImport(source: Boundary, specifier: string): string | un
   if (
     suffix &&
     suffix !== "/public" &&
-    !(dependencyName === "@youone/infra-postgres" && ["/identity-resolver", "/request", "/worker"].includes(suffix)) &&
+    !(dependencyName === "@youone/infra-postgres" && ["/identity-resolver", "/offline-sync", "/request", "/worker"].includes(suffix)) &&
     !(dependencyName === "@youone/infra-supabase-auth" && ["/request", "/service"].includes(suffix))
   ) {
     return `${source.name} deep-imports ${specifier}`;
@@ -188,6 +188,7 @@ describe("workspace package inventory", () => {
       if (boundary.name === "@youone/infra-postgres") {
         expect(packageJson.exports).toEqual({
           "./identity-resolver": "./src/identity-resolver.ts",
+          "./offline-sync": "./src/offline-sync.ts",
           "./request": "./src/request.ts",
           "./worker": "./src/worker.ts"
         });

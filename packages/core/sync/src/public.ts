@@ -1,268 +1,103 @@
 /** Public cross-module contracts for @youone/core-sync. */
+import { InvalidValueError, safeEventPayload, sha256, stableCode, utcInstant, uuid, version, type JsonObject, type JsonValue, type Sha256, type StableCode, type UtcInstant, type Uuid, type Version } from "@youone/shared-kernel/public";
+import { assertTrustedActorContext, type TrustedActorContext } from "@youone/core-authorization/public";
 
-import {
-  safeEventPayload,
-  sha256,
-  stableCode,
-  utcInstant,
-  uuid,
-  version,
-  type JsonObject,
-  type JsonValue,
-  type Sha256,
-  type StableCode,
-  type UtcInstant,
-  type Uuid,
-  type Version
-} from "@youone/shared-kernel/public";
-import {
-  assertTrustedActorContext,
-  type TrustedActorContext
-} from "@youone/core-authorization/public";
-
-/** ADR-007 low-risk commands. New members require a reviewed schema and conflict fixture. */
-export const OFFLINE_COMMAND_TYPES = [
-  "CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT",
-  "CMD-OFFLINE-INSPECTION-DRAFT-UPSERT",
-  "CMD-OFFLINE-FIELD-NOTE-DRAFT-UPSERT",
-  "CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE",
-  "CMD-OFFLINE-FIELD-RECORD-DRAFT-UPSERT"
-] as const;
-
-/** Explicit deny registry. These operations must be issued from a live online session. */
-export const ONLINE_ONLY_COMMAND_TYPES = [
-  "CMD-APPROVAL-ACTION",
-  "CMD-AUTHORIZATION-ASSIGNMENT-CHANGE",
-  "CMD-SCOPE-GRANT-CHANGE",
-  "CMD-TECHNICAL-DOCUMENT-L2-L4-ACCESS",
-  "CMD-TECHNICAL-DOCUMENT-DELETE-APPROVAL",
-  "CMD-TECHNICAL-DOCUMENT-CONTROLLED-COPY",
-  "CMD-CONTRACT-SIGN",
-  "CMD-CONTRACT-TERMINATE",
-  "CMD-PAYMENT-CONFIRM"
-] as const;
-
+export const OFFLINE_COMMAND_TYPES = ["CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT", "CMD-OFFLINE-INSPECTION-DRAFT-UPSERT", "CMD-OFFLINE-FIELD-NOTE-DRAFT-UPSERT", "CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE", "CMD-OFFLINE-FIELD-RECORD-DRAFT-UPSERT"] as const;
+export const ONLINE_ONLY_COMMAND_TYPES = ["CMD-APPROVAL-ACTION", "CMD-AUTHORIZATION-ASSIGNMENT-CHANGE", "CMD-SCOPE-GRANT-CHANGE", "CMD-TECHNICAL-DOCUMENT-L2-L4-ACCESS", "CMD-TECHNICAL-DOCUMENT-DELETE-APPROVAL", "CMD-TECHNICAL-DOCUMENT-CONTROLLED-COPY", "CMD-CONTRACT-SIGN", "CMD-CONTRACT-TERMINATE", "CMD-PAYMENT-CONFIRM"] as const;
 export type OfflineCommandType = (typeof OFFLINE_COMMAND_TYPES)[number];
 export type OnlineOnlyCommandType = (typeof ONLINE_ONLY_COMMAND_TYPES)[number];
 export type SyncResultCode = "APPLIED" | "IDEMPOTENT_REPLAY" | "REJECTED" | "SYNC_CONFLICT";
 export type SyncConflictState = "OPEN" | "RESOLVED_DISCARD_LOCAL" | "RESOLVED_RETRY_AS_NEW";
 
-export type OfflineCommandEnvelope = Readonly<{
-  commandId: Uuid;
-  commandType: OfflineCommandType;
-  actorBinding: Readonly<{
-    authenticatedActorId: Uuid;
-    effectiveActorId: Uuid;
-    /** SHA-256 over a server-defined actor/session binding; never a bearer token or raw session ID. */
-    sessionBindingHash: Sha256;
-  }>;
-  aggregate: Readonly<{ aggregateType: StableCode; aggregateId: Uuid }>;
-  baseVersion: Version;
-  schemaVersion: number;
-  createdAt: UtcInstant;
-  payloadHash: Sha256;
-  payload: JsonObject;
-}>;
+type ActorBinding = Readonly<{ authenticatedActorId: Uuid; effectiveActorId: Uuid; sessionBindingHash: Sha256 }>;
+type Envelope<T extends OfflineCommandType, A extends string, P extends JsonObject> = Readonly<{ commandId: Uuid; commandType: T; actorBinding: ActorBinding; aggregate: Readonly<{ aggregateType: A & StableCode; aggregateId: Uuid }>; baseVersion: Version; schemaVersion: 1; createdAt: UtcInstant; payloadHash: Sha256; payload: P }>;
+export type SafetyChecklistDraftPayload = JsonObject & Readonly<{ safetyInspectionId: Uuid; note: string; items: readonly Readonly<{ itemId: Uuid; sequenceNo: number; criterionCode: StableCode; criterionText: string; verdict: "PASS" | "FAIL" | "NOT_APPLICABLE" | "NOT_CHECKED"; observation?: string }>[] }>;
+export type InspectionAttemptDraftPayload = JsonObject & Readonly<{ inspectionAttemptId: Uuid; summary: string; results: readonly Readonly<{ criterionId: Uuid; verdict: "PASS" | "FAIL" | "PARTIAL" | "UNABLE_TO_VERIFY"; achievedPercent: number; observedValue: string }>[] }>;
+export type FieldNoteDraftPayload = JsonObject & Readonly<{ projectId: Uuid; wbsNodeId?: Uuid; observedAt: UtcInstant; note: string }>;
+export type WbsNodeProgressPayload = JsonObject & Readonly<{ progressPercent: number }>;
+export type FieldRecordDraftPayload = JsonObject & Readonly<{ projectId: Uuid; wbsNodeId?: Uuid; observedAt: UtcInstant; recordType: StableCode; summary: string; location?: string; measurements: readonly Readonly<{ measurementId: Uuid; metricCode: StableCode; value: string; unitCode: StableCode; note?: string }>[] }>;
+export type SafetyChecklistDraftCommand = Envelope<"CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT", "SAFETY_CHECKLIST_DRAFT", SafetyChecklistDraftPayload>;
+export type InspectionAttemptDraftCommand = Envelope<"CMD-OFFLINE-INSPECTION-DRAFT-UPSERT", "INSPECTION_ATTEMPT_DRAFT", InspectionAttemptDraftPayload>;
+export type FieldNoteDraftCommand = Envelope<"CMD-OFFLINE-FIELD-NOTE-DRAFT-UPSERT", "FIELD_NOTE_DRAFT", FieldNoteDraftPayload>;
+export type WbsNodeProgressCommand = Envelope<"CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE", "WBS_NODE", WbsNodeProgressPayload>;
+export type FieldRecordDraftCommand = Envelope<"CMD-OFFLINE-FIELD-RECORD-DRAFT-UPSERT", "FIELD_RECORD_DRAFT", FieldRecordDraftPayload>;
+export type OfflineCommandEnvelope = SafetyChecklistDraftCommand | InspectionAttemptDraftCommand | FieldNoteDraftCommand | WbsNodeProgressCommand | FieldRecordDraftCommand;
 
-export type SyncConflictRecord = Readonly<{
-  conflictId: Uuid;
-  commandId: Uuid;
-  commandType: OfflineCommandType;
-  aggregateType: StableCode;
-  aggregateId: Uuid;
-  baseVersion: Version;
-  serverVersion: Version;
-  localPayload: JsonObject;
-  localPayloadHash: Sha256;
-  safeServerProjection: JsonObject;
-  safeServerProjectionHash: Sha256;
-  state: SyncConflictState;
-  detectedAt: UtcInstant;
-}>;
-
-export type TerminalSyncCommandResult =
-  | Readonly<{ result: "APPLIED"; commandId: Uuid; aggregateVersion: Version }>
-  | Readonly<{ result: "SYNC_CONFLICT"; commandId: Uuid; conflict: SyncConflictRecord }>
-  | Readonly<{ result: "REJECTED"; commandId: Uuid; reasonCode: StableCode }>;
-export type SyncCommandResult = TerminalSyncCommandResult
-  | Readonly<{ result: "IDEMPOTENT_REPLAY"; commandId: Uuid; original: TerminalSyncCommandResult }>;
-
-export type OfflineApplicationCommandResult =
-  | Readonly<{ result: "APPLIED"; aggregateVersion: Version }>
-  | Readonly<{
-      result: "STALE_BASE_VERSION";
-      serverVersion: Version;
-      safeServerProjection: JsonObject;
-      safeServerProjectionHash: Sha256;
-    }>
-  | Readonly<{ result: "REJECTED"; reasonCode: StableCode }>;
-
-export interface OfflineCommandHandler {
-  readonly commandType: OfflineCommandType;
-  /**
-   * This must be the normal trusted application command path. It rechecks live authorization,
-   * scope, aggregate state, command preconditions and optimistic version in this transaction.
-   */
-  execute(input: Readonly<{ actor: TrustedActorContext; command: OfflineCommandEnvelope }>): Promise<OfflineApplicationCommandResult>;
-}
-
-export interface OfflineCommandIntegrityPort {
-  payloadHash(payload: JsonObject): Promise<Sha256>;
-  actorSessionBindingHash(actor: TrustedActorContext): Promise<Sha256>;
-}
+export type SyncConflictRecord = Readonly<{ conflictId: Uuid; commandId: Uuid; commandType: OfflineCommandType; aggregateType: StableCode; aggregateId: Uuid; baseVersion: Version; serverVersion: Version; localPayload: JsonObject; localPayloadHash: Sha256; safeServerProjection: JsonObject; safeServerProjectionHash: Sha256; state: SyncConflictState; detectedAt: UtcInstant }>;
+export type TerminalSyncCommandResult = Readonly<{ result: "APPLIED"; commandId: Uuid; aggregateVersion: Version }> | Readonly<{ result: "SYNC_CONFLICT"; commandId: Uuid; conflict: SyncConflictRecord }> | Readonly<{ result: "REJECTED"; commandId: Uuid; reasonCode: StableCode }>;
+export type SyncCommandResult = TerminalSyncCommandResult | Readonly<{ result: "IDEMPOTENT_REPLAY"; commandId: Uuid; original: TerminalSyncCommandResult }>;
+export type OfflineApplicationCommandResult = Readonly<{ result: "APPLIED"; aggregateVersion: Version }> | Readonly<{ result: "STALE_BASE_VERSION"; serverVersion: Version; safeServerProjection: JsonObject; safeServerProjectionHash: Sha256 }> | Readonly<{ result: "REJECTED"; reasonCode: StableCode }>;
 
 export interface OfflineSyncTransaction {
   findRecordedCommand(commandId: Uuid): Promise<Readonly<{ payloadHash: Sha256; result: TerminalSyncCommandResult }> | null>;
   recordCommand(command: OfflineCommandEnvelope, actor: TrustedActorContext): Promise<void>;
   recordResult(result: TerminalSyncCommandResult): Promise<void>;
   recordConflict(conflict: SyncConflictRecord): Promise<void>;
+  upsertSafetyChecklistDraft(actor: TrustedActorContext, command: SafetyChecklistDraftCommand): Promise<OfflineApplicationCommandResult>;
+  upsertInspectionAttemptDraft(actor: TrustedActorContext, command: InspectionAttemptDraftCommand): Promise<OfflineApplicationCommandResult>;
+  upsertFieldNoteDraft(actor: TrustedActorContext, command: FieldNoteDraftCommand): Promise<OfflineApplicationCommandResult>;
+  updateWbsNodeProgress(actor: TrustedActorContext, command: WbsNodeProgressCommand): Promise<OfflineApplicationCommandResult>;
+  upsertFieldRecordDraft(actor: TrustedActorContext, command: FieldRecordDraftCommand): Promise<OfflineApplicationCommandResult>;
 }
-
-export interface OfflineSyncUnitOfWork {
-  transact<T>(work: (transaction: OfflineSyncTransaction) => Promise<T>): Promise<T>;
-}
-
+export interface OfflineSyncUnitOfWork { transact<T>(actor: TrustedActorContext, work: (transaction: OfflineSyncTransaction) => Promise<T>): Promise<T> }
+export interface OfflineCommandHandler { readonly commandType: OfflineCommandType; execute(input: Readonly<{ actor: TrustedActorContext; command: OfflineCommandEnvelope; transaction: OfflineSyncTransaction }>): Promise<OfflineApplicationCommandResult> }
+export interface OfflineCommandIntegrityPort { payloadHash(payload: JsonObject): Promise<Sha256>; actorSessionBindingHash(actor: TrustedActorContext): Promise<Sha256> }
 export interface SyncConflictIdPort { next(): Uuid }
 
-export class OfflineCommandValidationError extends Error {
-  readonly code = "OFFLINE_COMMAND_INVALID" as StableCode;
-}
-export class OfflineCommandOnlineOnlyError extends Error {
-  readonly code = "OFFLINE_COMMAND_ONLINE_ONLY" as StableCode;
-}
-export class OfflineCommandBindingError extends Error {
-  readonly code = "OFFLINE_COMMAND_ACTOR_SESSION_MISMATCH" as StableCode;
-}
-export class OfflineCommandIntegrityError extends Error {
-  readonly code = "OFFLINE_COMMAND_PAYLOAD_HASH_MISMATCH" as StableCode;
-}
-export class OfflineCommandIdempotencyError extends Error {
-  readonly code = "OFFLINE_COMMAND_IDEMPOTENCY_MISMATCH" as StableCode;
-}
+export class OfflineCommandValidationError extends Error { readonly code = "OFFLINE_COMMAND_INVALID" as StableCode }
+export class OfflineCommandOnlineOnlyError extends Error { readonly code = "OFFLINE_COMMAND_ONLINE_ONLY" as StableCode }
+export class OfflineCommandBindingError extends Error { readonly code = "OFFLINE_COMMAND_ACTOR_SESSION_MISMATCH" as StableCode }
+export class OfflineCommandIntegrityError extends Error { readonly code = "OFFLINE_COMMAND_PAYLOAD_HASH_MISMATCH" as StableCode }
+export class OfflineCommandIdempotencyError extends Error { readonly code = "OFFLINE_COMMAND_IDEMPOTENCY_MISMATCH" as StableCode }
 
 const offlineTypes = new Set<string>(OFFLINE_COMMAND_TYPES);
 const onlineOnlyTypes = new Set<string>(ONLINE_ONLY_COMMAND_TYPES);
+const maximumPayloadBytes = 32_768;
+function object(value: unknown, field: string): Record<string, unknown> { if (value === null || typeof value !== "object" || Array.isArray(value)) throw new OfflineCommandValidationError(`${field} must be an object`); return value as Record<string, unknown>; }
+function exact(input: Record<string, unknown>, required: readonly string[], optional: readonly string[] = []): void { const allowed = new Set([...required, ...optional]); for (const key of Object.keys(input)) if (!allowed.has(key)) throw new OfflineCommandValidationError(`unexpected key: ${key}`); for (const key of required) if (!Object.hasOwn(input, key)) throw new OfflineCommandValidationError(`missing key: ${key}`); }
+function text(value: unknown, field: string, min = 1, max = 500): string { if (typeof value !== "string" || value.length < min || value.length > max) throw new OfflineCommandValidationError(`${field} length must be ${min}..${max}`); return value; }
+function integer(value: unknown, field: string, min = 0, max = Number.MAX_SAFE_INTEGER): number { if (!Number.isSafeInteger(value) || (value as number) < min || (value as number) > max) throw new OfflineCommandValidationError(`${field} must be an integer from ${min} to ${max}`); return value as number; }
+function numeric(value: unknown, field: string, min: number, max: number): number { if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) throw new OfflineCommandValidationError(`${field} must be a finite number from ${min} to ${max}`); return value; }
+function list(value: unknown, field: string, max: number): readonly unknown[] { if (!Array.isArray(value) || value.length > max) throw new OfflineCommandValidationError(`${field} must have at most ${max} items`); return value; }
+function choice<T extends string>(value: unknown, field: string, choices: readonly T[]): T { const result = text(value, field, 1, 64); if (!(choices as readonly string[]).includes(result)) throw new OfflineCommandValidationError(`${field} is invalid`); return result as T; }
 
-function object(value: unknown, field: string): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new OfflineCommandValidationError(`${field} must be an object`);
-  return value as Record<string, unknown>;
-}
-function text(value: unknown, field: string): string {
-  if (typeof value !== "string") throw new OfflineCommandValidationError(`${field} must be a string`);
-  return value;
-}
-function integer(value: unknown, field: string): number {
-  if (!Number.isSafeInteger(value)) throw new OfflineCommandValidationError(`${field} must be a safe integer`);
-  return value as number;
-}
-function jsonObject(value: unknown, field: string): JsonObject {
-  const validate = (item: unknown, path: string): JsonValue => {
-    if (item === null || typeof item === "string" || typeof item === "boolean") return item;
-    if (typeof item === "number" && Number.isFinite(item)) return item;
-    if (Array.isArray(item)) return item.map((child,index)=>validate(child,`${path}[${index}]`));
-    if (item !== null && typeof item === "object" && (Object.getPrototypeOf(item)===Object.prototype || Object.getPrototypeOf(item)===null)) {
-      return Object.fromEntries(Object.entries(item).map(([key,child])=>[key,validate(child,`${path}.${key}`)]));
-    }
-    throw new OfflineCommandValidationError(`${path} contains a non-JSON value`);
-  };
-  return validate(object(value,field),field) as JsonObject;
-}
+function parseChecklist(value: unknown): SafetyChecklistDraftPayload { const input = object(value, "payload"); exact(input, ["safetyInspectionId", "note", "items"]); const items = list(input.items, "payload.items", 200).map((value, i) => { const row = object(value, `payload.items[${i}]`); exact(row, ["itemId", "sequenceNo", "criterionCode", "criterionText", "verdict"], ["observation"]); const base = { itemId: uuid(text(row.itemId, `payload.items[${i}].itemId`, 36, 36)), sequenceNo: integer(row.sequenceNo, `payload.items[${i}].sequenceNo`, 1, 10_000), criterionCode: stableCode(text(row.criterionCode, `payload.items[${i}].criterionCode`, 1, 120)), criterionText: text(row.criterionText, `payload.items[${i}].criterionText`, 1, 5_000), verdict: choice(row.verdict, `payload.items[${i}].verdict`, ["PASS", "FAIL", "NOT_APPLICABLE", "NOT_CHECKED"] as const) }; return row.observation === undefined ? base : { ...base, observation: text(row.observation, `payload.items[${i}].observation`, 0, 5_000) }; }); return safeEventPayload({ safetyInspectionId: uuid(text(input.safetyInspectionId, "payload.safetyInspectionId", 36, 36)), note: text(input.note, "payload.note", 0, 5_000), items }) as unknown as SafetyChecklistDraftPayload; }
+function parseInspection(value: unknown): InspectionAttemptDraftPayload { const input = object(value, "payload"); exact(input, ["inspectionAttemptId", "summary", "results"]); const results = list(input.results, "payload.results", 200).map((value, i) => { const row = object(value, `payload.results[${i}]`); exact(row, ["criterionId", "verdict", "achievedPercent", "observedValue"]); return { criterionId: uuid(text(row.criterionId, `payload.results[${i}].criterionId`, 36, 36)), verdict: choice(row.verdict, `payload.results[${i}].verdict`, ["PASS", "FAIL", "PARTIAL", "UNABLE_TO_VERIFY"] as const), achievedPercent: numeric(row.achievedPercent, `payload.results[${i}].achievedPercent`, 0, 100), observedValue: text(row.observedValue, `payload.results[${i}].observedValue`, 0, 1_000) }; }); return safeEventPayload({ inspectionAttemptId: uuid(text(input.inspectionAttemptId, "payload.inspectionAttemptId", 36, 36)), summary: text(input.summary, "payload.summary", 0, 5_000), results }) as unknown as InspectionAttemptDraftPayload; }
+function parseFieldNote(value: unknown): FieldNoteDraftPayload { const input = object(value, "payload"); exact(input, ["projectId", "observedAt", "note"], ["wbsNodeId"]); const base = { projectId: uuid(text(input.projectId, "payload.projectId", 36, 36)), observedAt: utcInstant(text(input.observedAt, "payload.observedAt", 20, 40)), note: text(input.note, "payload.note", 1, 10_000) }; return safeEventPayload(input.wbsNodeId === undefined ? base : { ...base, wbsNodeId: uuid(text(input.wbsNodeId, "payload.wbsNodeId", 36, 36)) }) as unknown as FieldNoteDraftPayload; }
+function parseWbs(value: unknown): WbsNodeProgressPayload { const input = object(value, "payload"); exact(input, ["progressPercent"]); return safeEventPayload({ progressPercent: integer(input.progressPercent, "payload.progressPercent", 0, 99) }) as unknown as WbsNodeProgressPayload; }
+function parseFieldRecord(value: unknown): FieldRecordDraftPayload { const input = object(value, "payload"); exact(input, ["projectId", "observedAt", "recordType", "summary", "measurements"], ["wbsNodeId", "location"]); const measurements = list(input.measurements, "payload.measurements", 100).map((value, i) => { const row = object(value, `payload.measurements[${i}]`); exact(row, ["measurementId", "metricCode", "value", "unitCode"], ["note"]); const base = { measurementId: uuid(text(row.measurementId, `payload.measurements[${i}].measurementId`, 36, 36)), metricCode: stableCode(text(row.metricCode, `payload.measurements[${i}].metricCode`, 1, 120)), value: text(row.value, `payload.measurements[${i}].value`, 1, 500), unitCode: stableCode(text(row.unitCode, `payload.measurements[${i}].unitCode`, 1, 120)) }; return row.note === undefined ? base : { ...base, note: text(row.note, `payload.measurements[${i}].note`, 0, 2_000) }; }); let payload: Record<string, JsonValue> = { projectId: uuid(text(input.projectId, "payload.projectId", 36, 36)), observedAt: utcInstant(text(input.observedAt, "payload.observedAt", 20, 40)), recordType: stableCode(text(input.recordType, "payload.recordType", 1, 120)), summary: text(input.summary, "payload.summary", 1, 5_000), measurements }; if (input.wbsNodeId !== undefined) payload = { ...payload, wbsNodeId: uuid(text(input.wbsNodeId, "payload.wbsNodeId", 36, 36)) }; if (input.location !== undefined) payload = { ...payload, location: text(input.location, "payload.location", 0, 500) }; return safeEventPayload(payload) as unknown as FieldRecordDraftPayload; }
 
-/** Sorts object keys recursively so every adapter hashes the same compact JSON bytes. */
-export function minimizedJson(value: JsonValue): string {
-  const normalize = (item: JsonValue): JsonValue => {
-    if (Array.isArray(item)) return item.map(normalize);
-    if (item !== null && typeof item === "object") {
-      const record = item as Readonly<Record<string, JsonValue>>;
-      return Object.fromEntries(Object.keys(record).sort().map((key) => [key, normalize(record[key] as JsonValue)]));
-    }
-    return item;
-  };
-  return JSON.stringify(normalize(value));
-}
+export function minimizedJson(value: JsonValue): string { const normalize = (item: JsonValue): JsonValue => { if (Array.isArray(item)) return item.map(normalize); if (item !== null && typeof item === "object") { const record = item as Readonly<Record<string, JsonValue>>; return Object.fromEntries(Object.keys(record).sort().map((key) => [key, normalize(record[key] as JsonValue)])); } return item; }; return JSON.stringify(normalize(value)); }
 
-/** Structural parser only. Cryptographic payload/session verification is performed by OfflineSyncService. */
 export function parseOfflineCommand(value: unknown): OfflineCommandEnvelope {
-  const input = object(value, "command");
-  const type = text(input.commandType, "commandType");
-  if (onlineOnlyTypes.has(type)) throw new OfflineCommandOnlineOnlyError(`${type} cannot be replayed offline`);
-  if (!offlineTypes.has(type)) throw new OfflineCommandValidationError("commandType is not registered in the offline allowlist");
-  const actor = object(input.actorBinding, "actorBinding");
-  const aggregate = object(input.aggregate, "aggregate");
-  const schemaVersion = integer(input.schemaVersion, "schemaVersion");
-  if (schemaVersion <= 0) throw new OfflineCommandValidationError("schemaVersion must be positive");
-  const payload = safeEventPayload(jsonObject(input.payload, "payload"));
-  return Object.freeze({
-    commandId: uuid(text(input.commandId, "commandId")),
-    commandType: type as OfflineCommandType,
-    actorBinding: Object.freeze({
-      authenticatedActorId: uuid(text(actor.authenticatedActorId, "actorBinding.authenticatedActorId")),
-      effectiveActorId: uuid(text(actor.effectiveActorId, "actorBinding.effectiveActorId")),
-      sessionBindingHash: sha256(text(actor.sessionBindingHash, "actorBinding.sessionBindingHash"))
-    }),
-    aggregate: Object.freeze({
-      aggregateType: stableCode(text(aggregate.aggregateType, "aggregate.aggregateType")),
-      aggregateId: uuid(text(aggregate.aggregateId, "aggregate.aggregateId"))
-    }),
-    baseVersion: version(integer(input.baseVersion, "baseVersion")),
-    schemaVersion,
-    createdAt: utcInstant(text(input.createdAt, "createdAt")),
-    payloadHash: sha256(text(input.payloadHash, "payloadHash")),
-    payload
-  });
+  try {
+    const input = object(value, "command"); exact(input, ["commandId", "commandType", "actorBinding", "aggregate", "baseVersion", "schemaVersion", "createdAt", "payloadHash", "payload"]);
+    const commandType = text(input.commandType, "commandType", 1, 120); if (onlineOnlyTypes.has(commandType)) throw new OfflineCommandOnlineOnlyError(`${commandType} cannot be replayed offline`); if (!offlineTypes.has(commandType)) throw new OfflineCommandValidationError("commandType is not registered in the offline allowlist");
+    const actor = object(input.actorBinding, "actorBinding"); exact(actor, ["authenticatedActorId", "effectiveActorId", "sessionBindingHash"]); const aggregate = object(input.aggregate, "aggregate"); exact(aggregate, ["aggregateType", "aggregateId"]);
+    const schemaVersion = integer(input.schemaVersion, "schemaVersion", 1, 1); const aggregateType = text(aggregate.aggregateType, "aggregate.aggregateType", 1, 120); const expected: Record<OfflineCommandType, string> = { "CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT": "SAFETY_CHECKLIST_DRAFT", "CMD-OFFLINE-INSPECTION-DRAFT-UPSERT": "INSPECTION_ATTEMPT_DRAFT", "CMD-OFFLINE-FIELD-NOTE-DRAFT-UPSERT": "FIELD_NOTE_DRAFT", "CMD-OFFLINE-WORK-ITEM-PROGRESS-UPDATE": "WBS_NODE", "CMD-OFFLINE-FIELD-RECORD-DRAFT-UPSERT": "FIELD_RECORD_DRAFT" }; if (aggregateType !== expected[commandType as OfflineCommandType]) throw new OfflineCommandValidationError("aggregateType does not match commandType");
+    const payload = commandType === OFFLINE_COMMAND_TYPES[0] ? parseChecklist(input.payload) : commandType === OFFLINE_COMMAND_TYPES[1] ? parseInspection(input.payload) : commandType === OFFLINE_COMMAND_TYPES[2] ? parseFieldNote(input.payload) : commandType === OFFLINE_COMMAND_TYPES[3] ? parseWbs(input.payload) : parseFieldRecord(input.payload);
+    if (new TextEncoder().encode(minimizedJson(payload)).byteLength > maximumPayloadBytes) throw new OfflineCommandValidationError("payload exceeds the canonical database limit");
+    return Object.freeze({ commandId: uuid(text(input.commandId, "commandId", 36, 36)), commandType, actorBinding: Object.freeze({ authenticatedActorId: uuid(text(actor.authenticatedActorId, "actorBinding.authenticatedActorId", 36, 36)), effectiveActorId: uuid(text(actor.effectiveActorId, "actorBinding.effectiveActorId", 36, 36)), sessionBindingHash: sha256(text(actor.sessionBindingHash, "actorBinding.sessionBindingHash", 64, 64)) }), aggregate: Object.freeze({ aggregateType: stableCode(aggregateType), aggregateId: uuid(text(aggregate.aggregateId, "aggregate.aggregateId", 36, 36)) }), baseVersion: version(integer(input.baseVersion, "baseVersion")), schemaVersion, createdAt: utcInstant(text(input.createdAt, "createdAt", 20, 40)), payloadHash: sha256(text(input.payloadHash, "payloadHash", 64, 64)), payload }) as OfflineCommandEnvelope;
+  } catch (error) { if (error instanceof OfflineCommandOnlineOnlyError || error instanceof OfflineCommandValidationError) throw error; if (error instanceof InvalidValueError) throw new OfflineCommandValidationError(error.message); throw error; }
 }
+
+function requireCommand<T extends OfflineCommandType>(command: OfflineCommandEnvelope, expected: T): Extract<OfflineCommandEnvelope, { commandType: T }> { if (command.commandType !== expected) throw new OfflineCommandValidationError(`handler expected ${expected}`); return command as Extract<OfflineCommandEnvelope, { commandType: T }>; }
+export function createOfflineCommandHandlers(): readonly OfflineCommandHandler[] { return Object.freeze([
+  { commandType: OFFLINE_COMMAND_TYPES[0], execute: ({ actor, command, transaction }) => transaction.upsertSafetyChecklistDraft(actor, requireCommand(command, OFFLINE_COMMAND_TYPES[0])) },
+  { commandType: OFFLINE_COMMAND_TYPES[1], execute: ({ actor, command, transaction }) => transaction.upsertInspectionAttemptDraft(actor, requireCommand(command, OFFLINE_COMMAND_TYPES[1])) },
+  { commandType: OFFLINE_COMMAND_TYPES[2], execute: ({ actor, command, transaction }) => transaction.upsertFieldNoteDraft(actor, requireCommand(command, OFFLINE_COMMAND_TYPES[2])) },
+  { commandType: OFFLINE_COMMAND_TYPES[3], execute: ({ actor, command, transaction }) => transaction.updateWbsNodeProgress(actor, requireCommand(command, OFFLINE_COMMAND_TYPES[3])) },
+  { commandType: OFFLINE_COMMAND_TYPES[4], execute: ({ actor, command, transaction }) => transaction.upsertFieldRecordDraft(actor, requireCommand(command, OFFLINE_COMMAND_TYPES[4])) }
+] satisfies readonly OfflineCommandHandler[]); }
+export function createOfflineCommandHandlerRegistry(handlers: readonly OfflineCommandHandler[]): ReadonlyMap<OfflineCommandType, OfflineCommandHandler> { const registry = new Map<OfflineCommandType, OfflineCommandHandler>(); for (const handler of handlers) { if (registry.has(handler.commandType)) throw new Error(`duplicate offline handler: ${handler.commandType}`); registry.set(handler.commandType, handler); } for (const type of OFFLINE_COMMAND_TYPES) if (!registry.has(type)) throw new Error(`missing offline handler: ${type}`); return registry; }
 
 export class OfflineSyncService {
-  private readonly handlers = new Map<OfflineCommandType, OfflineCommandHandler>();
-  constructor(
-    private readonly unitOfWork: OfflineSyncUnitOfWork,
-    handlers: readonly OfflineCommandHandler[],
-    private readonly integrity: OfflineCommandIntegrityPort,
-    private readonly conflictIds: SyncConflictIdPort
-  ) {
-    for (const handler of handlers) {
-      if (this.handlers.has(handler.commandType)) throw new Error(`duplicate offline handler: ${handler.commandType}`);
-      this.handlers.set(handler.commandType, handler);
-    }
-  }
-
-  async execute(actor: TrustedActorContext, command: OfflineCommandEnvelope): Promise<SyncCommandResult> {
-    assertTrustedActorContext(actor);
-    if (!offlineTypes.has(command.commandType) || onlineOnlyTypes.has(command.commandType)) throw new OfflineCommandOnlineOnlyError("command is not offline-enabled");
-    if (actor.authenticatedActorId !== command.actorBinding.authenticatedActorId || actor.effectiveActorId !== command.actorBinding.effectiveActorId || await this.integrity.actorSessionBindingHash(actor) !== command.actorBinding.sessionBindingHash) {
-      throw new OfflineCommandBindingError("offline actor/session binding no longer matches the authenticated request");
-    }
-    if (await this.integrity.payloadHash(command.payload) !== command.payloadHash) throw new OfflineCommandIntegrityError("offline payload digest differs from the envelope");
-    if (Date.parse(command.createdAt)>Date.parse(actor.requestTime)+300_000) throw new OfflineCommandValidationError("offline command creation time is in the future");
-    const handler = this.handlers.get(command.commandType);
-    if (!handler) throw new OfflineCommandOnlineOnlyError("no reviewed offline handler is registered");
-
-    return this.unitOfWork.transact(async (transaction) => {
-      const recorded = await transaction.findRecordedCommand(command.commandId);
-      if (recorded) {
-        if (recorded.payloadHash !== command.payloadHash) throw new OfflineCommandIdempotencyError("commandId was already used for different content");
-        return Object.freeze({ result: "IDEMPOTENT_REPLAY", commandId: command.commandId, original: recorded.result });
-      }
-      await transaction.recordCommand(command, actor);
-      const outcome = await handler.execute({ actor, command });
-      let result: TerminalSyncCommandResult;
-      if (outcome.result === "APPLIED") result = Object.freeze({ result: "APPLIED", commandId: command.commandId, aggregateVersion: outcome.aggregateVersion });
-      else if (outcome.result === "REJECTED") result = Object.freeze({ result: "REJECTED", commandId: command.commandId, reasonCode: outcome.reasonCode });
-      else {
-        if (Number(outcome.serverVersion)<=Number(command.baseVersion)) throw new OfflineCommandValidationError("server version must advance beyond the stale base version");
-        const conflict: SyncConflictRecord = Object.freeze({
-          conflictId: this.conflictIds.next(), commandId: command.commandId, commandType: command.commandType,
-          aggregateType: command.aggregate.aggregateType, aggregateId: command.aggregate.aggregateId,
-          baseVersion: command.baseVersion, serverVersion: outcome.serverVersion,
-          localPayload: command.payload, localPayloadHash: command.payloadHash,
-          safeServerProjection: outcome.safeServerProjection, safeServerProjectionHash: outcome.safeServerProjectionHash,
-          state: "OPEN", detectedAt: actor.requestTime
-        });
-        await transaction.recordConflict(conflict);
-        result = Object.freeze({ result: "SYNC_CONFLICT", commandId: command.commandId, conflict });
-      }
-      await transaction.recordResult(result);
-      return result;
-    });
+  private readonly handlers: ReadonlyMap<OfflineCommandType, OfflineCommandHandler>;
+  constructor(private readonly unitOfWork: OfflineSyncUnitOfWork, handlers: readonly OfflineCommandHandler[], private readonly integrity: OfflineCommandIntegrityPort, private readonly conflictIds: SyncConflictIdPort) { this.handlers = createOfflineCommandHandlerRegistry(handlers); }
+  async execute(actor: TrustedActorContext, untrustedCommand: OfflineCommandEnvelope): Promise<SyncCommandResult> {
+    assertTrustedActorContext(actor); const command = parseOfflineCommand(untrustedCommand);
+    if (actor.authenticatedActorId !== command.actorBinding.authenticatedActorId || actor.effectiveActorId !== command.actorBinding.effectiveActorId || await this.integrity.actorSessionBindingHash(actor) !== command.actorBinding.sessionBindingHash) throw new OfflineCommandBindingError("offline actor/session binding no longer matches the authenticated request");
+    if (await this.integrity.payloadHash(command.payload) !== command.payloadHash) throw new OfflineCommandIntegrityError("offline payload digest differs from the envelope"); if (Date.parse(command.createdAt) > Date.parse(actor.requestTime) + 300_000) throw new OfflineCommandValidationError("offline command creation time is in the future"); const handler = this.handlers.get(command.commandType); if (!handler) throw new OfflineCommandOnlineOnlyError("no reviewed offline handler is registered");
+    return this.unitOfWork.transact(actor, async (transaction) => { const recorded = await transaction.findRecordedCommand(command.commandId); if (recorded) { if (recorded.payloadHash !== command.payloadHash) throw new OfflineCommandIdempotencyError("commandId was already used for different content"); return Object.freeze({ result: "IDEMPOTENT_REPLAY", commandId: command.commandId, original: recorded.result }); } await transaction.recordCommand(command, actor); const outcome = await handler.execute({ actor, command, transaction }); let result: TerminalSyncCommandResult; if (outcome.result === "APPLIED") result = Object.freeze({ result: "APPLIED", commandId: command.commandId, aggregateVersion: outcome.aggregateVersion }); else if (outcome.result === "REJECTED") result = Object.freeze({ result: "REJECTED", commandId: command.commandId, reasonCode: outcome.reasonCode }); else { if (Number(outcome.serverVersion) <= Number(command.baseVersion)) throw new OfflineCommandValidationError("server version must advance beyond the stale base version"); const conflict: SyncConflictRecord = Object.freeze({ conflictId: this.conflictIds.next(), commandId: command.commandId, commandType: command.commandType, aggregateType: command.aggregate.aggregateType, aggregateId: command.aggregate.aggregateId, baseVersion: command.baseVersion, serverVersion: outcome.serverVersion, localPayload: command.payload, localPayloadHash: command.payloadHash, safeServerProjection: outcome.safeServerProjection, safeServerProjectionHash: outcome.safeServerProjectionHash, state: "OPEN", detectedAt: actor.requestTime }); await transaction.recordConflict(conflict); result = Object.freeze({ result: "SYNC_CONFLICT", commandId: command.commandId, conflict }); } await transaction.recordResult(result); return result; });
   }
 }

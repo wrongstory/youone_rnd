@@ -80,6 +80,34 @@ describe("M16 live request boundary", () => {
     expect(sync.execute).not.toHaveBeenCalled();
   });
 
+  it("stops a streamed request as soon as its UTF-8 byte budget is exceeded", async () => {
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new TextEncoder().encode("가".repeat(12_000)));
+        if (pulls > 3) controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      }
+    });
+    const endpoint = createOfflineSyncEndpoint({
+      actors: { resolve: vi.fn(async () => Object.freeze({ marker: "trusted" }) as never) },
+      sync: { execute: vi.fn() }
+    });
+
+    await expect(endpoint.execute(new Request("http://localhost", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      duplex: "half"
+    } as RequestInit))).rejects.toBeInstanceOf(SyncRequestValidationError);
+    expect(cancelled).toBe(true);
+    expect(pulls).toBeLessThan(4);
+  });
+
   it("reports readiness without exposing configured secret values", () => {
     const unavailable = getRuntimeReadiness({
       REQUEST_DATABASE_URL: "postgresql://secret-database",
@@ -103,7 +131,7 @@ describe("M16 live request boundary", () => {
       REQUEST_DATABASE_URL: "configured",
       SUPABASE_URL: "configured",
       SUPABASE_PUBLISHABLE_KEY: "configured"
-    }, {} as never, { requestAuth: true, requestDatabase: true });
+    }, {} as never, { requestAuth: true, requestDatabase: true, offlineSync: true });
     expect(ready.status).toBe("ready");
   });
 

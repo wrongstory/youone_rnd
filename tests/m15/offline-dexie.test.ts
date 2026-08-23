@@ -9,6 +9,8 @@ import { sha256, stableCode, utcInstant, uuid, version } from "../../packages/sh
 const databases: YouoneOfflineDatabase[] = [];
 const actorId = uuid("11111111-1111-4111-8111-111111111111");
 const aggregateId = uuid("22222222-2222-4222-8222-222222222222");
+const attemptId = uuid("22222222-2222-4222-8222-222222222223");
+const criterionId = uuid("22222222-2222-4222-8222-222222222224");
 const commandId = uuid("33333333-3333-4333-8333-333333333333");
 const binding = sha256("a".repeat(64));
 const payloadHash = sha256("b".repeat(64));
@@ -26,12 +28,16 @@ function command(overrides: Record<string, unknown> = {}) {
     commandId,
     commandType: "CMD-OFFLINE-INSPECTION-DRAFT-UPSERT",
     actorBinding: { authenticatedActorId: actorId, effectiveActorId: actorId, sessionBindingHash: binding },
-    aggregate: { aggregateType: "SAFETY_INSPECTION", aggregateId },
+    aggregate: { aggregateType: "INSPECTION_ATTEMPT_DRAFT", aggregateId },
     baseVersion: 2,
     schemaVersion: 1,
     createdAt: now,
     payloadHash,
-    payload: { checklistVersion: 3, completion: 40 },
+    payload: {
+      inspectionAttemptId: attemptId,
+      summary: "현장 검수 초안",
+      results: [{ criterionId, verdict: "PARTIAL", achievedPercent: 40, observedValue: "진행 중" }]
+    },
     ...overrides
   };
 }
@@ -70,7 +76,7 @@ describe("M15 Dexie offline adapter", () => {
         conflictId: uuid("44444444-4444-4444-8444-444444444444"),
         commandId,
         commandType: parsed.commandType,
-        aggregateType: stableCode("SAFETY_INSPECTION"),
+        aggregateType: stableCode("INSPECTION_ATTEMPT_DRAFT"),
         aggregateId,
         baseVersion: version(2),
         serverVersion: version(3),
@@ -88,7 +94,7 @@ describe("M15 Dexie offline adapter", () => {
     await expect(store.listOpenConflicts()).resolves.toHaveLength(1);
     await expect(database.outbox.get(commandId)).resolves.toMatchObject({
       state: "CONFLICT",
-      envelope: { payload: { checklistVersion: 3, completion: 40 } }
+      envelope: { payload: { inspectionAttemptId: attemptId, summary: "현장 검수 초안" } }
     });
   });
 

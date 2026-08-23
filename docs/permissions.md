@@ -321,6 +321,8 @@ M05 uses a private `PRIVATE_BUSINESS` bucket, server-issued object keys and an a
 
 - The Lab Director designates `ROLE_SAFETY_MANAGER`; designation is effective-dated and audited.
 - M13 Safety Manager may schedule/record inspections, education, incident investigation, and corrective verification. Material/waste/drill capabilities remain P1 and have no M13 physical route or table.
+- R03 offline SafetyChecklistDraft and InspectionAttemptDraft are direct active INTERNAL-only. They require the current exact inspector plus the existing `safety.inspection.perform`/effective Safety assignment/Project scope or `inspection.record.inspect`/Contract scope respectively. Offline FieldNoteDraft and FieldRecordDraft are creator-owned INTERNAL-only with exact Project and optional same-Project WBS validation. Vendor actors are denied for all four draft types.
+- Offline WBS progress is the sole Vendor-enabled R03 command. It requires the exact assigned VendorUser, active VendorMembership and effective Project grant with `project.wbs.update`; payload-supplied Vendor, Project or Scope identity is never authority.
 - A critical safety finding may place the affected work area/task into stop-work state; release requires the authorized safety/Lab Director transition and evidence.
 - Vendors/visitors see only allowlisted safety instructions, acknowledgements, assigned corrective tasks, and permitted incident summaries after active VendorMembership plus exact Project/Contract grant validation. Internal cause analysis, other users' training detail, and unrestricted evidence fields are excluded at application and DB projection layers.
 - Research allowance eligibility/evaluation data is restricted HR-like data. Project membership does not imply access.

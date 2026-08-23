@@ -260,6 +260,16 @@ Workflow ID: `WF-OFFLINE-SYNC-V1`.
 5. If base version matches, validate and apply through the normal Application Use Case.
 6. If it differs, create conflict with local/server representations and do not apply automatically.
 7. P0 user chooses server by discarding the local attempt, or creates a new command against the latest server version. Field merge remains disabled until a named command policy and fixture are approved.
+
+### R03 reviewed handler dispatch
+
+1. Web reads at most 32,768 UTF-8 bytes for the command envelope and rejects an oversized stream before parsing or dispatch.
+2. The live bearer session is reverified and current ActorContext, memberships, permissions and Scope are reloaded from trusted server records.
+3. One request PostgreSQL transaction acquires the command ID idempotency lock and registers the immutable command.
+4. Exactly one schema/aggregate-specific handler validates the payload and invokes its transaction-bound Application port.
+5. The handler rechecks current aggregate state, exact base version and DB-derived Project/Contract/Vendor scope. Four typed draft handlers are INTERNAL-only; WBS progress permits only an exact assigned scoped Vendor.
+6. Applied work writes aggregate, transition, business audit, minimum outbox and terminal result atomically. Authorization/state failure records a non-enumerating rejection; exact stale version records a conflict without business mutation.
+7. No handler seals official inspection evidence, finalizes a ResearchNote, completes WBS, or performs an automatic merge.
 8. Resolution records both versions, chosen strategy, current actor/session binding, time, reason and successor command when retrying as new.
 
 Approval, authority/permission/Scope changes, L2~L4 access, technical-document deletion, controlled-copy actions, contract sign/terminate and payment confirmation never enter this flow.
