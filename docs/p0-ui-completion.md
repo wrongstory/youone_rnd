@@ -82,3 +82,12 @@
 
 Issue `#53` 병합 뒤 이전 Staging evidence를 재사용하지 않는다. 운영 결합은 새 exact `dev` merge SHA를 고정한 뒤 수행하며, 정확히 27개 artifact와 R06 `READY_FOR_RELEASE_PR` 전까지 Issue `#36`을 닫지 않는다.
 
+## 6. 기능 화면 엔터프라이즈 마감
+
+- GitHub: Issue `#55`
+- 기준 시안: 승인된 모바일 대시보드의 navy shell, teal accent, compact 업무 카드, 고정 주요 탐색
+- 모든 P0 목록 화면은 동일한 업무 목록 header, 실제 건수, 도메인 icon, 한국어 표시명, 상태 tone, 상세 진입점을 사용한다.
+- 모든 P0 상세 화면은 핵심 사실, 하위 업무, 상태·결재 이력, 정책 안내, 허용된 동작을 별도 업무 panel로 구분한다.
+- PC는 모바일과 같은 route/navigation ID를 사용하면서 고정 sidebar와 업무 context top bar를 제공한다.
+- Command Adapter가 없거나 권한 판정이 완료되지 않은 동작은 계속 비활성 또는 미노출한다. 화면 마감은 권한·상태·감사 Gate를 우회하지 않는다.
+- 영속 stable ID는 변경하지 않고 화면 표시만 한국어 label로 변환한다.

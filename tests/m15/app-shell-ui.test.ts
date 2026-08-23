@@ -27,6 +27,24 @@ describe("P0 mobile-first application shell", () => {
     expect(shell.match(/<HierarchicalNavigation/g)).toHaveLength(2);
     expect(shell).toContain('aria-label="주요 메뉴"');
     expect(shell).toContain('aria-label="전체 업무 메뉴"');
+    expect(shell).toContain('className="desktopWorkspaceBar"');
+    expect(shell).toContain("workspaceTitle");
+  });
+
+  it("renders every shared feature collection as an enterprise work list", () => {
+    const previewUi = read("apps/web/src/interface/preview-ui.tsx");
+    const icons = read("apps/web/src/interface/preview-icons.tsx");
+    const styles = read("apps/web/src/app/styles.css");
+
+    expect(previewUi).toContain('className="recordCollection"');
+    expect(previewUi).toContain("Children.count(children)");
+    expect(previewUi).toContain('className="collectionHeader"');
+    expect(previewUi).toContain('className="recordOpen"');
+    expect(previewUi).toContain("metaTone(item)");
+    expect(icons).toContain('href.startsWith("/technical-copies")');
+    expect(icons).toContain('href.startsWith("/contracts")');
+    expect(styles).toContain("/* P0 enterprise feature workspace */");
+    expect(styles).toContain("grid-template-columns: minmax(0, 1fr)");
   });
 
   it("keeps dashboard preview data explicit and live data fail-closed", () => {

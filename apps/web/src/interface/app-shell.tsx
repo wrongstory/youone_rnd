@@ -53,6 +53,10 @@ const routeIcons: Record<string, IconComponent> = {
   "/offline-sync": WifiHigh
 };
 
+const navigationItems = navigationGroups.flatMap((group) =>
+  group.items.map((item) => ({ ...item, groupLabel: group.label }))
+);
+
 function isCurrentPath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/approvals") return pathname === href || (pathname.startsWith(`${href}/`) && !pathname.startsWith("/approvals/submitted") && !pathname.startsWith("/approvals/completed"));
@@ -107,6 +111,9 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const activeNavigation = navigationItems.find((item) => isCurrentPath(pathname, item.href));
+  const workspaceTitle = pathname === "/" ? "업무 대시보드" : (activeNavigation?.label ?? "R&D 업무관리");
+  const workspaceGroup = pathname === "/" ? "내 업무" : (activeNavigation?.groupLabel ?? "업무관리");
 
   useEffect(() => {
     document.body.classList.toggle("navigationDrawerOpen", drawerOpen);
@@ -156,7 +163,23 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
         </div>
       </aside>
 
-      <div className="appContent">{children}</div>
+      <div className="workspaceFrame">
+        <header className="desktopWorkspaceBar">
+          <div className="workspaceContext">
+            <span>{workspaceGroup}</span>
+            <strong>{workspaceTitle}</strong>
+          </div>
+          <div className="workspaceUtilities">
+            <ConnectivityStatus className="workspaceConnectivity" detail />
+            <Link className="workspaceIconButton" href="/notifications" aria-label="알림 3건">
+              <Bell aria-hidden size={21} weight="bold" />
+              <span aria-hidden>3</span>
+            </Link>
+            <span className="workspaceUser"><UserCircle aria-hidden size={30} weight="fill" /><span><strong>{previewEnabled ? "박현우" : "사용자 확인 중"}</strong><small>{previewEnabled ? "연구소장" : "Identity 연결 대기"}</small></span></span>
+          </div>
+        </header>
+        <div className="appContent">{children}</div>
+      </div>
 
       <nav className="bottomNavigation" aria-label="주요 메뉴">
         {primaryNavigation.map((item) => {
