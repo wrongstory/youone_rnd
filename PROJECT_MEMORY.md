@@ -46,7 +46,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (P0 `M00`~`M16`과 Release Gate #36 R01~R05가 `dev`에 병합 완료. 현재 R06 운영정책·릴리즈 증거 Gate를 구현 중이며 실제 사용자 정책 승인과 Staging 증거는 아직 없다. P1 권장 범위·로드맵은 승인됐지만 P0 릴리즈와 P1 설계 Gate 전에는 제품 코드를 시작하지 않는다).
+`IMPLEMENTATION_ACTIVE` (P0 `M00`~`M16`과 Release Gate #36 R01~R06 코드 계약이 `dev`에 병합 완료. 실제 사용자 정책 승인, Staging 27개 증거와 `dev → main` 승격은 아직 없다. P1 권장 범위·로드맵은 승인됐고 이슈 #48에서 source/ERD/권한/상태/ADR 설계 Gate를 진행하지만 P0 릴리즈와 별도 P1 Development Gate 전에는 제품 코드를 시작하지 않는다).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -90,7 +90,7 @@ Release Gate #36 R05는 Web 3개와 Worker 2개 capability를 stable component I
 
 Release Gate #36 R06는 `OD-019`, `OD-035`, `OD-036`의 사용자 승인값을 임의 기본값 없이 versioned·unrevoked policy snapshot과 `created <= approved <= effective <= evaluated` 시간 관계로 검증한다. quality·M07~M16·R01~R05·migration·recovery·Staging·PWA/mobile·security의 정확히 27개 artifact를 closed ID 경로에서 직접 읽어 raw SHA-256을 재계산하고, evidence/R05/trusted promotion source commit을 exact 결합하며 R05 canonical digest/readiness/check를 재검증한다. OD-036 runtime은 trusted target resource와 JWT `sub/session_id/issuer` 및 active `auth.sessions`를 결합하고 global sign-out 뒤 exact session 부재를 확인한다. CLI parse/read/validator 오류도 비밀값 없는 `BLOCKED`와 non-zero exit로 수렴한다. 모든 증거를 충족한 상태도 `READY_FOR_RELEASE_PR`일 뿐이며 별도 사용자 승인 없이는 `main`을 갱신하지 않는다.
 
-P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이슈 #39 및 PR #40으로 승인·병합됐다. P1은 BOM, 연구장비·교정, 안전관리 확장, 연구수당, 권한필터 통합검색을 권장 깊이와 순서로 진행한다. 다만 P0 Release Gate `#36` 완료와 `dev → main` P0 승격, P1 논리 ERD·권한·상태머신 검토 및 별도 Development Gate 승인 전에는 P1 제품 코드나 migration을 만들지 않는다.
+P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이슈 #39 및 PR #40으로 승인·병합됐다. P1은 BOM, 연구장비·교정, 안전관리 확장, 연구수당, 권한필터 통합검색을 권장 깊이와 순서로 진행한다. 이슈 #48은 source delta, domain/ERD, 권한, 상태머신, open-decision checklist, ADR-011과 workstream/merge order의 설계 검토를 소유한다. P0 Release Gate `#36` 완료와 `dev → main` P0 승격, 해당 설계 검토 및 별도 Development Gate 승인 전에는 P1 제품 코드나 migration을 만들지 않는다.
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
