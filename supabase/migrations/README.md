@@ -24,6 +24,7 @@ Applied sequence:
 - `20260822001300_m14_controlled_copy.sql`: exact L3/L4 controlled-copy request/approval/render/print/handover/return/destruction evidence, watermark manifest and Vendor-safe projection.
 - `20260823001400_m15_pwa_offline_sync.sql`: allowlisted offline command registry, canonical payload hash, immutable command/result/conflict/resolution, exact retry successor, owner RLS and direct-write denial.
 - `20260823001500_m16_force_registry_rls.sql`: forward-fix that applies FORCE RLS and explicit deny-all grants to the six M02 stable definition registries, closing table-owner policy bypass for non-migration identities.
+- `20260823001600_r02_active_auth_session.sql`: Identity Resolver-only exact Supabase `auth.sessions` subject/session capability with fail-closed provider-schema detection.
 
 M03 intentionally does not create ProjectScope, ContractScope, or DocumentVersion grants before their typed FK targets exist.
 

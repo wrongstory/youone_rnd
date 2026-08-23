@@ -315,6 +315,7 @@ describe("web and worker composition isolation", () => {
       const source = readFileSync(file, "utf8");
       if (
         source.includes("SUPABASE_SERVICE_ROLE_KEY") ||
+        source.includes("SUPABASE_SECRET_KEY") ||
         source.includes("WORKER_DATABASE_URL")
       ) {
         violations.push(`${path} references a worker-only credential`);
@@ -360,10 +361,9 @@ describe("web and worker composition isolation", () => {
     expect(violations).toEqual([]);
   });
 
-  it("keeps privileged Supabase Auth service adapters inside the composition root", () => {
+  it("keeps privileged Supabase Auth service adapters out of the Web runtime", () => {
     const violations = sourceFiles(resolve(root, "apps/web/src")).flatMap((file) => {
       const path = normalized(relative(root, file));
-      if (path.startsWith("apps/web/src/composition/")) return [];
       return importSpecifiers(readFileSync(file, "utf8"))
         .filter((specifier) => specifier === "@youone/infra-supabase-auth/service")
         .map((specifier) => `${path} imports ${specifier}`);

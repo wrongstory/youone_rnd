@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@youone/core-approval": "workspace:*",
+    "@youone/core-authorization": "workspace:*",
     "@youone/core-sync": "workspace:*",
     "@youone/feature-change": "workspace:*",
     "@youone/feature-contract": "workspace:*",
@@ -22,6 +23,7 @@
     "@youone/feature-tech-copy": "workspace:*",
     "@youone/infra-offline-dexie": "workspace:*",
     "@youone/infra-postgres": "workspace:*",
+    "@youone/infra-supabase-auth": "workspace:*",
     "@youone/shared-kernel": "workspace:*",
     "@youone/ui": "workspace:*",
     "next": "16.3.2",

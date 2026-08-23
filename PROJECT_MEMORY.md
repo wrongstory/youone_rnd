@@ -46,7 +46,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (`M00`~`M16` P0가 `dev`에 병합 완료됐고, Release Gate #36의 R01 운영 PostgreSQL 요청 런타임을 구현 중).
+`IMPLEMENTATION_ACTIVE` (`M00`~`M16`과 Release Gate #36 R01이 `dev`에 병합 완료됐고, R02 Supabase 요청 인증·활성 세션 경계를 구현 중).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -80,6 +80,8 @@ Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고
 
 Release Gate #36 R01은 `pg` 기반 concrete request pool과 Web composition을 추가했다. 배포가 제공하는 별도 `NOINHERIT`/`NOBYPASSRLS`/non-superuser LOGIN만 허용하고 매 transaction에서 `SET LOCAL ROLE youone_request`, `row_security=on`, trusted ActorContext 순서를 강제한다. Pool checkout은 effective role과 login role, 빈 actor/session context 및 `youone_request` 이외 역할로 전환할 수 없음을 검사하고 실패 연결을 폐기한다. 운영 TLS 검증과 bounded pool/timeout을 적용하며 URL 옵션에 의한 TLS/timeout 재정의, 불확실한 transaction cleanup 연결 재사용, 처리되지 않은 유휴 client 오류를 차단한다. `/api/health/ready`의 database component는 실제 probe 성공 때만 ready다. 단위 테스트와 PostgreSQL 16 CI는 superuser·과권한 LOGIN 거부 및 단일 physical connection의 commit/rollback 후 context 비잔존을 검증한다. 실제 Staging 자격증명과 readiness 증적 전까지 첫 activation blocker는 열린 상태다.
 
+Release Gate #36 R02 request Auth는 `@supabase/supabase-js`를 request adapter 안에만 두고 publishable key, session persistence/refresh 비활성화, explicit-token `getUser + getClaims`, bounded health probe를 적용한다. `ActorContextSource`는 verified subject와 provider `session_id`를 함께 받아 별도 최소권한 `youone_identity_resolver` pool에서 `auth.sessions` exact subject/session 활성행을 확인한 뒤에만 DB identity snapshot을 반환한다. Auth readiness는 provider와 resolver capability가 모두 성공해야 한다. Supabase ban은 기존 session revoke가 아니고 delete는 비활성화와 다르므로 임의 매핑하지 않았으며, non-destructive revoke-by-user 수단은 `OD-036` release blocker로 남겼다.
+
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
@@ -97,7 +99,7 @@ Release Gate #36 R01은 `pg` 기반 concrete request pool과 Web composition을 
 - ECO 결재의 반려·회수·취소 이후 canonical 상태전이는 `OD-033`으로 남긴다. M10은 결재결과 증거만 보존하고 상태를 임의 전이하지 않는다.
 - 렌더링/출력 후 인계 전 수령인 Scope가 상실된 통제사본의 정식 처분 이벤트는 `OD-034`로 남긴다. M14는 인계를 차단하고 실패 감사를 남기며, 내부 보관물을 임의 상태전이·삭제하지 않는다.
 - 실제 회사 양식 업로드 전에는 범용 버전형 템플릿만 설계하고 인쇄 레이아웃을 추정하지 않는다.
-- 운영 DB의 concrete 코드 composition은 R01에서 구현됐지만 실제 Staging 최소권한 LOGIN과 readiness 증적은 아직 없다. Auth/offline command handler/Storage adapter 및 staging 복구훈련과 함께 `docs/security-operations.md`의 activation blocker를 모두 닫아야 한다.
+- 운영 DB와 request Auth/Identity Resolver의 concrete 코드 composition은 R01/R02에서 구현됐지만 실제 Staging 최소권한 LOGIN, live Supabase session, readiness 증적은 아직 없다. `OD-036` provider session revoke, offline command handler, Storage adapter 및 staging 복구훈련과 함께 `docs/security-operations.md`의 activation blocker를 모두 닫아야 한다.
 - 운영 RPO/RTO, 백업 주기·보존기간, 모니터링 대상, 사고대응 담당자와 복구 승인권자는 `OD-035`이며 기간이나 담당자를 임의로 정하지 않는다.
 
 ## Development Gate

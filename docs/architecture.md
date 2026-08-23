@@ -124,7 +124,7 @@ sequenceDiagram
 
 목록 허용과 상세 허용을 분리한다. 특히 외주 계약 목록 DTO에는 금액·지급 필드가 존재하지 않는다. 상세 조회는 `contract.detail.finance.read` 권한과 정확한 vendor/contract Scope를 모두 만족할 때만 해당 필드를 투영한다.
 
-M03의 request composition은 Supabase가 서버에서 검증한 subject/expiry/session/AAL만 인증 증거로 사용하고, Role·Position·Vendor·Scope는 user metadata나 request body가 아니라 현재 DB 레코드에서 다시 구성한다. 검증된 subject의 서버 snapshot은 ordinary request role이 호출할 수 없는 전용 NOBYPASSRLS `youone_identity_resolver` 경계에서만 읽는다. 검증 팩토리가 만든 명목상 `TrustedActorContext`만 request PostgreSQL UnitOfWork에 전달할 수 있다. Supabase request adapter와 privileged service/secret adapter는 서로 다른 export이며, web request interface는 privileged adapter를 import할 수 없다.
+M03의 request composition은 Supabase가 서버에서 검증한 subject/expiry/session/AAL만 인증 증거로 사용하고, Role·Position·Vendor·Scope는 user metadata나 request body가 아니라 현재 DB 레코드에서 다시 구성한다. R02부터 `getUser + getClaims`뿐 아니라 provider-issued `session_id`와 `auth.sessions.user_id`의 exact active match를 매 요청 확인한다. 검증된 subject/session의 서버 snapshot은 ordinary request role이 호출할 수 없는 전용 NOBYPASSRLS `youone_identity_resolver` 경계에서만 읽으며, 배포 LOGIN은 이 역할 외 다른 역할로 전환할 수 없다. 검증 팩토리가 만든 명목상 `TrustedActorContext`만 request PostgreSQL UnitOfWork에 전달할 수 있다. Supabase request adapter와 privileged service/secret adapter는 서로 다른 export이며, Web은 publishable key만 사용하고 service/secret credential은 Worker composition에만 둔다.
 
 R01의 concrete request PostgreSQL composition은 `apps/web/src/composition`에서만 `pg` Pool을 조립한다. 배포가 제공한 별도 `NOINHERIT`/`NOBYPASSRLS`/non-superuser LOGIN으로 접속한 뒤, 매 업무 transaction에서 `SET LOCAL ROLE youone_request`와 `row_security=on`을 먼저 적용한다. checkout probe는 effective role, login role, `NOBYPASSRLS`, 빈 actor/session context와 LOGIN이 `youone_request` 이외 역할로 전환할 수 없음을 모두 확인하며 하나라도 어긋나면 연결을 폐기한다. commit/rollback 결과가 불확실한 연결도 재사용하지 않고, 유휴 client 오류는 비밀값 없는 안정 이벤트로 기록한다. `/api/health/ready`의 database component도 이 실제 probe가 성공해야만 `ready`다. URL 존재만으로 준비 상태를 만들지 않으며 worker/service-role pool은 web composition에서 해석할 수 없다.
 
@@ -223,6 +223,8 @@ M15는 Dexie `4.4.5`를 통해 IndexedDB에 위 명령의 `offline_outbox`, 로�
 명령에는 immutable `command_id`, stable command type, authenticated/effective actor, session binding hash, aggregate ID/type, `base_version`, schema version, UTC 생성시각, canonical minimized payload와 SHA-256을 포함한다. `/api/v1/sync/commands`는 현재 서버 세션으로 `TrustedActorContext`를 다시 만들고 등록된 정상 Application handler에 권한·Scope·상태·precondition·낙관적 버전 검사를 위임한다. M16 live request adapter 조합 전에는 endpoint가 `503 SYNC_REQUEST_ADAPTER_NOT_CONFIGURED`로 fail-closed한다. 서버 version이 다르면 양쪽 payload를 보존한 `SYNC_CONFLICT`를 만들고 자동 적용하지 않으며, 승인된 field merge 정책이 없는 P0에서는 `DISCARD_LOCAL` 또는 최신 server version을 기준으로 새 명령을 만드는 `RETRY_AS_NEW`만 기록한다.
 
 M16 request boundary는 Bearer session과 provider가 발급한 non-empty `session_id`를 요구하고, 서버 DB에서 현재 identity/permission/Scope를 다시 읽는다. actor/vendor/project/contract/scope를 body 값으로 조립하지 않는다. live DB/Auth/command-handler adapter가 모두 실제 조합되기 전 readiness는 `503 not_ready`이며 환경변수 존재만으로 준비 상태를 선언하지 않는다. 상세 운영·복구·사고대응 및 production activation blocker는 `docs/security-operations.md`를 정본으로 한다.
+
+R02 request Auth는 SDK의 session persistence/refresh를 끄고 caller token을 `getUser(token)`과 `getClaims(token)`에 명시한다. Auth health와 별도 Identity Resolver pool/capability가 모두 성공할 때만 request-auth component가 ready다. 계정 비활성화 후 provider session revoke는 DB 상태·Audit·Outbox 우선의 Worker saga로 처리하되, Supabase ban이나 delete를 revoke-by-user로 간주하지 않는다. 지원 가능한 provider operation이 결정되기 전 `OD-036`과 production activation blocker는 열린 상태다.
 
 ## 10. 배포 구조
 

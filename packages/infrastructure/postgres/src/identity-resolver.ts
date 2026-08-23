@@ -5,5 +5,12 @@ export const IDENTITY_RESOLVER_DATABASE_BOUNDARY = Object.freeze({
   acceptsVerifiedSubjectOnly: true as const
 });
 
-export { PostgresActorContextSource } from "./identity.js";
-export type { SqlConnection, SqlPool, SqlQueryResult } from "./driver.js";
+export { PostgresActorContextSource } from "./identity";
+export {
+  IdentityResolverDatabaseBoundaryError,
+  NodePostgresIdentityResolverPool,
+  createNodePostgresIdentityResolverPool,
+  type IdentityResolverDatabaseOperationalEvent,
+  type NodePostgresIdentityResolverPoolOptions
+} from "./node-identity-resolver-pool";
+export type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";

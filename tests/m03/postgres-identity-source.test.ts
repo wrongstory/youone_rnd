@@ -25,7 +25,7 @@ describe("M03 PostgresActorContextSource", () => {
     const connection: SqlConnection = {
       query: async (sql, parameters = []) => {
         calls.push({ sql, parameters });
-        return sql.includes("resolve_actor_context_snapshot") ? { rows: [{ snapshot }], rowCount: 1 } as never : { rows: [], rowCount: 0 } as never;
+        return sql.includes("resolve_active_actor_context_snapshot") ? { rows: [{ snapshot }], rowCount: 1 } as never : { rows: [], rowCount: 0 } as never;
       },
       release: () => undefined
     };
@@ -46,8 +46,8 @@ describe("M03 PostgresActorContextSource", () => {
     const verifier: AuthSessionVerifier = { verify: async () => ({ authSubject: "verified-subject", sessionId: "session", expiresAt: utcInstant("2026-09-01T00:00:00Z"), assuranceLevel: "AAL2" }) };
     const actor = await new TrustedActorContextFactory(verifier, source, { now: () => requestTime }).create("token", correlationId("request:source"));
 
-    expect(calls.map((call) => call.sql)).toEqual(["begin read only", "set local role youone_identity_resolver", expect.stringContaining("resolve_actor_context_snapshot"), "commit"]);
-    expect(calls[2]?.parameters).toEqual(["verified-subject", requestTime]);
+    expect(calls.map((call) => call.sql)).toEqual(["begin read only", "set local role youone_identity_resolver", "set local row_security = on", expect.stringContaining("resolve_active_actor_context_snapshot"), "commit"]);
+    expect(calls[3]?.parameters).toEqual(["verified-subject", "session", requestTime]);
     expect(actor.actorKind).toBe("VENDOR");
     expect(actor.roles).toEqual(["ROLE_VENDOR_USER"]);
     expect(actor.permissions).toEqual(["contract.detail.read"]);
@@ -61,14 +61,14 @@ describe("M03 PostgresActorContextSource", () => {
     const connection: SqlConnection = {
       query: async (sql) => {
         calls.push(sql);
-        if (sql.includes("resolve_actor_context_snapshot")) throw new Error("resolver failed");
+        if (sql.includes("resolve_active_actor_context_snapshot")) throw new Error("resolver failed");
         return { rows: [], rowCount: 0 };
       },
       release: () => { released = true; }
     };
     const pool: SqlPool = { connect: async () => connection };
-    await expect(new PostgresActorContextSource(pool).load("verified-subject", requestTime)).rejects.toThrow("resolver failed");
-    expect(calls).toEqual(["begin read only", "set local role youone_identity_resolver", expect.stringContaining("resolve_actor_context_snapshot"), "rollback"]);
+    await expect(new PostgresActorContextSource(pool).load("verified-subject", "session", requestTime)).rejects.toThrow("resolver failed");
+    expect(calls).toEqual(["begin read only", "set local role youone_identity_resolver", "set local row_security = on", expect.stringContaining("resolve_active_actor_context_snapshot"), "rollback"]);
     expect(released).toBe(true);
   });
 });
