@@ -113,4 +113,12 @@ This closes the repository-code portion only. The production blocker remains ope
 
 ## 9. Release evidence packet
 
-The release PR must attach the CI run for quality, M07–M16 PostgreSQL jobs, production build, PWA/mobile verification and this blocker table. Promotion from `dev` to `main` remains a separate user-approved release gate.
+The release PR must attach the CI run for quality, M07–M16 and R01–R05 jobs, production build, PWA/mobile verification, the versioned Staging evidence packet and this blocker table. Promotion from `dev` to `main` remains a separate user-approved release gate.
+
+### 9.1 R05 integrated readiness and Staging harness status
+
+R05 adds the concrete minimum-privilege Worker PostgreSQL pool and exact five-component deployment readiness contract. The Worker login must be `NOINHERIT`, non-superuser, `NOBYPASSRLS`, own no database object, set only `youone_privileged_writer`, have no direct business-table privilege and expose the exact Outbox capability. Both Worker probes are time-bounded. Web/Worker readiness payloads with missing, duplicate, inconsistent or non-stable reason fields become `DEPLOYMENT_READINESS_PAYLOAD_INVALID` without echoing provider data.
+
+The Staging runner rejects non-Staging, Preview, localhost and credential-bearing targets. Its evidence schema records only a stable environment ID, exact commit SHA, UTC interval, correlation ID, five readiness results, the required actor/Scope/immutability/concurrency/offline/PWA/mobile/recovery matrix and artifact SHA-256 values. Missing configuration returns a small `BLOCKED` record; a live failed readiness returns `NOT_READY`; only a credential-backed live run with every required check passing and retained artifact digests can return `READY`.
+
+Repository CI validates this behavior and the Worker DB principal against PostgreSQL 16, but it is not Staging proof. The live executor, non-production credentials and retained artifacts are absent from the repository, so the activation blockers remain open. Execution and evidence-preservation steps are in `docs/staging-e2e.md`.

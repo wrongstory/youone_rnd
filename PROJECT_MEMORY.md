@@ -86,6 +86,8 @@ Release Gate #36 R03은 `ADR-010`에 따라 다섯 offline command의 exact sche
 
 Release Gate #36 R04는 Supabase SDK를 `@youone/infra-supabase-storage/service` Worker 전용 경계에 격리한다. 구성된 bucket의 live `public=false` 검증, cursor pagination, 안전한 상대 object key, byte download, 존재확인 및 `upsert=false` 복구를 구현했다. 복구 coordinator는 DB dump evidence와 private Storage 객체의 exact size/SHA-256 manifest를 묶고, 모든 artifact를 첫 write 전에 검증하며 원본과 다른 빈 target만 허용한다. 복구 후 전체 객체를 재다운로드해 hash/size/count를 검증하고 부분 실패 target은 자동 삭제·재사용하지 않는다. Worker readiness는 DB와 Storage capability가 모두 실제 성공해야 ready다. 실제 Staging Supabase 두 환경의 복구훈련과 운영정책 `OD-035`는 여전히 production activation blocker다.
 
+Release Gate #36 R05는 Web 3개와 Worker 2개 capability를 stable component ID로 통합하고, concrete `youone_privileged_writer` PostgreSQL pool을 추가한다. Worker login은 `NOINHERIT`/`NOBYPASSRLS`/non-superuser, 무소유, exact role-SET, table 직접권한 없음, clean context와 Outbox capability를 실제 connection에서 검증한다. Staging runner/evidence V1은 non-Staging·Preview·localhost·credential-bearing URL을 거부하고 exact commit/environment/correlation/UTC, readiness, actor·Vendor Scope·불변성·동시성·offline·PWA/mobile·Storage restore 결과 및 artifact SHA-256만 보존한다. 실제 live executor/credential이 없으면 `BLOCKED`, live capability 실패는 `NOT_READY`이며 repository test만으로 `READY`를 만들지 않는다.
+
 P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이슈 #39 및 PR #40으로 승인·병합됐다. P1은 BOM, 연구장비·교정, 안전관리 확장, 연구수당, 권한필터 통합검색을 권장 깊이와 순서로 진행한다. 다만 P0 Release Gate `#36` 완료와 `dev → main` P0 승격, P1 논리 ERD·권한·상태머신 검토 및 별도 Development Gate 승인 전에는 P1 제품 코드나 migration을 만들지 않는다.
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
@@ -135,6 +137,7 @@ P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이
 18. `R01`: concrete least-privileged PostgreSQL request pool/composition, transaction-local request role, live readiness와 connection-reuse 검증 구현. Staging 증적은 별도 activation gate로 유지.
 19. `R02`: Supabase request Auth와 active-session request 경계는 PR #38로 `dev` 병합 완료. audited account disable/provider revoke와 Staging 증적은 잔여.
 20. `R03`: 다섯 offline handler, typed draft/WBS progress, 동일 transaction·Scope/RLS·conflict·audit 구현 및 PR #41 `dev` 병합 완료.
-21. `R04`: Worker-only Supabase Private Storage SDK, manifest-backed 무덮어쓰기 백업·복구, byte-level 검증과 fail-closed readiness 구현. 실제 Staging drill은 R05 blocker로 유지.
-22. `R05`~`R06`: readiness/Staging E2E, 운영정책·릴리즈 증거 순서로 P0 Release Gate 완료.
-23. P1: 승인된 `P1-SCOPE-V1.0`을 기준으로 P0 릴리즈 및 P1 설계/Development Gate 통과 후에만 `P1-M00`부터 착수.
+21. `R04`: Worker-only Supabase Private Storage SDK, manifest-backed 무덮어쓰기 백업·복구, byte-level 검증과 fail-closed readiness 구현 및 PR #43 `dev` 병합 완료. 실제 Staging drill은 activation blocker로 유지.
+22. `R05`: concrete Worker DB principal, Web/Worker 통합 readiness, allowlisted Staging evidence와 fail-closed runner 구현. 실제 live matrix/credential 증거는 R06 blocker로 유지.
+23. `R06`: 운영정책 승인 및 실제 Staging/릴리즈 증거를 기준으로 P0 Release Gate 완료.
+24. P1: 승인된 `P1-SCOPE-V1.0`을 기준으로 P0 릴리즈 및 P1 설계/Development Gate 통과 후에만 `P1-M00`부터 착수.

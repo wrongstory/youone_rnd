@@ -1,11 +1,15 @@
 import { getWorkerState } from "./composition/runtime.js";
 import {
-  createSupabasePrivateStorageService,
-  parsePrivateBucketList,
   type PrivateStorageRecoveryPort
 } from "@youone/infra-supabase-storage/service";
+import { probeWorkerDatabase } from "./composition/worker-database.js";
+import { getWorkerPrivateStorage } from "./composition/private-storage.js";
 
 export { getWorkerState } from "./composition/runtime.js";
+export { getWorkerDatabasePool, probeWorkerDatabase } from "./composition/worker-database.js";
+export { combineDeploymentReadiness, DEPLOYMENT_COMPONENT_IDS } from "./composition/deployment-readiness.js";
+export { createStagingEvidence, REQUIRED_STAGING_CHECK_IDS } from "./composition/staging-evidence.js";
+export { runStagingE2E } from "./composition/staging-e2e.js";
 export {
   createRecoveryManifest,
   verifyRestore,
@@ -24,16 +28,10 @@ export {
 if (process.env.NODE_ENV !== "test") {
   let privateStorage: PrivateStorageRecoveryPort | undefined;
   try {
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_PRIVATE_BUCKETS) {
-      privateStorage = createSupabasePrivateStorageService({
-        supabaseUrl: process.env.SUPABASE_URL,
-        serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-        privateBuckets: parsePrivateBucketList(process.env.SUPABASE_PRIVATE_BUCKETS),
-        production: process.env.NODE_ENV === "production"
-      });
-    }
+    privateStorage = getWorkerPrivateStorage() ?? undefined;
   } catch {
     privateStorage = undefined;
   }
-  process.stdout.write(`${JSON.stringify(await getWorkerState(process.env, { privateStorage }))}\n`);
+  const database = { probe: () => probeWorkerDatabase() };
+  process.stdout.write(`${JSON.stringify(await getWorkerState(process.env, { database, privateStorage }))}\n`);
 }

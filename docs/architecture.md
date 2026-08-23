@@ -230,6 +230,8 @@ R03은 `ADR-010`의 exact schema를 가진 다섯 Application handler만 offline
 
 R04 Private Storage는 일반 File Application 계약인 `@youone/infra-supabase-storage/public`과 서비스 역할 전용 `@youone/infra-supabase-storage/service`를 분리한다. 서비스 진입점만 Supabase SDK와 `SUPABASE_SERVICE_ROLE_KEY`를 사용하며 Web source는 이를 import할 수 없다. 구성된 bucket allowlist의 실제 bucket이 모두 private인지 provider에서 확인한 뒤에만 객체를 cursor pagination으로 열거하고, 상대경로 검증·무덮어쓰기 upload·재다운로드 SHA-256 검증을 수행한다. 복구 orchestration은 DB dump evidence와 Storage manifest를 하나의 backup set으로 묶고, 전체 backup artifact를 쓰기 전에 검증하며 원본과 다른 빈 격리 target만 허용한다. 부분 provider failure가 발생한 target은 자동 삭제·재사용하지 않고 증거 보존 후 폐기 대상으로 처리한다. Worker readiness는 DB와 Private Storage concrete capability가 모두 성공해야 `ready`이며 환경변수만으로 준비 상태를 선언하지 않는다.
 
+R05는 Web의 `database`/`request-auth`/`offline-sync`와 Worker의 `database`/`private-storage`를 번역된 라벨이 아닌 다섯 stable deployment component ID로 통합한다. Worker DB는 별도 `NOINHERIT` login이 `youone_privileged_writer`만 SET할 수 있고 table 직접권한·소유권·RLS bypass가 없으며 exact Outbox capability와 clean context를 갖는지 실제 connection에서 확인한다. Staging runner는 HTTPS non-production label, Preview 금지, exact commit SHA를 요구하고 live readiness와 필수 보안/업무/PWA/복구 matrix의 digest가 모두 있을 때만 versioned evidence를 `READY`로 만든다. 누락 자격증명은 `BLOCKED`, live probe/검증 실패는 `NOT_READY`이며 비밀·URL·object key·payload는 evidence slot 자체가 없다.
+
 ## 10. 배포 구조
 
 ### 초기 권장

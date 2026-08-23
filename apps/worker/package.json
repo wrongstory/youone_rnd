@@ -7,9 +7,11 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
+    "staging:e2e": "tsx src/staging-e2e.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@youone/infra-postgres": "workspace:*",
     "@youone/infra-supabase-storage": "workspace:*"
   }
 }
