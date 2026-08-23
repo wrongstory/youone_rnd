@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { previewDataEnabled } from "../composition/preview-mode";
+import { AppShell } from "../interface/app-shell";
 import { ServiceWorkerRegistration } from "../interface/pwa/service-worker-registration";
 
 import "./styles.css";
@@ -13,14 +15,14 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f4c5c"
+  themeColor: "#173c45"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ko">
       <body>
-        {children}
+        <AppShell previewEnabled={previewDataEnabled()}>{children}</AppShell>
         <ServiceWorkerRegistration />
       </body>
     </html>
