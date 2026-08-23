@@ -138,10 +138,9 @@ databaseDescribe.sequential("R03 reviewed offline handler PostgreSQL boundary", 
        select '17000000-0000-4000-8000-000000000206','${role}',id,'2026-01-01','${internal}','R03_FIXTURE' from public.permission where stable_code='inspection.record.inspect';
       insert into public.role_permission_assignment(id,role_id,permission_id,valid_from,granted_by_user_id,grant_reason_code)
        select '17000000-0000-4000-8000-000000000207','${role}',id,'2026-01-01','${internal}','R03_FIXTURE' from public.permission where stable_code='safety.inspection.perform';
-      insert into public.position(id,stable_code,approval_capability,approval_rank,status) values
-       ('17000000-0000-4000-8000-000000000208','POSITION_LAB_DIRECTOR','OFFICIAL',100,'ACTIVE');
-      insert into public.user_position_assignment(id,user_id,position_id,valid_from,is_primary,granted_by_user_id,grant_reason_code) values
-       ('17000000-0000-4000-8000-000000000209','${internal}','17000000-0000-4000-8000-000000000208','2026-01-01',true,'${internal}','R03_FIXTURE');
+      insert into public.user_position_assignment(id,user_id,position_id,valid_from,is_primary,granted_by_user_id,grant_reason_code)
+       select '17000000-0000-4000-8000-000000000209','${internal}',id,'2026-01-01',true,'${internal}','R03_FIXTURE'
+       from public.position where stable_code='POSITION_LAB_DIRECTOR';
       insert into public.vendor(id,vendor_code,legal_name,status) values('${vendor}','R03_VENDOR','R03 Vendor','ACTIVE');
       insert into public.vendor_user(id,vendor_id,user_id,status,valid_from,granted_by_user_id,grant_reason_code) values
        ('${vendorMembership}','${vendor}','${vendorActor}','ACTIVE','2026-01-01','${internal}','R03_FIXTURE');
