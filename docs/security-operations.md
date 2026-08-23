@@ -27,6 +27,8 @@ Supabase service operations are server-only and are not authorized by a route fl
 
 Service-role credentials remain isolated from request/UI imports. Provider SDK absence must produce an unavailable readiness component, not a permissive fallback.
 
+Private Storage backup/restore uses the separate Worker-only service entry point. It accepts only a configured private-bucket allowlist, verifies each bucket's live `public=false` setting, rejects unsafe/absolute/traversal keys, paginates all objects and never creates a public URL. Restore requires a different Storage instance and an empty configured target, validates every artifact byte before the first write, uploads with provider overwrite disabled, then re-downloads and hashes the complete target. A partial provider failure makes the isolated target unusable; it is not automatically deleted or retried over because that would erase recovery evidence.
+
 ## 4. Health, logging and alerting contract
 
 - `GET /api/health/live` answers only whether the web process is alive.
@@ -63,7 +65,7 @@ Recovery rehearsal:
 8. Record operator, start/end time, backup ID, target, results, exceptions and approval as append-only recovery evidence.
 9. Destroy the isolated rehearsal target only after evidence is retained.
 
-CI performs a clean migration/upgrade and full PostgreSQL dump/restore rehearsal. A staging drill with the actual Supabase Storage adapter remains mandatory before production activation.
+CI performs a clean migration/upgrade and full PostgreSQL dump/restore rehearsal. R04 also exercises the concrete Supabase SDK boundary through a deterministic provider contract and performs a manifest-backed byte-for-byte Storage backup/restore rehearsal against isolated fake instances. A staging drill with actual Supabase projects and retained operator evidence remains mandatory before production activation.
 
 ## 7. Incident actions
 
@@ -102,6 +104,12 @@ R01 unit and PostgreSQL 16 CI tests cover unsafe superuser and extra-role member
 The repository contains a concrete publishable-key Supabase request adapter with disabled persistence/refresh, bounded provider calls and explicit-token `getUser + getClaims`. Trusted ActorContext creation now passes the verified `session_id` into a separate least-privileged Identity Resolver pool. The resolver returns identity only when `auth.sessions.id` belongs to the exact verified subject, and fails closed if the provider session capability is absent or incompatible. Auth readiness requires both a non-redirected GoTrue health response and the resolver capability probe; a configured URL/key or an unrelated HTTP 200 alone is never ready. Browser `NEXT_PUBLIC_SUPABASE_URL` and server `SUPABASE_URL` must identify the same project and are checked during deployment review; server readiness never trusts the browser-visible setting as its authority. Cached server adapters are configuration-bound and fail closed if a running process observes changed connection or tenant settings, requiring a controlled restart after secret/configuration rotation.
 
 The request-verification portion is implemented, but Staging live-login/logout evidence remains required. Account disable/revoke orchestration is intentionally not mapped to Supabase ban or delete: ban leaves existing sessions active and delete is not reversible disablement. Until `OD-036` selects a supported revoke-by-user operation, the service adapter remains unavailable and the related production activation blocker stays open.
+
+### 8.3 R04 Private Storage and recovery implementation status
+
+The repository contains a Worker-only Supabase Storage SDK adapter with a bounded provider client, explicit service-role-key validation, configuration-bound private bucket allowlist and live `public=false` capability probe. Cursor pagination, provider key validation, byte download, existence check and `upsert=false` upload are concrete. The recovery coordinator creates exact size/SHA-256 evidence for every object, validates all artifacts before the first restore write, rejects the source instance and non-empty targets, re-downloads restored objects and calls the versioned manifest verifier. Worker readiness now reports separate database and private-storage components and stays `not_ready` when either concrete probe is missing or fails.
+
+This closes the repository-code portion only. The production blocker remains open until two actual non-production Supabase projects complete the same no-public-object restore drill, the resulting evidence is retained, and the R05 Staging E2E gate accepts it. Backup destination, schedule, retention, RPO/RTO and responsible owners remain governed by open `OD-035`; the code does not invent those production values.
 
 ## 9. Release evidence packet
 

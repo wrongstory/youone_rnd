@@ -141,6 +141,7 @@ composition root → infrastructure adapters
 - ESLint boundary 규칙과 `tests/architecture`가 금지 import와 SDK 누수를 검사한다.
 - 다른 package는 `package.json`의 공개 export만 사용할 수 있고 `src/**` deep import는 금지한다.
 - `infrastructure/postgres`는 verified-subject bootstrap용 `./identity-resolver`, 업무 request용 `./request`, background job용 `./worker` export를 분리한다. Identity resolver와 worker 자격증명을 web interface에 주입하지 않는다.
+- `infrastructure/supabase-storage`는 일반 File port용 `./public`과 service-role backup/restore용 `./service` export를 분리한다. `./service`는 Worker에서만 조합하고 Web source에서 import하지 않는다.
 
 ## 5. App Router 구조
 

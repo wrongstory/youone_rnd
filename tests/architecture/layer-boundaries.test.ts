@@ -139,7 +139,8 @@ function validatePackageImport(source: Boundary, specifier: string): string | un
     suffix &&
     suffix !== "/public" &&
     !(dependencyName === "@youone/infra-postgres" && ["/identity-resolver", "/offline-sync", "/request", "/worker"].includes(suffix)) &&
-    !(dependencyName === "@youone/infra-supabase-auth" && ["/request", "/service"].includes(suffix))
+    !(dependencyName === "@youone/infra-supabase-auth" && ["/request", "/service"].includes(suffix)) &&
+    !(dependencyName === "@youone/infra-supabase-storage" && suffix === "/service")
   ) {
     return `${source.name} deep-imports ${specifier}`;
   }
@@ -197,6 +198,12 @@ describe("workspace package inventory", () => {
           ".": "./src/index.ts",
           "./public": "./src/public.ts",
           "./request": "./src/request.ts",
+          "./service": "./src/service.ts"
+        });
+      } else if (boundary.name === "@youone/infra-supabase-storage") {
+        expect(packageJson.exports).toEqual({
+          ".": "./src/index.ts",
+          "./public": "./src/public.ts",
           "./service": "./src/service.ts"
         });
       } else {
@@ -367,6 +374,17 @@ describe("web and worker composition isolation", () => {
       const path = normalized(relative(root, file));
       return importSpecifiers(readFileSync(file, "utf8"))
         .filter((specifier) => specifier === "@youone/infra-supabase-auth/service")
+        .map((specifier) => `${path} imports ${specifier}`);
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("keeps privileged Supabase Storage service adapters out of the Web runtime", () => {
+    const violations = sourceFiles(resolve(root, "apps/web/src")).flatMap((file) => {
+      const path = normalized(relative(root, file));
+      return importSpecifiers(readFileSync(file, "utf8"))
+        .filter((specifier) => specifier === "@youone/infra-supabase-storage/service")
         .map((specifier) => `${path} imports ${specifier}`);
     });
 

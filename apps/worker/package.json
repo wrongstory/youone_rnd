@@ -8,5 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@youone/infra-supabase-storage": "workspace:*"
   }
 }
