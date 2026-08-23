@@ -191,7 +191,8 @@ describe("workspace package inventory", () => {
           "./identity-resolver": "./src/identity-resolver.ts",
           "./offline-sync": "./src/offline-sync.ts",
           "./request": "./src/request.ts",
-          "./worker": "./src/worker.ts"
+          "./worker": "./src/worker.ts",
+          "./worker-pool": "./src/node-worker-pool.ts"
         });
       } else if (boundary.name === "@youone/infra-supabase-auth") {
         expect(packageJson.exports).toEqual({
@@ -331,7 +332,7 @@ describe("web and worker composition isolation", () => {
 
       for (const specifier of importSpecifiers(source)) {
         if (
-          specifier === "@youone/infra-postgres/worker" ||
+          specifier.startsWith("@youone/infra-postgres/worker") ||
           specifier.startsWith("@youone/worker")
         ) {
           violations.push(`${path} imports ${specifier}`);

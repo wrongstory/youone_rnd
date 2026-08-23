@@ -104,6 +104,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@youone/infra-postgres':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure/postgres
       '@youone/infra-supabase-storage':
         specifier: workspace:*
         version: link:../../packages/infrastructure/supabase-storage
