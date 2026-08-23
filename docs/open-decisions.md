@@ -13,6 +13,8 @@ Blocking levels:
 
 - `GATE_BLOCKER`: blocks any product implementation.
 - `P0_SCHEMA_BLOCKER`: blocks physical schema/migration for the affected P0 module.
+- `RELEASE_BLOCKER`: blocks production activation or release promotion until resolved.
+- `P1_DEVELOPMENT_GATE`: blocks all P1 package, table, route, menu and migration implementation.
 - `FEATURE_BLOCKER`: blocks only the named feature or production activation.
 - `NON_BLOCKING_CONFIG`: safe to postpone if the system stores a configuration point and no invented default.
 
@@ -56,6 +58,7 @@ Blocking levels:
 | `OD-034-TECHCOPY-PREHANDOVER-DISPOSITION` | Define the canonical custody event and disposition for an already rendered/printed copy when recipient membership or Project/Contract Scope is lost before handover | `OPEN` | `NON_BLOCKING_CONFIG`; handover remains blocked and the artifact stays in internal custody | Security owner, Lab Director, records-policy owner | M14 revalidates recipient Scope at handover, records the denial, and does not invent a new state/event. The internally held artifact cannot be handed over, deleted, or marked returned/destroyed without a canonical policy action. |
 | `OD-035-PRODUCTION-OPERATIONS` | Approve production RPO/RTO, DB and Storage backup frequency/retention, monitoring destinations, incident owners and recovery approval authority | `OPEN` | `FEATURE_BLOCKER` for production activation; not a blocker for repository M16 verification | Management, security and operations owners plus staging drill evidence | Keep readiness fail-closed, version the backup manifest, rehearse isolated restore in CI/staging and do not invent production intervals or owners. |
 | `OD-036-SUPABASE-SESSION-REVOKE` | Select a supported non-destructive Supabase revoke-all-sessions-by-user operation for audited account disable workflow | `OPEN` | `RELEASE_BLOCKER` | Security owner + Supabase capability review | Ban does not revoke existing sessions; delete is not reversible disablement; DB disable and active-session checks remain fail-closed. |
+| `OD-037-P1-DEVELOPMENT-GATE` | Confirm P1 module depth, cross-feature offline/notification/form scope, merge order and implementation start | `WAITING_USER` | `P1_DEVELOPMENT_GATE` | User review of `P1-SCOPE-V0.1` and `DELIVERY-PLAN-P1-V0.1` | P1 planning and delta audit only; do not create P1 package/table/route/menu/migration before approval and P0 release promotion. |
 
 ## Decisions Already Fixed and Not Open
 
