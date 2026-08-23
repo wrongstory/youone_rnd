@@ -46,7 +46,7 @@
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE` (P0 `M00`~`M16`과 Release Gate #36 R01/R02-1이 `dev`에 병합 완료. P0 운영출시 트랙은 R02 잔여 및 R03~R06이 남아 있고, P1은 범위·로드맵 검토 단계로 아직 Development Gate 미승인).
+`IMPLEMENTATION_ACTIVE` (P0 `M00`~`M16`과 Release Gate #36 R01/R02-1이 `dev`에 병합 완료. P0 운영출시 트랙은 R02 잔여 및 R03~R06이 남아 있다. P1 권장 범위·로드맵은 승인됐지만 P0 릴리즈와 P1 설계 Gate 전에는 제품 코드를 시작하지 않는다).
 
 Google Drive 프로젝트 문서 `00`~`15`와 상위 사내규정 3종을 읽고 1차 정본 설계문서를 작성했다. 사용자가 2026-08-21 (Asia/Seoul) Development Gate와 확정된 P0 범위 및 프로젝트 구조에 따라 개발 착수를 승인했다. `M00` ADR과 `M01` 스캐폴딩은 PR #19로 `main`에 병합됐다.
 
@@ -82,7 +82,9 @@ Release Gate #36 R01은 `pg` 기반 concrete request pool과 Web composition을 
 
 Release Gate #36 R02 request Auth는 `@supabase/supabase-js`를 request adapter 안에만 두고 publishable key, session persistence/refresh 비활성화, explicit-token `getUser + getClaims`, bounded health probe를 적용한다. `ActorContextSource`는 verified subject와 provider `session_id`를 함께 받아 별도 최소권한 `youone_identity_resolver` pool에서 `auth.sessions` exact subject/session 활성행을 확인한 뒤에만 DB identity snapshot을 반환한다. Auth readiness는 provider와 resolver capability가 모두 성공해야 한다. Supabase ban은 기존 session revoke가 아니고 delete는 비활성화와 다르므로 임의 매핑하지 않았으며, non-destructive revoke-by-user 수단은 `OD-036` release blocker로 남겼다.
 
-P1 계획 초안 `DELIVERY-PLAN-P1-V0.1`과 `P1-SCOPE-V0.1`을 작성하고 GitHub 이슈 #39에서 추적한다. P1 후보는 기존 결정대로 BOM, 연구장비·교정, 안전관리 확장, 연구수당, 권한필터 통합검색이다. P0 Release Gate `#36` 완료와 `dev → main` P0 승격, 사용자 범위 선택 및 P1 Development Gate 승인 전에는 P1 제품 코드나 migration을 만들지 않는다.
+Release Gate #36 R03은 `ADR-010`에 따라 다섯 offline command의 exact schema와 실제 PostgreSQL Application handler를 조합한다. SafetyChecklistDraft, InspectionAttemptDraft, FieldNoteDraft, FieldRecordDraft는 공식 증거와 분리된 typed/normalized aggregate이고 INTERNAL 전용이다. WBS progress만 exact assigned VendorUser와 활성 Membership/Project grant에서 허용하며 `IN_PROGRESS`의 `0..99` 갱신만 수행한다. Web은 32,768 UTF-8 byte에서 스트림을 중단하고, 동일 command ID 동시 요청은 transaction advisory lock으로 직렬화한다. command 등록, 업무 write, 상태전이, 감사, 최소 outbox, terminal result/conflict는 동일 request PostgreSQL transaction에서 commit/rollback되며 DB의 다섯 함수 capability probe까지 성공해야 offline-sync readiness가 ready가 된다.
+
+P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이슈 #39 및 PR #40으로 승인·병합됐다. P1은 BOM, 연구장비·교정, 안전관리 확장, 연구수당, 권한필터 통합검색을 권장 깊이와 순서로 진행한다. 다만 P0 Release Gate `#36` 완료와 `dev → main` P0 승격, P1 논리 ERD·권한·상태머신 검토 및 별도 Development Gate 승인 전에는 P1 제품 코드나 migration을 만들지 않는다.
 
 로컬 화면 검토는 서버 전용 `YOUONE_PREVIEW_DATA=enabled`에서만 샘플 결재·문서·프로젝트/WBS·계약·검수·NCR/CAR·ECR/ECO·구매·R&D·연구노트·안전 목록과 상세를 제공한다. 화면마다 데모임을 명시하며 실제 저장·결재·지급 기록으로 표시하지 않는다. 플래그가 없으면 기존 조회 어댑터가 fail-closed `UNAVAILABLE`을 유지하고, 외주 안전 projection에는 금액·지급·내부 책임검토 필드를 추가하지 않는다. R&D preview/API는 내부 전용이며 Vendor query는 Preview에서도 `FORBIDDEN`을 유지한다.
 
@@ -101,9 +103,9 @@ P1 계획 초안 `DELIVERY-PLAN-P1-V0.1`과 `P1-SCOPE-V0.1`을 작성하고 GitH
 - ECO 결재의 반려·회수·취소 이후 canonical 상태전이는 `OD-033`으로 남긴다. M10은 결재결과 증거만 보존하고 상태를 임의 전이하지 않는다.
 - 렌더링/출력 후 인계 전 수령인 Scope가 상실된 통제사본의 정식 처분 이벤트는 `OD-034`로 남긴다. M14는 인계를 차단하고 실패 감사를 남기며, 내부 보관물을 임의 상태전이·삭제하지 않는다.
 - 실제 회사 양식 업로드 전에는 범용 버전형 템플릿만 설계하고 인쇄 레이아웃을 추정하지 않는다.
-- 운영 DB와 request Auth/Identity Resolver의 concrete 코드 composition은 R01/R02에서 구현됐지만 실제 Staging 최소권한 LOGIN, live Supabase session, readiness 증적은 아직 없다. `OD-036` provider session revoke, offline command handler, Storage adapter 및 staging 복구훈련과 함께 `docs/security-operations.md`의 activation blocker를 모두 닫아야 한다.
+- 운영 DB, request Auth/Identity Resolver와 offline handler의 concrete composition은 R01~R03에서 구현됐지만 실제 Staging 최소권한 LOGIN, live Supabase session, migration capability/readiness 증적은 아직 없다. `OD-036` provider session revoke, Storage adapter 및 staging 복구훈련과 함께 `docs/security-operations.md`의 activation blocker를 모두 닫아야 한다.
 - 운영 RPO/RTO, 백업 주기·보존기간, 모니터링 대상, 사고대응 담당자와 복구 승인권자는 `OD-035`이며 기간이나 담당자를 임의로 정하지 않는다.
-- P1 세부 범위와 착수는 `OD-037` 및 `docs/p1-scope-checklist.md`에서 사용자 승인을 기다린다.
+- P1 권장 세부 범위와 로드맵은 승인됐다. `OD-037`의 남은 차단조건은 P0 릴리즈, P1 논리 ERD/권한/상태머신 검토와 P1 Development Gate다.
 
 ## Development Gate
 
@@ -130,5 +132,6 @@ P1 계획 초안 `DELIVERY-PLAN-P1-V0.1`과 `P1-SCOPE-V0.1`을 작성하고 GitH
 17. `M16`: trusted request/authorization/evidence/business boundary 보강, 통합 security/recovery CI와 production activation blocker 정리 및 PR #35 `dev` 병합 완료.
 18. `R01`: concrete least-privileged PostgreSQL request pool/composition, transaction-local request role, live readiness와 connection-reuse 검증 구현. Staging 증적은 별도 activation gate로 유지.
 19. `R02`: Supabase request Auth와 active-session request 경계는 PR #38로 `dev` 병합 완료. audited account disable/provider revoke와 Staging 증적은 잔여.
-20. `R03`~`R06`: offline handler, Private Storage/복구, readiness/Staging E2E, 운영정책·릴리즈 증거 순서로 P0 Release Gate 완료.
-21. P1: `P1-SCOPE-V0.1` 사용자 검토와 `DELIVERY-PLAN-P1-V0.1` Gate 승인 후에만 `P1-M00`부터 착수.
+20. `R03`: 다섯 offline handler, typed draft/WBS progress, 동일 transaction·Scope/RLS·conflict·audit 구현.
+21. `R04`~`R06`: Private Storage/복구, readiness/Staging E2E, 운영정책·릴리즈 증거 순서로 P0 Release Gate 완료.
+22. P1: 승인된 `P1-SCOPE-V1.0`을 기준으로 P0 릴리즈 및 P1 설계/Development Gate 통과 후에만 `P1-M00`부터 착수.

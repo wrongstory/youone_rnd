@@ -1276,6 +1276,8 @@ The typed Approval subject repeats the exact request tuple through a composite F
 
 M15 physically adds `OFFLINE_COMMAND_TYPE_DEFINITION`, immutable `OFFLINE_COMMAND`, one terminal `OFFLINE_COMMAND_RESULT`, immutable `SYNC_CONFLICT`, and append-only terminal `SYNC_CONFLICT_RESOLUTION`. The command row stores canonical minimized JSON and a DB-recomputed SHA-256, exact actor IDs and a one-way session binding; raw bearer/session credentials are not columns. Conflict rows use a composite FK back to the exact command type, aggregate, base version and local payload hash, and keep the safe server projection separately. Request-role RLS exposes only the authenticated command owner and all writes go through guarded functions; direct table mutation and last-write-wins are unavailable.
 
+R03 adds normalized `SAFETY_CHECKLIST_DRAFT`/item, `INSPECTION_ATTEMPT_DRAFT`/criterion, `FIELD_NOTE_DRAFT`, and `FIELD_RECORD_DRAFT`/measurement tables. Draft roots carry exact source/project/creator, constrained `DRAFT` state and optimistic version; child values are typed rows rather than a generic JSON aggregate. The fifth handler updates only the typed WBS progress column. All five command functions bind their arguments back to the immutable offline payload, enforce current authorization and exact Scope under FORCE RLS, and commit the aggregate write with transition, audit, outbox and offline terminal evidence atomically.
+
 ## 10. Required Physical Constraints
 
 To be defined in migrations after approval:

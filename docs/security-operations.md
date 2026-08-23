@@ -12,7 +12,7 @@ Passing repository tests does not itself authorize production activation. The cu
 - A server verifier must validate the Supabase user and claims and must receive a provider-issued non-empty `session_id`. The separate Identity Resolver must also match that ID to the same subject in the current `auth.sessions` record on every request. Subject-derived session fallback is prohibited. Provider errors, revoked users, malformed expiry, missing/cross-subject sessions and unavailable session capability fail closed.
 - The server reloads the active `UserAccount`, effective assignments, VendorMembership and typed Scope at request time. Acting authority is an explicit UUID selection and is revalidated; Vendor actors cannot select it.
 - Caller correlation IDs are restricted to a short safe character set. Invalid values are replaced. The returned `X-Correlation-Id` links HTTP, Application, database audit and operational logs.
-- Offline command bodies must be `application/json`, at most 64 KiB, structurally allowlisted, canonical-hash verified and bound to the current actor/session. Online-only commands remain rejected.
+- Offline command bodies must be `application/json`, at most 32,768 UTF-8 bytes, structurally allowlisted, canonical-hash verified and bound to the current actor/session. Online-only commands remain rejected.
 - Reviewed Application handlers must exist for each enabled offline command and must recheck authorization, exact Scope, aggregate state, preconditions and optimistic version. No generic “mark applied” fallback is permitted.
 
 ## 3. Privileged provider boundary
@@ -80,7 +80,7 @@ CI performs a clean migration/upgrade and full PostgreSQL dump/restore rehearsal
 |---|---|
 | Concrete least-privileged PostgreSQL pool/composition lacks Staging proof | Reviewed request adapter, transaction-local ActorContext/RLS tests and staging readiness `ready` |
 | Concrete Supabase request Auth/active-session composition lacks Staging proof | Live user+claims+exact active-session verification, logout/revocation and expiry tests |
-| Reviewed handlers for the five offline command types are not composed | Per-command authorization/Scope/state/version/conflict integration tests |
+| Five reviewed offline handlers lack deployed Staging proof | Per-command authorization/Scope/state/version/conflict integration tests and handler capability readiness |
 | Live WBS adapter mapping is absent | `projectScopeProjectId`, valid-from and valid-until loaded from trusted ProjectScope, never from the command |
 | Actual Supabase private Storage backup/restore is not drilled | Manifest-backed staging restore evidence and no-public-object test |
 | Production RPO, RTO, backup retention, monitoring destinations and incident owners are unapproved | Approved `OD-035` operations policy version |
@@ -89,11 +89,13 @@ CI performs a clean migration/upgrade and full PostgreSQL dump/restore rehearsal
 
 These blockers prevent production activation, but do not cause the repository to invent credentials, provider behavior, company policy values or unsafe placeholder handlers.
 
+The R03 repository implementation closes the code-composition portion of the five-handler blocker: four internal-only typed draft handlers and the exact assigned WBS progress handler run through the same trusted PostgreSQL transaction as command registration and terminal evidence. Same-ID concurrent replay is serialized with a transaction-scoped advisory lock; stale versions produce safe immutable conflicts and authorization/state failures remain stable denials. Production activation still requires the PostgreSQL CI matrix and retained Staging readiness evidence against the deployed migration.
+
 ### 8.1 R01 request PostgreSQL implementation status
 
 The repository now contains the concrete `pg` request pool, trusted Web composition and live database readiness probe. The adapter requires a deployment-provisioned login that is `NOINHERIT`, `NOBYPASSRLS`, non-superuser and permitted to `SET ROLE youone_request` but no other role; `youone_request` itself stays `NOLOGIN`. It verifies the effective role and `row_security=on`, rejects dirty transaction-local actor context, uses bounded connection/query/statement/idle/idle-in-transaction timeouts and pool size, requires certificate-verifying TLS in production, rejects URL options that could override trusted TLS/timeouts, and destroys a connection that fails the boundary check. Connections with uncertain commit/rollback cleanup are also destroyed instead of returned to the pool, while idle-client failures are handled as stable secretless operational events. The trusted request UnitOfWork applies the role and RLS setting with `SET LOCAL` before ActorContext.
 
-R01 unit and PostgreSQL 16 CI tests cover unsafe superuser and extra-role membership rejection, uncertain rollback destruction, plus actor-context cleanup after both commit and rollback on a reused physical connection. This closes the repository-code portion only. The first blocker remains open until an actual Staging secret provisions the same least-privileged login and the database readiness component returns `ready` with retained review evidence. Overall readiness remains `503` until R02 Staging Auth/Identity Resolver and reviewed offline handlers are all present.
+R01 unit and PostgreSQL 16 CI tests cover unsafe superuser and extra-role membership rejection, uncertain rollback destruction, plus actor-context cleanup after both commit and rollback on a reused physical connection. This closes the repository-code portion only. The first blocker remains open until an actual Staging secret provisions the same least-privileged login and the database readiness component returns `ready` with retained review evidence. R03 provides the reviewed offline handlers in the repository; overall production readiness still requires deployed R02 Auth/Identity Resolver and R03 handler-capability evidence.
 
 ### 8.2 R02 request Auth and active-session implementation status
 

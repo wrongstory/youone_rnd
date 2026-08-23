@@ -5,8 +5,8 @@ import { TrustedActorContextFactory, type ActorContextSource, type TrustedActorC
 import type { AuthSessionVerifier, IdentitySnapshot } from "../../packages/core/identity/src/public.js";
 import {
   OFFLINE_COMMAND_TYPES, ONLINE_ONLY_COMMAND_TYPES, OfflineCommandBindingError, OfflineCommandIdempotencyError,
-  OfflineCommandOnlineOnlyError, OfflineSyncService, minimizedJson, parseOfflineCommand,
-  type OfflineCommandEnvelope, type OfflineCommandHandler, type OfflineSyncTransaction, type SyncCommandResult,
+  OfflineCommandOnlineOnlyError, OfflineCommandValidationError, OfflineSyncService, createOfflineCommandHandlers, minimizedJson, parseOfflineCommand,
+  type OfflineApplicationCommandResult, type OfflineCommandEnvelope, type OfflineSyncTransaction, type SyncCommandResult,
   type SyncConflictRecord, type TerminalSyncCommandResult
 } from "../../packages/core/sync/src/public.js";
 import { correlationId, sha256, utcInstant, uuid, version, type Sha256, type Uuid } from "../../packages/shared-kernel/src/public.js";
@@ -36,23 +36,30 @@ function command(overrides: Record<string, unknown> = {}): OfflineCommandEnvelop
   return parseOfflineCommand({
     commandId, commandType: "CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT",
     actorBinding: { authenticatedActorId: actorId, effectiveActorId: actorId, sessionBindingHash: sessionHash },
-    aggregate: { aggregateType: "INSPECTION", aggregateId }, baseVersion: 3, schemaVersion: 1,
-    createdAt: now, payloadHash, payload: { answers: [{ itemId: "A", checked: true }], note: "현장 점검" }, ...overrides
+    aggregate: { aggregateType: "SAFETY_CHECKLIST_DRAFT", aggregateId }, baseVersion: 3, schemaVersion: 1,
+    createdAt: now, payloadHash, payload: { safetyInspectionId: aggregateId, note: "현장 점검", items: [{ itemId: conflictId, sequenceNo: 1, criterionCode: "SAFETY.CABLE", criterionText: "케이블 상태", verdict: "PASS", observation: "정상" }] }, ...overrides
   });
 }
 
 class MemoryTransaction implements OfflineSyncTransaction {
   readonly commands = new Map<Uuid, { payloadHash: Sha256; result?: TerminalSyncCommandResult }>();
   readonly conflicts: SyncConflictRecord[] = [];
+  outcome: OfflineApplicationCommandResult = { result: "APPLIED", aggregateVersion: version(4) };
+  applicationExecutions = 0;
   async findRecordedCommand(id: Uuid) { const row=this.commands.get(id); return row?.result ? { payloadHash: row.payloadHash, result: row.result } : null; }
   async recordCommand(input: OfflineCommandEnvelope) { this.commands.set(input.commandId,{ payloadHash: input.payloadHash }); }
   async recordResult(result: TerminalSyncCommandResult) { const row=this.commands.get(result.commandId); if(!row) throw new Error("missing command"); row.result=result; }
   async recordConflict(conflict: SyncConflictRecord) { this.conflicts.push(conflict); }
+  async upsertSafetyChecklistDraft() { this.applicationExecutions++; return this.outcome; }
+  async upsertInspectionAttemptDraft() { this.applicationExecutions++; return this.outcome; }
+  async upsertFieldNoteDraft() { this.applicationExecutions++; return this.outcome; }
+  async updateWbsNodeProgress() { this.applicationExecutions++; return this.outcome; }
+  async upsertFieldRecordDraft() { this.applicationExecutions++; return this.outcome; }
 }
 
-function service(transaction: MemoryTransaction, handler: OfflineCommandHandler, verifiedPayloadHash: Sha256=payloadHash) {
+function service(transaction: MemoryTransaction, verifiedPayloadHash: Sha256=payloadHash) {
   return new OfflineSyncService(
-    { transact: async (work) => work(transaction) }, [handler],
+    { transact: async (_actor, work) => work(transaction) }, createOfflineCommandHandlers(),
     { payloadHash: async () => verifiedPayloadHash, actorSessionBindingHash: async () => sessionHash },
     { next: () => conflictId }
   );
@@ -70,33 +77,32 @@ describe("M15 offline sync core", () => {
   it("parses a safe envelope and emits deterministic compact JSON", () => {
     expect(command()).toMatchObject({ commandId, baseVersion: 3, schemaVersion: 1 });
     expect(minimizedJson({ z: 1, a: { y: true, x: "값" } })).toBe('{"a":{"x":"값","y":true},"z":1}');
-    expect(() => parseOfflineCommand({ ...command(), payload: { accessToken: "forbidden" } })).toThrow(/forbidden key/);
+    expect(() => parseOfflineCommand({ ...command(), payload: { ...command().payload, accessToken: "forbidden" } })).toThrow(OfflineCommandValidationError);
+    expect(() => parseOfflineCommand({ ...command(), commandId: "bad" })).toThrow(OfflineCommandValidationError);
   });
 
   it("rebinds the current trusted actor and current session before dispatch", async () => {
     const actor = await trustedActor(); const transaction = new MemoryTransaction();
-    const handler: OfflineCommandHandler = { commandType: "CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT", execute: async () => ({ result: "APPLIED", aggregateVersion: version(4) }) };
-    const result = await service(transaction,handler).execute(actor,command());
+    const result = await service(transaction).execute(actor,command());
     expect(result).toEqual({ result: "APPLIED", commandId, aggregateVersion: 4 });
-    await expect(service(new MemoryTransaction(),handler).execute(actor,command({ actorBinding: { authenticatedActorId: actorId, effectiveActorId: actorId, sessionBindingHash: sha256("d".repeat(64)) } }))).rejects.toBeInstanceOf(OfflineCommandBindingError);
+    await expect(service(new MemoryTransaction()).execute(actor,command({ actorBinding: { authenticatedActorId: actorId, effectiveActorId: actorId, sessionBindingHash: sha256("d".repeat(64)) } }))).rejects.toBeInstanceOf(OfflineCommandBindingError);
   });
 
   it("returns an idempotent replay without executing the handler twice", async () => {
-    const actor=await trustedActor(); const transaction=new MemoryTransaction(); let executions=0;
-    const handler: OfflineCommandHandler={ commandType:"CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT",execute:async()=>{executions++;return {result:"APPLIED",aggregateVersion:version(4)};} };
-    const sync=service(transaction,handler);
+    const actor=await trustedActor(); const transaction=new MemoryTransaction();
+    const sync=service(transaction);
     await sync.execute(actor,command());
     const duplicate=await sync.execute(actor,command());
     expect(duplicate).toMatchObject({result:"IDEMPOTENT_REPLAY",original:{result:"APPLIED",aggregateVersion:4}});
-    expect(executions).toBe(1);
+    expect(transaction.applicationExecutions).toBe(1);
     const changedHash=sha256("e".repeat(64));
-    await expect(service(transaction,handler,changedHash).execute(actor,command({payloadHash:changedHash,payload:{answers:[],note:"다른 내용"}}))).rejects.toBeInstanceOf(OfflineCommandIdempotencyError);
+    await expect(service(transaction,changedHash).execute(actor,command({payloadHash:changedHash,payload:{ safetyInspectionId: aggregateId, note:"다른 내용", items: [] }}))).rejects.toBeInstanceOf(OfflineCommandIdempotencyError);
   });
 
   it("preserves local and safe server versions as an open conflict without applying", async () => {
     const actor=await trustedActor(); const transaction=new MemoryTransaction();
-    const handler: OfflineCommandHandler={ commandType:"CMD-OFFLINE-CHECKLIST-DRAFT-UPSERT",execute:async()=>({result:"STALE_BASE_VERSION",serverVersion:version(5),safeServerProjection:{checklistState:"IN_PROGRESS"},safeServerProjectionHash:serverHash}) };
-    const result: SyncCommandResult=await service(transaction,handler).execute(actor,command());
+    transaction.outcome={result:"STALE_BASE_VERSION",serverVersion:version(5),safeServerProjection:{checklistState:"IN_PROGRESS"},safeServerProjectionHash:serverHash};
+    const result: SyncCommandResult=await service(transaction).execute(actor,command());
     if(result.result!=="SYNC_CONFLICT") throw new Error("expected conflict");
     expect(result.conflict).toMatchObject({baseVersion:3,serverVersion:5,state:"OPEN",localPayload:{note:"현장 점검"},safeServerProjection:{checklistState:"IN_PROGRESS"}});
     expect(transaction.conflicts).toHaveLength(1);

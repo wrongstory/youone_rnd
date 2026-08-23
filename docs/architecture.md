@@ -226,6 +226,8 @@ M16 request boundary는 Bearer session과 provider가 발급한 non-empty `sessi
 
 R02 request Auth는 SDK의 session persistence/refresh를 끄고 caller token을 `getUser(token)`과 `getClaims(token)`에 명시한다. Auth health와 별도 Identity Resolver pool/capability가 모두 성공할 때만 request-auth component가 ready다. 계정 비활성화 후 provider session revoke는 DB 상태·Audit·Outbox 우선의 Worker saga로 처리하되, Supabase ban이나 delete를 revoke-by-user로 간주하지 않는다. 지원 가능한 provider operation이 결정되기 전 `OD-036`과 production activation blocker는 열린 상태다.
 
+R03은 `ADR-010`의 exact schema를 가진 다섯 Application handler만 offline registry에 조합한다. `OfflineSyncService`는 trusted actor를 포함해 하나의 request PostgreSQL UnitOfWork를 열고, 그 transaction에 묶인 command application port를 handler에 전달한다. `offline_command` 등록, 업무 aggregate write, 상태전이, 업무 audit, 최소 outbox, terminal result/conflict는 같은 connection에서 commit 또는 rollback된다. Checklist/Inspection/FieldNote/FieldRecord는 별도 typed draft aggregate이며 공식 Safety item, sealed InspectionAttempt, ResearchNote를 오프라인에서 수정하지 않는다. 네 draft는 INTERNAL only이고 WBS progress만 exact assigned Vendor Scope를 허용한다. 다섯 handler 중 하나라도 없거나 DB capability probe가 실패하면 offline-sync readiness는 `not_ready`다.
+
 ## 10. 배포 구조
 
 ### 초기 권장

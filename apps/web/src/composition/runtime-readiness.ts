@@ -17,12 +17,14 @@ export type RuntimeCapabilities = Readonly<{
   requestDatabaseReasonCode?: string;
   requestAuth: boolean;
   requestAuthReasonCode?: string;
+  offlineSync: boolean;
+  offlineSyncReasonCode?: string;
 }>;
 
 export function getRuntimeReadiness(
   environment: Readonly<Record<string, string | undefined>>,
   syncEndpoint: OfflineSyncEndpoint | null,
-  capabilities: RuntimeCapabilities = { requestDatabase: false, requestAuth: false }
+  capabilities: RuntimeCapabilities = { requestDatabase: false, requestAuth: false, offlineSync: false }
 ): RuntimeReadiness {
   const components: ReadinessComponent[] = [
     environment.REQUEST_DATABASE_URL && capabilities.requestDatabase
@@ -43,9 +45,15 @@ export function getRuntimeReadiness(
             ? capabilities.requestAuthReasonCode ?? "REQUEST_AUTH_ADAPTER_NOT_CONFIGURED"
             : "REQUEST_AUTH_CONFIG_MISSING"
         },
-    syncEndpoint
+    syncEndpoint && capabilities.offlineSync
       ? { component: "offline-sync", status: "ready" }
-      : { component: "offline-sync", status: "not_ready", reasonCode: "SYNC_REQUEST_ADAPTER_NOT_CONFIGURED" }
+      : {
+          component: "offline-sync",
+          status: "not_ready",
+          reasonCode: syncEndpoint
+            ? capabilities.offlineSyncReasonCode ?? "SYNC_HANDLER_CAPABILITY_UNAVAILABLE"
+            : "SYNC_REQUEST_ADAPTER_NOT_CONFIGURED"
+        }
   ];
 
   return Object.freeze({

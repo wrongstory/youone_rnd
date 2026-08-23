@@ -1,9 +1,19 @@
 import {
+  createOfflineCommandHandlers,
+  minimizedJson,
+  OfflineSyncService,
   parseOfflineCommand,
-  type OfflineSyncService,
   type SyncCommandResult
 } from "@youone/core-sync/public";
-import { correlationId, uuid } from "@youone/shared-kernel/public";
+import {
+  createPostgresOfflineSyncUnitOfWork,
+  probePostgresOfflineSyncHandlers
+} from "@youone/infra-postgres/offline-sync";
+import { correlationId, sha256, uuid } from "@youone/shared-kernel/public";
+import { createHash, randomUUID } from "node:crypto";
+
+import { requestActorContextFactory } from "./request-auth";
+import { getRequestDatabaseComposition } from "./request-database";
 
 type TrustedSyncActor = Parameters<OfflineSyncService["execute"]>[0];
 
@@ -40,7 +50,7 @@ export class SyncRequestValidationError extends Error {
 
 const correlationPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const bearerPattern = /^Bearer ([^\s]{1,8192})$/;
-const maximumCommandBytes = 64 * 1024;
+const maximumCommandBytes = 32 * 1024;
 
 export function requestCorrelationId(request: Request): string {
   const supplied = request.headers.get("x-correlation-id")?.trim();
@@ -102,10 +112,7 @@ export function createOfflineSyncEndpoint(dependencies: Readonly<{
       if (!contentType.startsWith("application/json")) {
         throw new SyncRequestValidationError("application/json content is required");
       }
-      const rawBody = await request.text();
-      if (new TextEncoder().encode(rawBody).byteLength > maximumCommandBytes) {
-        throw new SyncRequestValidationError("offline command exceeds the request limit");
-      }
+      const rawBody = await readBoundedRequestBody(request, maximumCommandBytes);
       let input: unknown;
       try {
         input = JSON.parse(rawBody) as unknown;
@@ -120,9 +127,92 @@ export function createOfflineSyncEndpoint(dependencies: Readonly<{
   });
 }
 
+async function readBoundedRequestBody(request: Request, maximumBytes: number): Promise<string> {
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null) {
+    const parsedLength = Number(declaredLength);
+    if (!Number.isSafeInteger(parsedLength) || parsedLength < 0 || parsedLength > maximumBytes) {
+      throw new SyncRequestValidationError("offline command exceeds the request limit");
+    }
+  }
+  if (request.body === null) return "";
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maximumBytes) {
+        await reader.cancel("offline command exceeds the request limit");
+        throw new SyncRequestValidationError("offline command exceeds the request limit");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(body);
+  } catch {
+    throw new SyncRequestValidationError("offline command must be valid UTF-8 JSON");
+  }
+}
+
 export type OfflineSyncEndpoint = ReturnType<typeof createOfflineSyncEndpoint>;
 
-/** M16 wires the live Supabase/Postgres request adapters. Until then the endpoint fails closed. */
+/** Composes only reviewed live Auth, request-DB and exact five-handler adapters. */
 export function offlineSyncEndpoint(): OfflineSyncEndpoint | null {
-  return null;
+  try {
+    const actors = requestActorContextFactory();
+    const database = getRequestDatabaseComposition();
+    if (actors === null || database === null) return null;
+    const sync = new OfflineSyncService(
+      createPostgresOfflineSyncUnitOfWork(database.unitOfWork),
+      createOfflineCommandHandlers(),
+      {
+        async payloadHash(payload) {
+          return sha256(createHash("sha256").update(minimizedJson(payload), "utf8").digest("hex"));
+        },
+        async actorSessionBindingHash(actor) {
+          return sha256(createHash("sha256")
+            .update(`${actor.authenticatedActorId}:${actor.sessionId}`, "utf8")
+            .digest("hex"));
+        }
+      },
+      { next: () => uuid(randomUUID()) }
+    );
+    return createOfflineSyncEndpoint({
+      actors: new LiveTrustedSyncActorResolver(actors),
+      sync
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function probeOfflineSync(): Promise<Readonly<{
+  ready: boolean;
+  reasonCode?: "SYNC_HANDLER_CAPABILITY_UNAVAILABLE" | "SYNC_REQUEST_ADAPTER_NOT_CONFIGURED";
+}>> {
+  try {
+    const database = getRequestDatabaseComposition();
+    if (offlineSyncEndpoint() === null || database === null) {
+      return Object.freeze({ ready: false, reasonCode: "SYNC_REQUEST_ADAPTER_NOT_CONFIGURED" });
+    }
+    return await probePostgresOfflineSyncHandlers(database.pool)
+      ? Object.freeze({ ready: true })
+      : Object.freeze({ ready: false, reasonCode: "SYNC_HANDLER_CAPABILITY_UNAVAILABLE" });
+  } catch {
+    return Object.freeze({ ready: false, reasonCode: "SYNC_HANDLER_CAPABILITY_UNAVAILABLE" });
+  }
 }
