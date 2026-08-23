@@ -7,12 +7,13 @@ import { correlationId, uuid, version } from "../../packages/shared-kernel/src/p
 class RecordingConnection implements SqlConnection {
   public calls: Array<{ sql: string; parameters: readonly unknown[] }> = [];
   public released = false;
+  public destroyed = false;
   public nextResult: SqlQueryResult = { rows: [], rowCount: 0 };
   async query<Row extends object = Record<string, unknown>>(sql: string, parameters: readonly unknown[] = []): Promise<SqlQueryResult<Row>> {
     this.calls.push({ sql, parameters });
     return this.nextResult as SqlQueryResult<Row>;
   }
-  release(): void { this.released = true; }
+  release(destroy = false): void { this.released = true; this.destroyed = destroy; }
 }
 
 const actor: ActorEnvelope = {
@@ -45,5 +46,20 @@ describe("M02 PostgreSQL UnitOfWork", () => {
     const pool: SqlPool = { connect: async () => connection };
     await expect(new PostgresUnitOfWork(pool).execute(actor, (tx) => tx.optimisticUpdate("update x returning version_no", [], version(0))))
       .rejects.toBeInstanceOf(StaleVersionError);
+  });
+
+  it("destroys a connection when transaction cleanup is uncertain", async () => {
+    const connection = new RecordingConnection();
+    connection.query = async (sql, parameters = []) => {
+      connection.calls.push({ sql, parameters });
+      if (sql === "rollback") throw new Error("connection lost during rollback");
+      return connection.nextResult;
+    };
+    const pool: SqlPool = { connect: async () => connection };
+
+    await expect(new PostgresUnitOfWork(pool).execute(actor, async () => {
+      throw new Error("domain failure");
+    })).rejects.toThrow("transaction cleanup failed");
+    expect(connection.destroyed).toBe(true);
   });
 });

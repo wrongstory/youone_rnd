@@ -59,6 +59,10 @@ describe("M03 trusted request transaction", () => {
     const trusted = await new TrustedActorContextFactory(verifier, source, { now: () => untrusted.requestTime }).create("token", untrusted.correlationId, authorityId);
     await createTrustedRequestUnitOfWork(pool).execute(trusted, async () => "done");
 
+    const requestRoleIndex = calls.findIndex((call) => call.sql.includes("set local role youone_request"));
+    const actorContextIndex = calls.findIndex((call) => call.sql.includes("app.actor_user_id"));
+    expect(requestRoleIndex).toBeGreaterThan(-1);
+    expect(actorContextIndex).toBeGreaterThan(requestRoleIndex);
     expect(calls.some((call) => call.sql.includes("app.actor_user_id") && call.parameters[1] === actor().authenticatedActorId)).toBe(true);
     expect(calls.some((call) => call.sql.includes("app.request_time") && call.parameters[0] === actor().requestTime)).toBe(true);
     expect(calls.some((call) => call.sql.includes("app.session_id") && call.parameters[1] === "verified-session")).toBe(true);

@@ -13,6 +13,10 @@
     "@youone/core-authorization": "workspace:*",
     "@youone/core-audit": "workspace:*",
     "@youone/core-identity": "workspace:*",
-    "@youone/shared-kernel": "workspace:*"
+    "@youone/shared-kernel": "workspace:*",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
   }
 }

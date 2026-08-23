@@ -88,6 +88,12 @@ CI performs a clean migration/upgrade and full PostgreSQL dump/restore rehearsal
 
 These blockers prevent production activation, but do not cause the repository to invent credentials, provider behavior, company policy values or unsafe placeholder handlers.
 
+### 8.1 R01 request PostgreSQL implementation status
+
+The repository now contains the concrete `pg` request pool, trusted Web composition and live database readiness probe. The adapter requires a deployment-provisioned login that is `NOINHERIT`, `NOBYPASSRLS`, non-superuser and permitted to `SET ROLE youone_request` but no other role; `youone_request` itself stays `NOLOGIN`. It verifies the effective role and `row_security=on`, rejects dirty transaction-local actor context, uses bounded connection/query/statement/idle/idle-in-transaction timeouts and pool size, requires certificate-verifying TLS in production, rejects URL options that could override trusted TLS/timeouts, and destroys a connection that fails the boundary check. Connections with uncertain commit/rollback cleanup are also destroyed instead of returned to the pool, while idle-client failures are handled as stable secretless operational events. The trusted request UnitOfWork applies the role and RLS setting with `SET LOCAL` before ActorContext.
+
+R01 unit and PostgreSQL 16 CI tests cover unsafe superuser and extra-role membership rejection, uncertain rollback destruction, plus actor-context cleanup after both commit and rollback on a reused physical connection. This closes the repository-code portion only. The first blocker remains open until an actual Staging secret provisions the same least-privileged login and the database readiness component returns `ready` with retained review evidence. Overall readiness remains `503` while request Auth and reviewed offline handlers are absent.
+
 ## 9. Release evidence packet
 
 The release PR must attach the CI run for quality, M07–M16 PostgreSQL jobs, production build, PWA/mobile verification and this blocker table. Promotion from `dev` to `main` remains a separate user-approved release gate.

@@ -8,7 +8,7 @@ export interface SqlConnection {
     sql: string,
     parameters?: readonly unknown[]
   ): Promise<SqlQueryResult<Row>>;
-  release(): void;
+  release(destroy?: boolean): void;
 }
 
 export interface SqlPool {

@@ -57,6 +57,45 @@ jobs:
       - name: Verify workspace
         run: pnpm check
 
+  r01-request-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: youone_r01_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d youone_r01_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      R01_ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/youone_r01_test
+      R01_REQUEST_DATABASE_URL: postgresql://youone_request_login:request-test@localhost:5432/youone_r01_test
+      PSQL_BIN: psql
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/setup@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify request PostgreSQL runtime
+        run: pnpm exec vitest run tests/release-gate/r01-postgres.integration.test.ts
+
   m07-postgres:
     runs-on: ubuntu-latest
     services:

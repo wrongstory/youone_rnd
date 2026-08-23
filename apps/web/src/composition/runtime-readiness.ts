@@ -14,6 +14,7 @@ export type RuntimeReadiness = Readonly<{
 
 export type RuntimeCapabilities = Readonly<{
   requestDatabase: boolean;
+  requestDatabaseReasonCode?: string;
   requestAuth: boolean;
 }>;
 
@@ -25,7 +26,13 @@ export function getRuntimeReadiness(
   const components: ReadinessComponent[] = [
     environment.REQUEST_DATABASE_URL && capabilities.requestDatabase
       ? { component: "database", status: "ready" }
-      : { component: "database", status: "not_ready", reasonCode: environment.REQUEST_DATABASE_URL ? "REQUEST_DATABASE_ADAPTER_NOT_CONFIGURED" : "REQUEST_DATABASE_URL_MISSING" },
+      : {
+          component: "database",
+          status: "not_ready",
+          reasonCode: environment.REQUEST_DATABASE_URL
+            ? capabilities.requestDatabaseReasonCode ?? "REQUEST_DATABASE_ADAPTER_NOT_CONFIGURED"
+            : "REQUEST_DATABASE_URL_MISSING"
+        },
     environment.NEXT_PUBLIC_SUPABASE_URL && environment.NEXT_PUBLIC_SUPABASE_ANON_KEY && capabilities.requestAuth
       ? { component: "request-auth", status: "ready" }
       : { component: "request-auth", status: "not_ready", reasonCode: environment.NEXT_PUBLIC_SUPABASE_URL && environment.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "REQUEST_AUTH_ADAPTER_NOT_CONFIGURED" : "REQUEST_AUTH_CONFIG_MISSING" },

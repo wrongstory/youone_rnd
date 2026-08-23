@@ -17,8 +17,8 @@ import {
 } from "@youone/core-audit/public";
 import type { Version } from "@youone/shared-kernel/public";
 
-import type { SqlConnection, SqlPool, SqlQueryResult } from "./driver.js";
-import { StaleVersionError } from "./driver.js";
+import type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";
+import { StaleVersionError } from "./driver";
 
 const SET_TRANSACTION_CONTEXT = `
 select
@@ -30,6 +30,13 @@ select
   set_config('app.correlation_id', $6, true),
   set_config('app.causation_id', $7, true)
 `;
+
+const APPLY_REQUEST_ROLE = "set local role youone_request";
+const APPLY_ROW_SECURITY = "set local row_security = on";
+
+export type PostgresTransactionOptions = Readonly<{
+  principal?: "youone_request";
+}>;
 
 export interface PostgresTransactionScope extends TransactionScope {
   query<Row extends object = Record<string, unknown>>(
@@ -182,7 +189,10 @@ class PostgresTransaction implements PostgresTransactionScope {
 }
 
 export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> {
-  public constructor(private readonly pool: SqlPool) {}
+  public constructor(
+    private readonly pool: SqlPool,
+    private readonly options: PostgresTransactionOptions = {}
+  ) {}
 
   public async execute<Result>(
     actor: ActorEnvelope,
@@ -191,10 +201,16 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
     validateActorEnvelope(actor);
     const connection = await this.pool.connect();
     let began = false;
+    let destroyConnection = false;
+    let commitAttempted = false;
 
     try {
       await connection.query("begin");
       began = true;
+      if (this.options.principal === "youone_request") {
+        await connection.query(APPLY_REQUEST_ROLE);
+        await connection.query(APPLY_ROW_SECURITY);
+      }
       await connection.query(SET_TRANSACTION_CONTEXT, [
         actor.actorKind,
         actor.authenticatedActorId ?? "",
@@ -205,13 +221,29 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
         actor.causationId ?? ""
       ]);
       const result = await operation(new PostgresTransaction(connection, actor));
+      commitAttempted = true;
       await connection.query("commit");
+      began = false;
       return result;
     } catch (error) {
-      if (began) await connection.query("rollback");
+      if (!began) {
+        destroyConnection = true;
+        throw error;
+      }
+      if (commitAttempted) destroyConnection = true;
+      try {
+        await connection.query("rollback");
+        began = false;
+      } catch (rollbackError) {
+        destroyConnection = true;
+        throw new AggregateError(
+          [error, rollbackError],
+          "PostgreSQL transaction cleanup failed"
+        );
+      }
       throw error;
     } finally {
-      connection.release();
+      connection.release(destroyConnection || began);
     }
   }
 }
