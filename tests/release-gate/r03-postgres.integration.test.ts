@@ -223,7 +223,7 @@ databaseDescribe.sequential("R03 reviewed offline handler PostgreSQL boundary", 
       ${appliedResult(recordCommand, 1)} commit;`);
     expect(output.match(/APPLIED:\d/g)?.sort()).toEqual(["APPLIED:1", "APPLIED:1", "APPLIED:1", "APPLIED:1", "APPLIED:2"]);
     expect(run(`select (select count(*) from public.offline_command_result where offline_command_id=any(array['${safetyCommand}'::uuid,'${inspectionCommand}'::uuid,'${noteCommand}'::uuid,'${wbsCommand}'::uuid,'${recordCommand}'::uuid]))||':'||
-      (select count(*) from public.state_transition_log where aggregate_id=any(array['${safetyDraft}'::uuid,'${inspectionDraft}'::uuid,'${noteDraft}'::uuid,'${internalWbs}'::uuid,'${recordDraft}'::uuid]))||':'||
+      (select count(*) from public.state_transition_history where aggregate_id=any(array['${safetyDraft}'::uuid,'${inspectionDraft}'::uuid,'${noteDraft}'::uuid,'${internalWbs}'::uuid,'${recordDraft}'::uuid]))||':'||
       (select count(*) from public.outbox_event where aggregate_id=any(array['${safetyDraft}'::uuid,'${inspectionDraft}'::uuid,'${noteDraft}'::uuid,'${internalWbs}'::uuid,'${recordDraft}'::uuid]));`)).toBe("5:5:5");
     expect(run(`select count(*) from public.outbox_event where aggregate_id=any(array['${safetyDraft}'::uuid,'${inspectionDraft}'::uuid,'${noteDraft}'::uuid,'${internalWbs}'::uuid,'${recordDraft}'::uuid])
       and (payload ?| array['note','summary','criterionText','observation','observedValue','value','amount','termsText']);`)).toBe("0");
