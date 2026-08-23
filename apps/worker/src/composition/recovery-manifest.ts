@@ -23,6 +23,10 @@ export type RestoreEvidence = Readonly<{
 const sha256Pattern = /^[0-9a-f]{64}$/;
 const migrationPattern = /^\d{14}_[a-z0-9_]+\.sql$/;
 
+export function isMigrationHead(value: unknown): value is string {
+  return typeof value === "string" && migrationPattern.test(value);
+}
+
 function validObject(item: StorageBackupObject): StorageBackupObject {
   if (!/^[a-z0-9][a-z0-9_-]{1,62}$/.test(item.bucket)) throw new Error("invalid private bucket identifier");
   const segments = item.objectKey.split("/");
@@ -43,7 +47,7 @@ function validObject(item: StorageBackupObject): StorageBackupObject {
 
 export function createRecoveryManifest(input: RecoveryManifest): RecoveryManifest {
   if (input.manifestVersion !== 1) throw new Error("unsupported recovery manifest version");
-  if (!migrationPattern.test(input.migrationHead)) throw new Error("invalid migration head");
+  if (!isMigrationHead(input.migrationHead)) throw new Error("invalid migration head");
   if (!Number.isSafeInteger(input.database.sizeBytes) || input.database.sizeBytes <= 0) throw new Error("invalid database dump size");
   if (!sha256Pattern.test(input.database.sha256)) throw new Error("invalid database dump digest");
   if (Number.isNaN(Date.parse(input.completedAt))) throw new Error("invalid backup completion time");

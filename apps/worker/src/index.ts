@@ -15,6 +15,7 @@ export { approvedOperationsPolicySha256, evaluateReleaseCandidate, releaseEviden
 export { filesystemReleaseArtifactReader } from "./composition/release-artifacts.js";
 export {
   createRecoveryManifest,
+  isMigrationHead,
   verifyRestore,
   type RecoveryManifest,
   type RestoreEvidence,

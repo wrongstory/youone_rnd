@@ -28,6 +28,7 @@ const subjectDigest = digest("target-subject");
 const issuerDigest = digest("https://tenant.supabase.co/auth/v1");
 const recoveryApprover = "16000000-0000-4000-8000-000000000002";
 const recoveryExecutor = "16000000-0000-4000-8000-000000000003";
+const candidateMigrationHead = "20260823001700_r03_offline_handlers.sql";
 const requiredActionIds = [
   "identity.account.disable", "authorization.assignment.manage", "audit.security.read",
   "approval.step.approve", "approval.policy.manage", "contract.detail.finance.read",
@@ -80,6 +81,10 @@ function recoveryArtifact(policy: ProductionOperationsPolicy) {
   return {
     schemaVersion: 1,
     result: "PASS",
+    candidateCommitSha: commitSha,
+    sourceEnvironmentId: "YOUONE_STAGING_PRIMARY",
+    recoveryEnvironmentId: "YOUONE_STAGING_RECOVERY",
+    migrationHead: candidateMigrationHead,
     policyDecisionId: policy.decisionId,
     policyVersion: policy.policyVersion,
     approvedPolicySha256: approvedOperationsPolicySha256(policy),
@@ -186,7 +191,9 @@ function fixture() {
   return { artifacts, evidence, input, policies, reader };
 }
 
-const context = (reader: ReleaseArtifactReader, promotionSourceCommitSha = commitSha) => ({ artifacts: reader, evaluatedAt, promotionSourceCommitSha });
+const context = (reader: ReleaseArtifactReader, promotionSourceCommitSha = commitSha) => ({
+  artifacts: reader, candidateMigrationHead, evaluatedAt, promotionSourceCommitSha
+});
 
 describe("R06 versioned operations policies", () => {
   it("enforces created <= approved <= effective <= evaluation and no revoked approval", () => {
@@ -312,6 +319,34 @@ describe("R06 candidate-bound artifact gate", () => {
     const result = await evaluateReleaseCandidate(setup.input, context(setup.reader));
     expect(result.status).toBe("BLOCKED");
     expect(result.reasonCodes).toContain("R06_RECOVERY_ACTOR_SEPARATION_INVALID");
+  });
+
+  it("blocks recovery evidence from another candidate commit", async () => {
+    const setup = fixture();
+    const policy = validateOperationsPolicyBundle(setup.policies, evaluatedAt).productionOperations;
+    const artifact = { ...recoveryArtifact(policy), candidateCommitSha: "a".repeat(40) };
+    const artifactBytes = bytes(artifact);
+    setup.artifacts.set("RECOVERY_DB_STORAGE", artifactBytes);
+    setup.input.evidence.find((item) => item.evidenceId === "RECOVERY_DB_STORAGE")!.sha256 = digest(artifactBytes);
+    const result = await evaluateReleaseCandidate(setup.input, context(setup.reader));
+    expect(result.status).toBe("BLOCKED");
+    expect(result.reasonCodes).toContain("R06_RECOVERY_CANDIDATE_BINDING_INVALID");
+  });
+
+  it.each([
+    ["source environment", { sourceEnvironmentId: "YOUONE_STAGING_RECOVERY" }],
+    ["recovery environment", { recoveryEnvironmentId: "YOUONE_STAGING_PRIMARY" }],
+    ["migration head", { migrationHead: "20260823001600_r02_active_auth_session.sql" }]
+  ] as const)("blocks recovery evidence with a mismatched %s", async (_label, mutation) => {
+    const setup = fixture();
+    const policy = validateOperationsPolicyBundle(setup.policies, evaluatedAt).productionOperations;
+    const artifact = { ...recoveryArtifact(policy), ...mutation };
+    const artifactBytes = bytes(artifact);
+    setup.artifacts.set("RECOVERY_DB_STORAGE", artifactBytes);
+    setup.input.evidence.find((item) => item.evidenceId === "RECOVERY_DB_STORAGE")!.sha256 = digest(artifactBytes);
+    const result = await evaluateReleaseCandidate(setup.input, context(setup.reader));
+    expect(result.status).toBe("BLOCKED");
+    expect(result.reasonCodes).toContain("R06_RECOVERY_CANDIDATE_BINDING_INVALID");
   });
 
   it("converts reader/internal errors to secretless BLOCKED output", async () => {

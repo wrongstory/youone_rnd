@@ -151,7 +151,17 @@ evidence.commitSha == R06.candidateCommitSha == R05.commitSha == R06_PROMOTION_S
 - OD-035: `recoveryObjectives`, `databaseBackup`, `storageBackup`, monitoring/incident/recovery approver/recovery executor/evidence-location binding
 - OD-036: mechanism/scope/request-session-check, residual/retry/reconciliation, acknowledged limitations
 
-`RECOVERY_DB_STORAGE.artifact`도 단순 존재·digest로 끝내지 않는다. exact OD-035 version와 `approvedPolicySha256`, `PASS`, 실제 승인자 UUID, 실제 실행자 UUID 목록, 시작·완료 UTC를 parse한다. 승인자는 승인된 `recoveryApproverActorIds`, 실행자는 승인된 `recoveryExecutorActorIds`에 속해야 하고 실제 승인자와 실행자 교집합은 없어야 한다. 훈련은 정책 효력 이후 시작하고 RTO 240분 안에 끝나야 하며 그렇지 않으면 `R06_RECOVERY_EVIDENCE_INVALID` 또는 `R06_RECOVERY_ACTOR_SEPARATION_INVALID`로 차단한다.
+`RECOVERY_DB_STORAGE.artifact`도 단순 존재·digest로 끝내지 않는다. exact OD-035 version와 `approvedPolicySha256`, `PASS`, `candidateCommitSha`, `sourceEnvironmentId`, `recoveryEnvironmentId`, `migrationHead`, 실제 승인자 UUID, 실제 실행자 UUID 목록, 시작·완료 UTC를 parse한다. 다음 결합을 모두 만족해야 한다.
+
+```text
+artifact.candidateCommitSha == R06.candidateCommitSha == R06_PROMOTION_SOURCE_COMMIT
+artifact.sourceEnvironmentId == YOUONE_STAGING_PRIMARY
+artifact.recoveryEnvironmentId == YOUONE_STAGING_RECOVERY
+artifact.sourceEnvironmentId != artifact.recoveryEnvironmentId
+artifact.migrationHead == candidate checkout의 supabase/migrations head
+```
+
+승인자는 승인된 `recoveryApproverActorIds`, 실행자는 승인된 `recoveryExecutorActorIds`에 속해야 하고 실제 승인자와 실행자 교집합은 없어야 한다. 훈련은 정책 효력 이후 시작하고 RTO 240분 안에 끝나야 한다. candidate/environment/migration 결합이 다르면 `R06_RECOVERY_CANDIDATE_BINDING_INVALID`, actor 분리가 다르면 `R06_RECOVERY_ACTOR_SEPARATION_INVALID`, 그 밖의 schema/time 오류는 `R06_RECOVERY_EVIDENCE_INVALID`로 차단한다.
 
 Staging packet은 R05의 모든 check가 `PASS`, live credential 증거가 확인되고 environment/commit이 릴리즈 후보와 같아야 한다. R06는 입력에 복사된 packet이나 digest를 신뢰하지 않고 실제 `STAGING_E2E_V1.artifact`를 parse해 5개 readiness, required check 전체, artifact digest를 다시 검증한다.
 
@@ -161,7 +171,7 @@ token, cookie, request body, credential-bearing URL/DB 연결문자열, Storage 
 
 ## 5. 실행
 
-검토된 JSON 입력 파일과 정확히 27개 artifact가 있는 제한된 작업공간을 주입한다. 입력과 artifact를 저장소에 commit하지 않는다. `R06_PROMOTION_SOURCE_COMMIT`은 CI가 검증한 `dev → main` promotion source SHA를 trusted environment로 전달한다.
+검토된 JSON 입력 파일과 정확히 27개 artifact가 있는 제한된 작업공간을 주입한다. 입력과 artifact를 저장소에 commit하지 않는다. `R06_PROMOTION_SOURCE_COMMIT`은 CI가 검증한 `dev → main` promotion source SHA를 trusted environment로 전달한다. candidate migration head는 release input이 정하지 않으며, R06 CLI가 현재 candidate checkout의 `supabase/migrations`에서 유효한 migration 파일을 정렬해 직접 산출한다. migration이 없거나 head 형식이 잘못되면 fail-closed 차단한다.
 
 ```text
 R06_RELEASE_INPUT_PATH=<reviewed-json-path> \

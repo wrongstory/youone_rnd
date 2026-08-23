@@ -9,6 +9,7 @@ import {
   type ProductionOperationsPolicy,
   type ProviderSessionRevokePolicy
 } from "./operations-policy.js";
+import { isMigrationHead } from "./recovery-manifest.js";
 import { REQUIRED_STAGING_CHECK_IDS } from "./staging-evidence.js";
 
 export const REQUIRED_RELEASE_EVIDENCE_IDS = Object.freeze([
@@ -36,6 +37,7 @@ export interface ReleaseArtifactReader {
 
 export type ReleaseEvaluationContext = Readonly<{
   artifacts: ReleaseArtifactReader;
+  candidateMigrationHead: string;
   evaluatedAt: string;
   promotionSourceCommitSha: string;
 }>;
@@ -60,6 +62,8 @@ const stableIdPattern = /^[A-Z][A-Z0-9_.-]{2,95}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ciEvidenceIds = new Set<ReleaseEvidenceId>(REQUIRED_RELEASE_EVIDENCE_IDS.filter((id) => id.startsWith("CI_")));
 const maximumArtifactBytes = 10 * 1024 * 1024;
+const recoverySourceEnvironmentId = "YOUONE_STAGING_PRIMARY";
+const recoveryTargetEnvironmentId = "YOUONE_STAGING_RECOVERY";
 
 export async function evaluateReleaseCandidate(input: unknown, context: ReleaseEvaluationContext): Promise<ReleaseGateReport> {
   try {
@@ -84,7 +88,8 @@ export function approvedOperationsPolicySha256(policy: ApprovedOperationsPolicy)
 async function evaluate(input: unknown, context: ReleaseEvaluationContext): Promise<ReleaseGateReport> {
   const evaluationTime = safeTime(context.evaluatedAt);
   const promotionSourceCommitSha = commitPattern.test(context.promotionSourceCommitSha) ? context.promotionSourceCommitSha : null;
-  if (evaluationTime === null || !context.artifacts || !isRecord(input) || input.schemaVersion !== 1) {
+  const candidateMigrationHead = isMigrationHead(context.candidateMigrationHead) ? context.candidateMigrationHead : null;
+  if (evaluationTime === null || candidateMigrationHead === null || !context.artifacts || !isRecord(input) || input.schemaVersion !== 1) {
     return blocked(context.evaluatedAt, ["R06_INPUT_INVALID"], promotionSourceCommitSha);
   }
   const candidateCommitSha = typeof input.candidateCommitSha === "string" && commitPattern.test(input.candidateCommitSha) ? input.candidateCommitSha : null;
@@ -105,7 +110,9 @@ async function evaluate(input: unknown, context: ReleaseEvaluationContext): Prom
   const missingEvidenceIds = REQUIRED_RELEASE_EVIDENCE_IDS.filter((id) => !suppliedIds.has(id));
   if (missingEvidenceIds.length > 0) reasons.add("R06_EVIDENCE_SET_INCOMPLETE");
   const artifacts = await verifyArtifacts(evidence, context.artifacts, reasons);
-  if (policies !== null) validatePolicyEvidence(evidence, artifacts, policies, evaluationTime, reasons);
+  if (policies !== null) validatePolicyEvidence(
+    evidence, artifacts, policies, candidateCommitSha, promotionSourceCommitSha, candidateMigrationHead, evaluationTime, reasons
+  );
   validateStagingArtifact(evidence, artifacts, candidateCommitSha, promotionSourceCommitSha, environmentId, evaluationTime, reasons);
 
   if (!Array.isArray(input.openBlockerIds) || input.openBlockerIds.some((id) => typeof id !== "string" || !stableIdPattern.test(id)) || new Set(input.openBlockerIds).size !== input.openBlockerIds.length) {
@@ -202,7 +209,8 @@ async function verifyArtifacts(evidence: readonly ReleaseEvidenceReference[], re
 
 function validatePolicyEvidence(
   evidence: readonly ReleaseEvidenceReference[], artifacts: ReadonlyMap<ReleaseEvidenceId, Uint8Array>,
-  policies: OperationsPolicyBundle, evaluatedAt: number, reasons: Set<string>
+  policies: OperationsPolicyBundle, candidateCommitSha: string | null, promotionSourceCommitSha: string | null,
+  candidateMigrationHead: string, evaluatedAt: number, reasons: Set<string>
 ): void {
   const definitions = [
     { evidenceId: "POLICY_OD019", policy: policies.mfaSession },
@@ -225,8 +233,11 @@ function validatePolicyEvidence(
     if (definition.evidenceId === "POLICY_OD036" && !validSessionRevokeBindingArtifact(artifact)) reasons.add("R06_SESSION_REVOKE_BINDING_INVALID");
   }
   const recoveryArtifact = parseJson(artifacts.get("RECOVERY_DB_STORAGE") ?? new Uint8Array());
-  const recoveryValidation = validateRecoveryArtifact(recoveryArtifact, policies.productionOperations, evaluatedAt);
+  const recoveryValidation = validateRecoveryArtifact(
+    recoveryArtifact, policies.productionOperations, candidateCommitSha, promotionSourceCommitSha, candidateMigrationHead, evaluatedAt
+  );
   if (recoveryValidation === "INVALID") reasons.add("R06_RECOVERY_EVIDENCE_INVALID");
+  if (recoveryValidation === "CANDIDATE_BINDING_INVALID") reasons.add("R06_RECOVERY_CANDIDATE_BINDING_INVALID");
   if (recoveryValidation === "ACTOR_SEPARATION_INVALID") reasons.add("R06_RECOVERY_ACTOR_SEPARATION_INVALID");
 }
 
@@ -327,8 +338,9 @@ function approvedOperationsPolicyPayload(policy: ApprovedOperationsPolicy): Read
 }
 
 function validateRecoveryArtifact(
-  input: unknown, policy: ProductionOperationsPolicy, evaluatedAt: number
-): "VALID" | "INVALID" | "ACTOR_SEPARATION_INVALID" {
+  input: unknown, policy: ProductionOperationsPolicy, candidateCommitSha: string | null,
+  promotionSourceCommitSha: string | null, candidateMigrationHead: string, evaluatedAt: number
+): "VALID" | "INVALID" | "CANDIDATE_BINDING_INVALID" | "ACTOR_SEPARATION_INVALID" {
   if (
     !isRecord(input) || input.schemaVersion !== 1 || input.result !== "PASS" ||
     input.policyDecisionId !== policy.decisionId || input.policyVersion !== policy.policyVersion ||
@@ -338,6 +350,12 @@ function validateRecoveryArtifact(
     input.recoveryExecutedByActorIds.some((actorId) => typeof actorId !== "string" || !uuidPattern.test(actorId)) ||
     new Set(input.recoveryExecutedByActorIds).size !== input.recoveryExecutedByActorIds.length
   ) return "INVALID";
+  if (
+    input.candidateCommitSha !== candidateCommitSha || input.candidateCommitSha !== promotionSourceCommitSha ||
+    input.sourceEnvironmentId === input.recoveryEnvironmentId ||
+    input.sourceEnvironmentId !== recoverySourceEnvironmentId || input.recoveryEnvironmentId !== recoveryTargetEnvironmentId ||
+    input.migrationHead !== candidateMigrationHead
+  ) return "CANDIDATE_BINDING_INVALID";
   const startedAt = safeTime(input.startedAt);
   const completedAt = safeTime(input.completedAt);
   if (

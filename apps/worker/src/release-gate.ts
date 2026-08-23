@@ -1,8 +1,18 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 import { filesystemReleaseArtifactReader } from "./composition/release-artifacts.js";
 import { evaluateReleaseCandidate, type ReleaseGateReport } from "./composition/release-evidence.js";
+import { isMigrationHead } from "./composition/recovery-manifest.js";
 import { workerSecurityLogRecord } from "./composition/security-log.js";
+
+async function candidateMigrationHead(): Promise<string> {
+  const sqlNames = (await readdir(new URL("../../../supabase/migrations/", import.meta.url))).filter((name) => name.endsWith(".sql"));
+  if (sqlNames.length === 0 || sqlNames.some((name) => !isMigrationHead(name))) throw new Error("R06_CANDIDATE_MIGRATION_HEAD_INVALID");
+  const names = sqlNames.sort();
+  const head = names.at(-1);
+  if (head === undefined) throw new Error("R06_CANDIDATE_MIGRATION_HEAD_INVALID");
+  return head;
+}
 
 let status: ReleaseGateReport["status"] = "BLOCKED";
 try {
@@ -13,6 +23,7 @@ try {
   const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
   const result = await evaluateReleaseCandidate(input, {
     artifacts: filesystemReleaseArtifactReader(artifactRoot),
+    candidateMigrationHead: await candidateMigrationHead(),
     evaluatedAt: new Date().toISOString(),
     promotionSourceCommitSha
   });
