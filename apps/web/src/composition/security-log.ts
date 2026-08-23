@@ -1,7 +1,11 @@
 export type SecurityLogInput = Readonly<{
-  event: "SYNC_REQUEST_COMPLETED" | "SYNC_REQUEST_DENIED" | "SYNC_REQUEST_FAILED";
+  event:
+    | "REQUEST_DATABASE_IDLE_CLIENT_ERROR"
+    | "SYNC_REQUEST_COMPLETED"
+    | "SYNC_REQUEST_DENIED"
+    | "SYNC_REQUEST_FAILED";
   correlationId: string;
-  route: "/api/v1/sync/commands";
+  route: "/api/v1/sync/commands" | "runtime:request-database";
   outcome: string;
   status: number;
 }>;

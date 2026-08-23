@@ -57,6 +57,7 @@ export {
   RequestDatabaseBoundaryError,
   createNodePostgresRequestPool,
   type NodePostgresRequestPoolOptions,
+  type RequestDatabaseOperationalEvent,
   type RequestDatabaseProbe
 } from "./node-request-pool";
 export type { PostgresTransactionScope } from "./transaction";

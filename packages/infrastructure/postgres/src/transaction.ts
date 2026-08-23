@@ -201,6 +201,8 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
     validateActorEnvelope(actor);
     const connection = await this.pool.connect();
     let began = false;
+    let destroyConnection = false;
+    let commitAttempted = false;
 
     try {
       await connection.query("begin");
@@ -219,13 +221,29 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
         actor.causationId ?? ""
       ]);
       const result = await operation(new PostgresTransaction(connection, actor));
+      commitAttempted = true;
       await connection.query("commit");
+      began = false;
       return result;
     } catch (error) {
-      if (began) await connection.query("rollback");
+      if (!began) {
+        destroyConnection = true;
+        throw error;
+      }
+      if (commitAttempted) destroyConnection = true;
+      try {
+        await connection.query("rollback");
+        began = false;
+      } catch (rollbackError) {
+        destroyConnection = true;
+        throw new AggregateError(
+          [error, rollbackError],
+          "PostgreSQL transaction cleanup failed"
+        );
+      }
       throw error;
     } finally {
-      connection.release();
+      connection.release(destroyConnection || began);
     }
   }
 }

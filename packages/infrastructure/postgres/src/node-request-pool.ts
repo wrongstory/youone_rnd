@@ -29,6 +29,12 @@ select
     and not exists(select 1 from pg_class relation where relation.relowner = login_role.oid)
     as login_owns_no_database_objects,
   pg_has_role(session_user, 'youone_request', 'SET') as login_can_set_request_role,
+  not exists(
+    select 1
+    from pg_roles candidate
+    where candidate.rolname not in (session_user, 'youone_request')
+      and pg_has_role(session_user, candidate.oid, 'SET')
+  ) as login_can_set_only_request_role,
   coalesce(current_setting('app.actor_user_id', true), '') = ''
     and coalesce(current_setting('app.effective_actor_user_id', true), '') = ''
     and coalesce(current_setting('app.session_id', true), '') = ''
@@ -55,6 +61,7 @@ type BoundaryProbeRow = Readonly<{
   login_no_admin_capability: boolean;
   login_owns_no_database_objects: boolean;
   login_can_set_request_role: boolean;
+  login_can_set_only_request_role: boolean;
   request_context_clean: boolean;
 }>;
 
@@ -68,12 +75,24 @@ export type NodePostgresRequestPoolOptions = Readonly<{
   connectionString: string;
   applicationName?: string;
   connectionTimeoutMillis?: number;
+  idleInTransactionTimeoutMillis?: number;
   idleTimeoutMillis?: number;
   max?: number;
   queryTimeoutMillis?: number;
   statementTimeoutMillis?: number;
   tls: "disable" | "verify-full";
+  onIdleClientError?: (event: RequestDatabaseOperationalEvent) => void;
 }>;
+
+export type RequestDatabaseOperationalEvent = Readonly<{
+  event: "REQUEST_DATABASE_IDLE_CLIENT_ERROR";
+  reasonCode: "REQUEST_DATABASE_CONNECTION_FAILED";
+}>;
+
+const IDLE_CLIENT_ERROR_EVENT: RequestDatabaseOperationalEvent = Object.freeze({
+  event: "REQUEST_DATABASE_IDLE_CLIENT_ERROR",
+  reasonCode: "REQUEST_DATABASE_CONNECTION_FAILED"
+});
 
 export class RequestDatabaseBoundaryError extends Error {
   public readonly reasonCode:
@@ -104,13 +123,24 @@ class NodePostgresConnection implements SqlConnection {
     });
   }
 
-  public release(): void {
-    this.client.release();
+  public release(destroy = false): void {
+    this.client.release(destroy);
   }
 }
 
 export class NodePostgresRequestPool implements SqlPool {
-  public constructor(private readonly pool: Pool) {}
+  public constructor(
+    private readonly pool: Pool,
+    onIdleClientError?: NodePostgresRequestPoolOptions["onIdleClientError"]
+  ) {
+    this.pool.on("error", () => {
+      try {
+        onIdleClientError?.(IDLE_CLIENT_ERROR_EVENT);
+      } catch {
+        // Operational telemetry must never turn an idle-client failure into an uncaught exception.
+      }
+    });
+  }
 
   public async connect(): Promise<SqlConnection> {
     const client = await this.acquireVerifiedClient();
@@ -166,17 +196,44 @@ export class NodePostgresRequestPool implements SqlPool {
 export function createNodePostgresRequestPool(
   options: NodePostgresRequestPoolOptions
 ): NodePostgresRequestPool {
+  const connectionString = hardenedConnectionString(options.connectionString, options.tls);
   const config: PoolConfig = {
     application_name: options.applicationName ?? "youone-web-request",
-    connectionString: options.connectionString,
+    connectionString,
     connectionTimeoutMillis: options.connectionTimeoutMillis ?? 5_000,
+    idle_in_transaction_session_timeout: options.idleInTransactionTimeoutMillis ?? 15_000,
     idleTimeoutMillis: options.idleTimeoutMillis ?? 30_000,
     max: options.max ?? 10,
     query_timeout: options.queryTimeoutMillis ?? 15_000,
     statement_timeout: options.statementTimeoutMillis ?? 10_000,
     ssl: options.tls === "verify-full" ? { rejectUnauthorized: true } : false
   };
-  return new NodePostgresRequestPool(new Pool(config));
+  return new NodePostgresRequestPool(new Pool(config), options.onIdleClientError);
+}
+
+function hardenedConnectionString(
+  connectionString: string,
+  tls: NodePostgresRequestPoolOptions["tls"]
+): string {
+  let url: URL;
+  try {
+    url = new URL(connectionString);
+  } catch (error) {
+    throw new RequestDatabaseBoundaryError("REQUEST_DATABASE_CONNECTION_FAILED", { cause: error });
+  }
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") {
+    throw new RequestDatabaseBoundaryError("REQUEST_DATABASE_CONNECTION_FAILED");
+  }
+  if (url.hash || [...url.searchParams].some(([name, value]) =>
+    name !== "sslmode" || value !== (tls === "verify-full" ? "verify-full" : "disable")
+  )) {
+    throw new RequestDatabaseBoundaryError("REQUEST_DATABASE_CONNECTION_FAILED");
+  }
+
+  // pg parses connectionString after explicit PoolConfig and would otherwise
+  // let URL query parameters override TLS and timeout settings.
+  url.search = "";
+  return url.toString();
 }
 
 function isValidBoundary(row: BoundaryProbeRow | undefined): row is BoundaryProbeRow {

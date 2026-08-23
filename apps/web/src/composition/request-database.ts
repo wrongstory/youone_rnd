@@ -7,6 +7,8 @@ import {
   type TrustedRequestUnitOfWork
 } from "@youone/infra-postgres/request";
 
+import { writeSecurityLog } from "./security-log";
+
 export type RequestDatabaseReadiness = Readonly<
   | { ready: true }
   | {
@@ -116,6 +118,12 @@ function requestDatabaseConfiguration(
       1_000,
       300_000
     ),
+    idleInTransactionTimeoutMillis: positiveInteger(
+      environment.REQUEST_DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS,
+      15_000,
+      1_000,
+      120_000
+    ),
     queryTimeoutMillis: positiveInteger(
       environment.REQUEST_DATABASE_QUERY_TIMEOUT_MS,
       15_000,
@@ -127,7 +135,14 @@ function requestDatabaseConfiguration(
       10_000,
       100,
       120_000
-    )
+    ),
+    onIdleClientError: () => writeSecurityLog({
+      event: "REQUEST_DATABASE_IDLE_CLIENT_ERROR",
+      correlationId: "system:request-database-pool",
+      route: "runtime:request-database",
+      outcome: "REQUEST_DATABASE_CONNECTION_FAILED",
+      status: 503
+    })
   });
 }
 

@@ -25,6 +25,14 @@ const migrationSql = readdirSync(migrationDirectory)
 const actorId = uuid("17000000-0000-4000-8000-000000000001");
 const requestTime = utcInstant("2026-08-23T12:00:00.000Z");
 
+function overprivilegedDatabaseUrl(): string {
+  if (!requestDatabaseUrl) throw new Error("R01_REQUEST_DATABASE_URL required");
+  const url = new URL(requestDatabaseUrl);
+  url.username = "youone_request_overprivileged_login";
+  url.password = "overprivileged-test";
+  return url.toString();
+}
+
 function runAdmin(sql: string): string {
   if (!adminDatabaseUrl) throw new Error("R01_ADMIN_DATABASE_URL required");
   const result = spawnSync(
@@ -79,6 +87,11 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
       create role youone_request_login login password 'request-test'
         nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
       grant youone_request to youone_request_login;
+      create role r01_forbidden_bypass nologin nosuperuser nocreatedb nocreaterole
+        noinherit noreplication bypassrls;
+      create role youone_request_overprivileged_login login password 'overprivileged-test'
+        nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
+      grant youone_request, r01_forbidden_bypass to youone_request_overprivileged_login;
       insert into public.user_account(id, auth_subject, account_kind, status, valid_from)
       values ('${actorId}', 'r01-internal', 'INTERNAL', 'ACTIVE', '2026-01-01');
     `);
@@ -123,6 +136,18 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
     if (!adminDatabaseUrl) return;
     const unsafePool = createNodePostgresRequestPool({
       connectionString: adminDatabaseUrl,
+      max: 1,
+      tls: "disable"
+    });
+    await expect(unsafePool.probe()).rejects.toMatchObject({
+      reasonCode: "REQUEST_DATABASE_PRINCIPAL_INVALID"
+    });
+    await unsafePool.close();
+  });
+
+  it("rejects a login that can SET ROLE beyond youone_request", async () => {
+    const unsafePool = createNodePostgresRequestPool({
+      connectionString: overprivilegedDatabaseUrl(),
       max: 1,
       tls: "disable"
     });
