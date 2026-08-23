@@ -56,11 +56,11 @@
 
 ## 7. Gate 확인
 
-- [ ] `docs/p1-source-delta-audit.md` 승인
-- [ ] `docs/p1-domain-model-delta.md` 승인
-- [ ] `docs/p1-erd-delta.md` 승인
-- [ ] `docs/p1-permissions-delta.md` 승인
-- [ ] `docs/p1-state-machines-delta.md` 승인
-- [ ] `docs/adr/ADR-011-p1-module-boundaries.md` 승인
+- [x] `docs/p1-source-delta-audit.md` 승인 — PR #49
+- [x] `docs/p1-domain-model-delta.md` 승인 — PR #49
+- [x] `docs/p1-erd-delta.md` 승인 — PR #49
+- [x] `docs/p1-permissions-delta.md` 승인 — PR #49
+- [x] `docs/p1-state-machines-delta.md` 승인 — PR #49
+- [x] `docs/adr/ADR-011-p1-module-boundaries.md` 승인 — PR #49
 - [ ] P0 `dev → main` release promotion 완료
 - [ ] `OD-037-P1-DEVELOPMENT-GATE` 제품 코드·migration 착수 승인

@@ -1,7 +1,7 @@
 # P1 Source Delta Audit
 
 - 문서 ID: `P1-SOURCE-DELTA-V0.1`
-- 상태: `PROPOSED_FOR_REVIEW`
+- 상태: `APPROVED_DESIGN`
 - 추적 이슈: GitHub `#48`
 - 기준시각: 2026-08-23 (Asia/Seoul)
 

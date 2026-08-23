@@ -1,7 +1,7 @@
 # P1 Logical ERD Delta
 
 - 문서 ID: `P1-ERD-DELTA-V0.1`
-- 상태: `PROPOSED_FOR_REVIEW`
+- 상태: `APPROVED_DESIGN`
 - 추적 이슈: GitHub `#48`
 - 주의: 논리 모델이며 P1 Development Gate 전 migration/table 생성 근거가 아니다.
 

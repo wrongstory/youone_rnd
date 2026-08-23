@@ -1,7 +1,7 @@
 # P1 Domain Model Delta
 
 - 문서 ID: `P1-DOMAIN-DELTA-V0.1`
-- 상태: `PROPOSED_FOR_REVIEW`
+- 상태: `APPROVED_DESIGN`
 - 추적 이슈: GitHub `#48`
 - 적용 전제: `OD-037-P1-DEVELOPMENT-GATE` 승인 전 논리 설계로만 사용
 
