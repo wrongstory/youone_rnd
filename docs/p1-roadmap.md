@@ -4,18 +4,18 @@
 - 작성일: 2026-08-23 (Asia/Seoul)
 - 상태: `APPROVED_PLAN` — 권장 범위와 순서는 승인됐으며 P1 Implementation은 선행 Gate 완료 전까지 잠김
 - 기준: `P0-SCOPE-V1.0`, `docs/p1-scope-checklist.md`, P0 정본 설계 및 구현 결과
-- 추적 이슈: GitHub `#39`
+- 추적 이슈: GitHub `#39`; 설계 Gate `#48`
 
 ## 1. 현재 기준선
 
-P0의 기능 수직 슬라이스 `M00`~`M16`과 Release Gate R01~R05는 `dev`에 병합됐다. 다만 이것은 P0 운영출시 완료를 뜻하지 않는다. GitHub 이슈 `#36`의 R06, 실제 Staging 증적, 사용자 운영정책 승인, `dev → main` 릴리즈 승격이 남아 있다.
+P0의 기능 수직 슬라이스 `M00`~`M16`과 Release Gate R01~R06 코드 계약은 `dev`에 병합됐다. 다만 이것은 P0 운영출시 완료를 뜻하지 않는다. GitHub 이슈 `#36`의 사용자 운영정책 승인, 실제 Staging 27개 증거와 별도 `dev → main` 릴리즈 승격이 남아 있다.
 
 P1은 지금 계획·검토할 수 있지만, P0와 섞어서 구현하지 않는다.
 
 | 트랙 | 지금 가능한 작업 | 구현 착수 조건 |
 |---|---|---|
-| P0 Release | `#36` R06 계약·실증·정책승인 및 별도 승격 Gate | 기존 승인 범위에 따라 계속 진행 |
-| P1 Planning | 범위 체크리스트, 상태·권한·ERD 차이, ADR, 이슈 분해 | 즉시 가능 |
+| P0 Release | `#36` 정책승인·실증 및 별도 승격 Gate | 기존 승인 범위에 따라 계속 진행 |
+| P1 Planning | `#48` source/domain/ERD/권한/상태 delta, ADR, 이슈 분해 | 즉시 가능 |
 | P1 Implementation | 아래 `P1-M00`~`P1-M07` 수직 슬라이스 | P0 릴리즈 승격 완료 + P1 Development Gate 승인 |
 
 ## 2. P1 목표와 비목표
@@ -42,11 +42,11 @@ P1에서도 다음은 포함하지 않는다.
 
 - [ ] P0 Release Gate 이슈 `#36` 완료
 - [ ] `dev → main` P0 릴리즈 승격 승인·병합
-- [ ] `P1-SCOPE-V1.0` 사용자 승인
+- [x] `P1-SCOPE-V1.0` 사용자 승인
 - [ ] P1 source delta audit 완료
 - [ ] 모듈별 상태머신·권한·감사 이벤트·보존정책 승인
 - [ ] 논리 ERD와 P0 데이터 migration/backfill 영향 검토
-- [ ] `OD-010`, `OD-024` 및 해당 P1 기능을 막는 결정 해소
+- [x] `OD-010`, `OD-024` 초기 P1 결정 해소; 후속 L1/L2 body index는 `OD-038`로 분리
 - [ ] P1 기술·보안 ADR 승인
 - [ ] P1 이슈, 파일 소유권, migration 단일 작성자, 병합 순서 확정
 
@@ -127,7 +127,7 @@ P0 운영출시 준비와 P1 설계는 병렬로 진행할 수 있다. P1 제품
 
 ## 8. 바로 다음 행동
 
-1. 사용자가 `docs/p1-scope-checklist.md`를 검토·확정한다.
-2. P0 Release Gate `#36`은 R06 계약·실증·정책승인 단계로 계속 진행한다.
-3. P1 설계 delta audit과 `P1-M00` ADR을 준비한다.
-4. P0 릴리즈 승격과 P1 Development Gate가 모두 승인되면 `P1-M01`부터 구현한다.
+1. P0 Release Gate `#36`은 운영정책 승인·Staging 실증·27개 evidence 단계로 계속 진행한다.
+2. 이슈 `#48`에서 P1 설계 delta와 ADR-011을 검토한다.
+3. `docs/p1-open-decisions-checklist.md`의 미확정 선택을 사용자 결정으로 닫는다.
+4. P0 릴리즈 승격과 P1 Development Gate가 모두 승인되면 `P1-M00` 정본/공개계약 확정 후 `P1-M01`부터 구현한다.

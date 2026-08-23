@@ -92,3 +92,5 @@ ERP 재고·원가·MRP는 어느 선택에도 포함하지 않는다.
 | P1 Development Gate | `WAITING_PREREQUISITES` — P0 Release Gate와 P1 설계 검토 미완료 |
 
 P1 제품 코드 Gate 승인 전에는 설계 delta와 이슈 초안만 작성하며 P1 package/table/route/menu/migration은 만들지 않는다.
+
+설계 검토 산출물은 GitHub 이슈 `#48`과 `docs/p1-*-delta.md`, `docs/p1-open-decisions-checklist.md`, `docs/adr/ADR-011-p1-module-boundaries.md`, `docs/p1-workstreams.md`에서 관리한다. PR #49 보강 검토에서 OD-010 metadata-only 범위, Vendor BOM, 교정 예외, 수당 승인 참여자, offline draft-only, OD-024 self-reference 방향을 기록했지만 설계 PR 승인과 P1 제품 구현 Gate는 아직 열리지 않았다.
