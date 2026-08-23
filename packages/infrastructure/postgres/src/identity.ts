@@ -24,30 +24,49 @@ export class PostgresActorContextSource implements ActorContextSource {
     private readonly scopeExtension: ActorScopeExtensionSource = EMPTY_SCOPE_SOURCE
   ) {}
 
-  public async load(authSubject: string, requestTime: UtcInstant): Promise<ActorContextSnapshot | null> {
+  public async load(
+    authSubject: string,
+    sessionId: string,
+    requestTime: UtcInstant
+  ): Promise<ActorContextSnapshot | null> {
     const connection = await this.pool.connect();
     let identity: IdentitySnapshot | null = null;
     let securityEntitlements: readonly ReturnType<typeof stableCode>[] = [];
     let began = false;
+    let destroyConnection = false;
+    let commitAttempted = false;
     try {
       await connection.query("begin read only");
       began = true;
       await connection.query("set local role youone_identity_resolver");
+      await connection.query("set local row_security = on");
       const result = await connection.query<{ snapshot: unknown }>(
-        "select app_private.resolve_actor_context_snapshot($1, $2::timestamptz) as snapshot",
-        [authSubject, requestTime]
+        "select app_private.resolve_active_actor_context_snapshot($1, $2, $3::timestamptz) as snapshot",
+        [authSubject, sessionId, requestTime]
       );
       const raw = result.rows[0]?.snapshot;
       if (raw !== null && raw !== undefined) {
         identity = parseIdentitySnapshot(raw);
         securityEntitlements = parseStableCodeArray(record(raw).securityEntitlements);
       }
+      commitAttempted = true;
       await connection.query("commit");
+      began = false;
     } catch (error) {
-      if (began) await connection.query("rollback");
+      if (commitAttempted) destroyConnection = true;
+      if (began) {
+        try {
+          await connection.query("rollback");
+          began = false;
+        } catch {
+          destroyConnection = true;
+        }
+      } else {
+        destroyConnection = true;
+      }
       throw error;
     } finally {
-      connection.release();
+      connection.release(destroyConnection || began);
     }
     if (identity === null) return null;
     const scopeGrants = await this.scopeExtension.load(identity.userId, requestTime);

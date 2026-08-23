@@ -17,6 +17,7 @@ The server must run multi-step transactions while preserving RLS and must not us
 - Application authorization runs before repository calls; RLS is the independent second enforcement layer.
 - Worker/admin credentials use a separate pool and composition root unavailable to request handlers. A privileged job still records the initiating actor or system job identity and passes Application authorization.
 - Fail closed when the actor context is absent, malformed, disabled, expired, or no longer scoped.
+- Supabase session activity and the separate Identity Resolver principal follow `ADR-009`; the ordinary request pool never gains identity-bootstrap or provider-session access.
 
 ## Consequences
 

@@ -83,8 +83,8 @@ describe("M16 live request boundary", () => {
   it("reports readiness without exposing configured secret values", () => {
     const unavailable = getRuntimeReadiness({
       REQUEST_DATABASE_URL: "postgresql://secret-database",
-      NEXT_PUBLIC_SUPABASE_URL: "https://tenant.example",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "secret-anon-key"
+      SUPABASE_URL: "https://tenant.example",
+      SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test_key"
     }, null);
     expect(unavailable.status).toBe("not_ready");
     expect(unavailable.components).toContainEqual({
@@ -101,8 +101,8 @@ describe("M16 live request boundary", () => {
 
     const ready = getRuntimeReadiness({
       REQUEST_DATABASE_URL: "configured",
-      NEXT_PUBLIC_SUPABASE_URL: "configured",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "configured"
+      SUPABASE_URL: "configured",
+      SUPABASE_PUBLISHABLE_KEY: "configured"
     }, {} as never, { requestAuth: true, requestDatabase: true });
     expect(ready.status).toBe("ready");
   });

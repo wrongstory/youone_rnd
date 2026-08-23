@@ -26,7 +26,9 @@ export function assertTrustedActorContext(actor: ActorContext): asserts actor is
 }
 
 export type ActorContextSnapshot = Readonly<{ identity: IdentitySnapshot; scopeGrants: readonly TypedScopeGrant[]; securityEntitlements: readonly StableCode[] }>;
-export interface ActorContextSource { load(authSubject: string, requestTime: UtcInstant): Promise<ActorContextSnapshot | null>; }
+export interface ActorContextSource {
+  load(authSubject: string, sessionId: string, requestTime: UtcInstant): Promise<ActorContextSnapshot | null>;
+}
 /** M05/M06/M07 implement this with FK-backed scope tables and their own RLS. */
 export interface ActorScopeExtensionSource { load(userId: Uuid, requestTime: UtcInstant): Promise<readonly TypedScopeGrant[]>; }
 
@@ -37,7 +39,7 @@ export class TrustedActorContextFactory {
     const now = this.clock.now();
     if (session.authSubject.trim().length === 0 || session.sessionId.trim().length === 0) throw new IdentityVerificationError("verified session identity is incomplete");
     if (session.expiresAt <= now) throw new IdentityVerificationError("verified session is expired");
-    const snapshot = await this.source.load(session.authSubject, now);
+    const snapshot = await this.source.load(session.authSubject, session.sessionId, now);
     if (snapshot === null || snapshot.identity.authSubject !== session.authSubject) throw new IdentityVerificationError("verified session has no matching server identity");
     const { identity } = snapshot;
     assertActiveIdentity(identity, now);

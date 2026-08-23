@@ -10,6 +10,7 @@
     "./service": "./src/service.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.112.3",
     "@youone/core-authorization": "workspace:*",
     "@youone/core-identity": "workspace:*",
     "@youone/shared-kernel": "workspace:*"

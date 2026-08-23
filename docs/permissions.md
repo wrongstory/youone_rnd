@@ -46,7 +46,7 @@ M03 trust rules:
 - Require every Vendor `*.read` query to use a versioned projection bound to actor kind, resource type, and action.
 - Require exact external-release approval evidence for Vendor L1/L2 technical preview or download; L3/L4 digital preview/download/render/print remain hard-denied.
 - Official approval requires the exact participant evidence plus Lab Director/Representative position or an active official acting-authority record. Permission alone is never sufficient.
-- Account disablement, Vendor disablement, and Vendor membership grant/revoke use guarded optimistic functions that append Audit in the same transaction.
+- Account disablement, Vendor disablement, and Vendor membership grant/revoke use guarded optimistic functions that append Audit in the same transaction. Trusted ActorContext also requires the exact provider-issued session ID to remain present for the same subject; missing or cross-subject provider sessions deny before authorization.
 
 ## 3. Stable Roles
 

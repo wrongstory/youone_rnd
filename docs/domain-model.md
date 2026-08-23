@@ -28,6 +28,8 @@ Ordered organizational position such as `POSITION_JUNIOR_RESEARCHER`, `POSITION_
 
 Application identity profile linked to an Auth provider subject. Holds activation state, organization, department, and position. Authentication credentials stay in the Auth provider.
 
+`VerifiedAuthSession` is transient authentication evidence, not an application entity. It contains only the provider-verified subject, provider-issued session ID, expiry and assurance level. ActorContext creation requires an exact active provider session/subject match and then reloads the current `user` state and assignments; provider metadata never supplies Role, Position, Permission or Scope.
+
 ### `role`, `permission`, `user_role`
 
 RBAC primitives. A user may have multiple roles. Administrative roles are split into `ADMIN_SYSTEM`, `ADMIN_SECURITY`, `ADMIN_DOCUMENT`, `ADMIN_APPROVAL`.

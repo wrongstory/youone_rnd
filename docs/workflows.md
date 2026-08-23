@@ -199,7 +199,7 @@ Workflow ID: `WF-TECHDOC-ACCESS-V1`.
 5. Each L1/L2 preview/download request revalidates user/vendor/scope/grant/expiry/operation.
 6. For L3/L4, an internal authorized actor renders an exact-version, numbered watermarked copy, prints it directly, and records page count and printer actor/time. No source-file download or recipient self-print operation exists.
 7. Record handover acknowledgment, purpose, recipient/vendor, return/destruction due date, and completion evidence.
-8. Revocation, expiry, account disablement, or scope removal makes digital access fail immediately and starts physical-copy recovery follow-up.
+8. Revocation, expiry, account disablement, missing provider session, or scope removal makes digital access fail immediately and starts physical-copy recovery follow-up. Account disablement persists DB state, Audit and a provider-revocation request before any Worker provider call; provider failure never restores access.
 9. Grant, render, print, handover, return/destruction, denial, revoke, and expire events are audited.
 
 M14 physical implementation binds steps 2~3 to an immutable `TECHNICAL_DOCUMENT_COPY_REQUEST` Approval subject containing the exact DocumentVersion/source Attachment, recipient/vendor, Project/optional Contract, purpose, due plan and request checksum. A copy number is atomically reserved for each request; reprint creates a new request/root/number with the prior-copy link and reason. Project-only recipient Scope requires Membership + Project grant, while Contract-bound Scope requires Membership + Project + Contract grants for the same VendorUser.
