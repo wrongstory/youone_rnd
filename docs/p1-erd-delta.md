@@ -34,7 +34,7 @@ erDiagram
 | Table | 핵심 column/FK | 필수 constraint |
 |---|---|---|
 | `bom` | `id`, `bom_no`, nullable `product_id`, nullable `parent_item_id`, owner org | product/item 중 exact one 또는 reviewed dual ownership check; `bom_no` unique |
-| `bom_version` | `bom_id`, `version_no`, state, checksum, sealed/approved/effective timestamps, predecessor | `(bom_id, version_no)` unique; predecessor same Bom; sealed 이후 immutable |
+| `bom_version` | `bom_id`, `version_no`, state, checksum, sealed/approved/effective timestamps, predecessor | `(bom_id, version_no)` unique; predecessor same Bom; `RETURNED`/approved/effective sealed version immutable |
 | `bom_line` | `bom_version_id`, line no, `child_item_id`, item revision, quantity/unit, sort | `(bom_version_id,line_no)` unique; quantity > 0; parent-child cycle 검증 |
 | `bom_line_alternate` | line, alternate item/revision, priority, effective interval | original item과 다름; interval/priority conflict 방지 |
 | `bom_applicability` | version, scope kind, typed Project/Product/serial/lot/time columns | scope kind별 allowed FK/field exact-one check |
@@ -61,12 +61,12 @@ erDiagram
 
 | Table | 핵심 column/FK | 필수 constraint |
 |---|---|---|
-| `research_equipment` | equipment no, model/serial, owner/location/custodian, asset state/version | equipment no unique; retired row 재활성 금지 |
+| `research_equipment` | equipment no, model/serial, owner/location/custodian, serviceability state/version | equipment no unique; retired row 재활성 금지; custody/usage state를 이 column에 저장 금지 |
 | `calibration_plan` | equipment, calibration kind, current policy version | `(equipment,kind)` unique active plan |
-| `calibration_policy_version` | plan, version, trigger/cadence, alert, method/provider criteria, source basis, effectivity | approved/effective row immutable; overlapping effective interval 금지 |
+| `calibration_policy_version` | plan, version/state/predecessor, trigger/cadence, alert, method/provider criteria, source basis, checksum/effectivity | `RETURNED`/approved/effective row immutable; predecessor same plan; overlapping effective interval 금지 |
 | `calibration_record` | equipment, policy version, performed/issued/valid dates, result, certificate Attachment/hash | equipment snapshot/hash immutable; pass일 때만 valid interval |
-| `equipment_usage` | equipment, Project/WBS, operator user/vendor, start/end, CalibrationRecord/Exception, purpose | operator exact-one; current asset/calibration eligibility guarded |
-| `equipment_checkout` | equipment, handover/recipient/return tuple, condition/evidence | open checkout partial unique per equipment |
+| `equipment_usage` | equipment, usage state/version, Project/WBS, operator user/vendor, start/end, CalibrationRecord/Exception, purpose | operator exact-one; start 시 serviceability/calibration eligibility guarded; `OUT_OF_SERVICE` 후에도 end 허용 |
+| `equipment_checkout` | equipment, checkout state/version, handover/recipient/return tuple, condition/evidence | open checkout partial unique per equipment; `OUT_OF_SERVICE` 후에도 return 허용 |
 | `maintenance_record` | equipment, work order, provider, start/end, result/evidence | completion 이후 immutable |
 | `equipment_use_exception` | equipment, Project/TestPlan, purpose, interval, restriction, Approval snapshot | active approved policy/Approval; interval bounded; exact resource |
 | `test_result_equipment_snapshot` | TestResult, EquipmentUsage, equipment/calibration/exception checksum | finalized TestResult와 함께 immutable |
@@ -93,7 +93,7 @@ erDiagram
 | Table | 핵심 column/FK | 필수 constraint |
 |---|---|---|
 | `safety_substance` | stable substance code, names, hazard class, Supplier/Item link | substance code unique; classification typed |
-| `msds`, `msds_version` | substance/language, version/source/checksum, issued/effective, Attachment | same substance/language/effectivity overlap 금지; effective row immutable |
+| `msds`, `msds_version` | substance/language, version/state/predecessor/source/checksum, issued/effective, Attachment | same substance/language/effectivity overlap 금지; `RETURNED`/approved/effective row immutable |
 | `hazardous_material_lot` | substance, exact received MSDSVersion, lot, quantity unit, location, expiry, state/version | lot alternate unique; quantity unit fixed after ledger 시작 |
 | `hazardous_material_transaction` | lot, transaction type, quantity, from/to location, Project/Vendor, actor, evidence | append-only; signed quantity/type check; balance < 0 금지 |
 | `waste_batch` | waste no/class, quantity/unit, location, state/version, source basis | waste no unique; sealed 후 source/quantity immutable |
@@ -130,10 +130,10 @@ erDiagram
 | Table | 핵심 column/FK | 필수 constraint |
 |---|---|---|
 | `project_allowance_policy` | Project, optional RndProgram, policy no | exact Project; RndProgram은 Project link 존재 |
-| `project_allowance_policy_version` | version/state/checksum, period/cadence, evaluation/calculation/adjustment rules, ApprovalPolicyVersion/source | effective interval overlap 금지; approved/effective immutable |
+| `project_allowance_policy_version` | version/state/predecessor/checksum, period/cadence, evaluation/calculation/adjustment rules, ApprovalPolicyVersion/source | effective interval overlap 금지; `RETURNED`/approved/effective immutable |
 | `allowance_participation` | policy version, User, period/ratio/role/evidence | interval/ratio validation; Project/R&D employment evidence |
 | `research_performance_evaluation` | participation, period, evaluator, item scores/evidence, sealed total/grade | evaluator assignment, sealed 이후 immutable |
-| `allowance_calculation_run` | period/person-month aggregation key, state/version, policy-set checksum | `(calculation_month, run_revision)` unique; approved run immutable |
+| `allowance_calculation_run` | period/person-month aggregation key, state/version, predecessor run, policy-set checksum | `(calculation_month, run_revision)` unique; `RETURNED`/approved run immutable |
 | `allowance_calculation_run_policy` | run, exact policy version | policy set checksum 구성 |
 | `allowance_calculation_line` | run, User, Project, participation/evaluation, base/calculated/final amount | `(run,user,project)` unique; amount numeric/check constraints |
 | `allowance_adjustment` | line, before/after amount, reason, proposer, Approval evidence | append-only; final rate/amount bounds from policy |
@@ -156,10 +156,10 @@ erDiagram
 
 | Table | 핵심 column/FK | 필수 constraint |
 |---|---|---|
-| `search_index_policy_version` | version/state/checksum/effectivity, actor/security policy, tokenizer/snippet/purge SLA | effective version immutable; placeholder scope 금지 |
+| `search_index_policy_version` | version/state/predecessor/checksum/effectivity, actor/security policy, tokenizer/snippet/purge SLA | `RETURNED`/approved/effective version immutable; placeholder scope 금지; typed Approval subject 필수 |
 | `search_index_policy_source` | policy version, source stable type, ProjectionProfile ID/version | source/profile unique |
 | `search_index_policy_field` | source row, field stable ID, index mode metadata/body, snippet flag | security/field allowlist; L3/L4 body check deny |
-| `search_index_entry` | source stable type/UUID/version, policy version, security, content checksum, state/version/index/purge times | `(source_type,source_id,source_version,policy_version)` unique; raw source 정본 아님 |
+| `search_index_entry` | source stable type/UUID/version, policy version, security, content checksum, state/version/index/purge times | `(source_type,source_id,source_version,policy_version)` unique; `INDEX_FAILED`/`PURGE_FAILED`와 retry target check; raw source 정본 아님 |
 | `search_index_entry_scope` | entry, scope kind, exact target UUID | typed scope kind/target; request scope 복사 금지 |
 | `search_query_audit` | actor/correlation, query digest/classification, policy version, result count/time | raw query/secret 저장 금지 |
 | `search_result_access_audit` | query audit, source/entry, projection, authorization evidence, delivered_at | result delivery evidence append-only |
@@ -172,9 +172,12 @@ P1 기본안은 PostgreSQL-derived metadata index 또는 provider-neutral adapte
 |---|---|
 | `BOM_VERSION` | BomVersion ID/version/checksum/sealed_at |
 | `EQUIPMENT_USE_EXCEPTION` | equipment/purpose/scope/interval/restriction checksum |
+| `CALIBRATION_POLICY_VERSION` | plan/version/checksum/source basis/effectivity proposal |
+| `MSDS_VERSION` | substance/language/version/source/checksum/effectivity proposal |
 | `EMERGENCY_PLAN_VERSION` | plan version/scope/checksum/effective proposal |
 | `ALLOWANCE_POLICY_VERSION` | Project/R&D/policy version/checksum/period |
 | `ALLOWANCE_CALCULATION_RUN` | run revision/person-month/policy-set/line checksum |
+| `SEARCH_INDEX_POLICY_VERSION` | entity/field/security/snippet/purge allowlist version/checksum/effectivity proposal |
 
 각 subject는 `approval_instance.subject_id` 임의 문자열이 아니라 기존 M04 exact-one typed subject-link pattern을 따른다.
 

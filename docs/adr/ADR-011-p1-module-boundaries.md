@@ -45,13 +45,13 @@ Search is a permission-filtered derived read model.
 4. Before result/snippet delivery, the Application server rebuilds trusted ActorContext and asks each source Feature to reauthorize the live source and projection.
 5. Permission/security/source changes enqueue idempotent purge/reindex. `PURGE_QUEUED`, stale policy or failed live authorization entries are not delivered.
 
-P1 begins metadata-only unless `OD-010` explicitly approves an L1/L2 body field allowlist. Vendor technical repository search and L3/L4 body indexing are hard-denied.
+P1 first release is metadata-only for Project, Document, Item/BOM, Equipment, Safety/MSDS and R&D, with an explicit field allowlist per entity. L1/L2 body fields remain disabled until a separate post-P1 decision and newly approved `SearchIndexPolicyVersion`. Vendor technical repository search and L3/L4 body indexing are hard-denied.
 
 Search provider credentials and provider document IDs remain Infrastructure-only. Public URLs are not persisted. PostgreSQL remains the default provider-neutral starting point; an external engine requires a later adapter decision and equivalent authorization/purge tests.
 
 ### 4. Offline boundary
 
-P1 scope approval makes only equipment use/return draft and safety field draft possible candidates. It does not register them.
+P1 scope approval makes only equipment use/return draft capture and safety field draft capture possible candidates. It does not register them. Every actual state transition remains online-only.
 
 Before any P1 offline command is added, its own ADR must define exact command/aggregate/schema, actor/Scope, safe projection, size limits, state/precondition, one-transaction handler, conflict behavior and purge/cache policy. BOM approval/effectivity, calibration certificate finalization, MSDS effectivity, waste handover/disposal confirmation, allowance calculation/approval/export and all search/index operations remain online-only.
 
@@ -65,7 +65,9 @@ Notification payloads store stable record IDs, event IDs and due times only. The
 
 ### 6. Approval subjects
 
-BOMVersion, EquipmentUseException, EmergencyPlanVersion, AllowancePolicyVersion and AllowanceCalculationRun use exact typed Approval subject-link tables following ADR-003. Approval Core receives sealed identity/checksum/version/time and never imports Feature entities/repositories.
+BOMVersion, EquipmentUseException, CalibrationPolicyVersion, MsdsVersion, EmergencyPlanVersion, AllowancePolicyVersion, AllowanceCalculationRun and SearchIndexPolicyVersion use exact typed Approval subject-link tables following ADR-003. Approval Core receives sealed identity/checksum/version/time and never imports Feature entities/repositories.
+
+Every submitted version is sealed. A returned version transitions to immutable terminal `RETURNED`; correction creates a new `DRAFT` version/run with `predecessor_id`. No state transition unseals or sends the same row back to `DRAFT`.
 
 Approval rejection/recall effects must be defined by each reviewed state machine. A generic approval result must not mutate a Feature state by guessed convention.
 
@@ -104,6 +106,7 @@ No guessed backfill creates fake equipment, calibration, allowance, MSDS or hist
 
 - One generic P1 package/table with JSON records: rejects relational/state/audit guarantees.
 - Search engine ACL as the sole authorization layer: stale index/ACL can leak data.
+- One Search `FAILED` state for index and purge: loses the security-critical pending operation; use `INDEX_FAILED` and `PURGE_FAILED` with separate retry paths.
 - UI-only Vendor filtering: not authorization.
 - New BOM Item master: duplicates Purchase Item and breaks ECR/ECO identity.
 - Global research allowance cadence/default legal values: conflicts with per-project policy and source requirements.

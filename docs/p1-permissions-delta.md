@@ -24,7 +24,7 @@ P1은 P0 `AUTHZ-VENDOR-V1`, trusted ActorContext/ResourceContext, action-bound P
 | BOM | `bom.version.create` | authorized INTERNAL, Project/Product | DRAFT만 |
 | BOM | `bom.version.submit` | owner/authorized INTERNAL | sealed version |
 | BOM | `bom.version.effect` | exact Approval outcome + authorized INTERNAL | 승인본만 |
-| BOM | `bom.vendor.assigned.read` | VENDOR, Membership + Project + Contract + assignment | 사용자 승인 전 disabled |
+| BOM | `bom.vendor.assigned.read` | VENDOR, Membership + Project + Contract + assignment | effective approved BOM의 제한 projection |
 | Equipment | `equipment.list.read` | INTERNAL, Organization/Department/Project | 보안 필드 projection |
 | Equipment | `equipment.manage` | authorized INTERNAL | 장비대장/정비 |
 | Equipment | `equipment.calibration.record` | authorized INTERNAL | immutable certificate |
@@ -46,7 +46,7 @@ P1은 P0 `AUTHZ-VENDOR-V1`, trusted ActorContext/ResourceContext, action-bound P
 | Allowance | `allowance.calculation.approve` | exact Approval participant | Senior position 자체 권한 없음 |
 | Allowance | `allowance.export.generate` | approved payroll-review recipient | 지급 명령 아님 |
 | Search | `search.metadata.query` | INTERNAL | `OD-010` allowlist |
-| Search | `search.body.query` | INTERNAL + approved policy | L1/L2 only; 기본 deny |
+| Search | `search.body.query` | INTERNAL + approved future policy | P1 첫 release 미등록; L1/L2 후속 결정 전 deny |
 | Search | `search.index.manage` | trusted Worker/service | actor/audit 필수 |
 | Search | `search.sensitive_result.read` | exact source permission/scope | delivery-time 재검증 |
 
@@ -67,7 +67,7 @@ P1은 P0 `AUTHZ-VENDOR-V1`, trusted ActorContext/ResourceContext, action-bound P
 | `SEARCH_RESULT_INTERNAL_METADATA_V1` | source type/id/title/allowed metadata/security label | unauthorized snippet/body, hidden source fields |
 | `SEARCH_RESULT_INTERNAL_BODY_V1` | approved L1/L2 snippet fields only | L3/L4 body, private object location, secrets |
 
-`BOM_VENDOR_ASSIGNED_V1`은 `docs/p1-open-decisions-checklist.md` 승인 전 registry에 등록하지 않는다. P1에는 Vendor용 검색 projection을 만들지 않는다.
+`BOM_VENDOR_ASSIGNED_V1`은 exact active Project + Contract + assignment + effective approved BomVersion을 모두 요구한다. P1에는 Vendor용 검색 projection을 만들지 않는다.
 
 ## 4. Actor/Surface Matrix
 
@@ -83,7 +83,7 @@ P1은 P0 `AUTHZ-VENDOR-V1`, trusted ActorContext/ResourceContext, action-bound P
 
 ### BOM
 
-승인될 경우에만 다음 AND 조건을 사용한다.
+다음 AND 조건을 사용한다.
 
 1. active VendorUser와 VendorMembership;
 2. exact Project grant;
@@ -107,12 +107,25 @@ P1 기본선에서 Vendor equipment repository, allowance, integrated search는 
 
 | Security level | Metadata index | Body index | Result delivery |
 |---|---|---|---|
-| `SEC_L1_PUBLIC_GENERAL` | 승인된 internal field allowlist | `OD-010` 정책 승인 후 가능 | source live authorization 재검증 |
-| `SEC_L2_INTERNAL` | 승인된 internal field allowlist | 문서유형/필드별 별도 승인 후 가능 | Lab/Project/Document Scope와 projection 재검증 |
+| `SEC_L1_PUBLIC_GENERAL` | 승인된 internal field allowlist | P1 첫 release 금지; 후속 별도 승인 후 가능 | source live authorization 재검증 |
+| `SEC_L2_INTERNAL` | 승인된 internal field allowlist | P1 첫 release 금지; 후속 문서유형/필드 승인 후 가능 | Lab/Project/Document Scope와 projection 재검증 |
 | `SEC_L3_CONFIDENTIAL` | 최소 opaque identifier/label만 별도 승인 가능 | 금지 | source entitlement + audited direct detail; search snippet 없음 |
 | `SEC_L4_CORE_SECRET` | 기본 미색인 | 금지 | 검색 결과 없음; 기존 직접 접근 경계만 사용 |
 
 Vendor는 모든 security level에서 기술자료 repository search가 금지된다. L1 분류도 외부 release permission이 아니다.
+
+P1 metadata entity/field baseline:
+
+| Entity | 허용 metadata field |
+|---|---|
+| Project | project number/name/type, owning department, formal-designation state, planned/actual date |
+| Document | document number/title/type, current approved version, effective date, security label |
+| Item/BOM | item code/name/spec/unit, BOM number, effective version/revision |
+| Equipment | equipment number/name/model, authorized location, serviceability/calibration summary/due date |
+| Safety/MSDS | substance/product name, hazard label, effective MSDS version/issued/effective date |
+| R&D | program number/title/sponsor/agreement period, linked Project, report deadline |
+
+각 source Feature가 live authorization과 별도 ProjectionProfile로 field를 줄인다. Document body/editor content, price/cost, equipment certificate content, material lot balance, safety incident analysis, R&D budget/expenditure와 allowance 정보는 포함하지 않는다.
 
 ## 7. 연구수당 field separation
 
@@ -152,6 +165,7 @@ Vendor는 모든 security level에서 기술자료 repository search가 금지�
 - expired calibration with/without exact approved exception;
 - Vendor safety own assignment vs other Vendor/participant;
 - allowance evaluator/calculator/approver/exporter 역할 분리와 amount/tax field redaction;
+- allowance ApprovalPolicy participant가 canonical Lab Director 이상 공식 approval authority 또는 그 acting authority인지 검증;
 - Search L1/L2 allowed source, L3/L4 body denial, Vendor hard deny, revoked permission stale index denial;
 - Admin-System의 L3/L4 source와 allowance amount/tax 자동열람 deny;
 - service-role call의 trusted authorization/audit provenance.

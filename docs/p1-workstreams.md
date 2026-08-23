@@ -41,13 +41,13 @@
 
 - Item 기반 Bom/BomVersion/Line/Alternate/Applicability/AsBuilt snapshot.
 - exact typed Approval subject와 ECR/ECO before/after link.
-- Vendor assigned projection은 승인된 경우에만 추가.
+- Vendor assigned projection은 exact Project+Contract+assignment+effective BomVersion과 제한 field로 추가.
 - state/concurrency/immutability/RLS/forbidden-field tests.
 
 ### `P1-M02` 연구장비·교정
 
 - Equipment/CalibrationPolicyVersion/Record/Usage/Checkout/Maintenance.
-- 만료 사용 차단과 승인된 exact exception.
+- 만료 사용 기본 차단과 versioned exception policy + exact equipment/purpose/interval + canonical Approval의 제한 예외.
 - TestResult equipment/calibration snapshot public port.
 - due/expiry notification과 custody/concurrency tests.
 
@@ -67,11 +67,11 @@
 
 - approved source/field/security policy와 derived index.
 - live source reauthorization, projection, audit, revoke purge/reindex.
-- metadata-first; approved L1/L2 body only; Vendor/L3/L4 body hard deny.
+- 첫 P1 release는 6개 source entity군의 명시 metadata-only; L1/L2 body는 `OD-038` 전 deny; Vendor/L3/L4 body hard deny.
 
 ### `P1-M06` PWA·알림·모바일 통합
 
-- command-specific ADR이 승인된 장비/안전 draft만 offline allowlist.
+- command-specific ADR이 승인된 장비/안전 draft capture만 offline allowlist; 실제 state transition은 전부 online-only.
 - calibration/MSDS/drill/allowance due in-app notification.
 - 375px empty/loading/error/forbidden/offline/conflict flow.
 

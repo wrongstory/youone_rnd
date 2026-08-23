@@ -41,8 +41,8 @@
 | `P1-AUDIT-001` | 명명 충돌 | `docs/architecture.md`는 Purchase가 BOM을 소유하고, 로드맵은 BOM을 독립 병합 항목으로 표현한다. | 병합 항목은 `P1-M01`, 물리 소유 module은 `feature.purchase`로 유지한다. 신규 `feature.bom`은 만들지 않는다. |
 | `P1-AUDIT-002` | 개념/물리 혼동 | P0 domain/ERD에 연구수당·MSDS·폐기물·비상훈련 개념이 있으나 M13/M11 migration에는 의도적으로 없다. | P1 logical delta를 승인한 뒤에만 physical schema를 추가한다. 현 개념도를 구현 완료로 간주하지 않는다. |
 | `P1-AUDIT-003` | 경계 중복 위험 | 장비 사용이 Quality TestResult와 연결되지만 Equipment와 TestResult의 소유자가 다르다. | Equipment public application port와 immutable snapshot link를 사용한다. 어느 module도 다른 module 내부 repository를 직접 호출하지 않는다. |
-| `P1-AUDIT-004` | 규정 잔재 | 연구수당 부속 문구가 운영규정 제5조를 회의 조문으로 잘못 참조한다. | `OD-024`가 닫힐 때까지 source provenance만 보존하고 산정·승인 rule의 근거 ID로 쓰지 않는다. |
-| `P1-AUDIT-005` | 범위 충돌 | 초기 검색 요구는 전체검색으로 읽힐 수 있으나 기술자료/Vendor/L3-L4 정책은 강한 제한을 요구한다. | P1 기본안은 internal metadata allowlist다. L1/L2 본문은 별도 승인된 index policy에서만 단계적으로 허용한다. |
+| `P1-AUDIT-004` | 규정 잔재 | 연구수당 `[별표 1]`이 운영규정 제5조(회의)를 잘못 참조한다. | `OD-024` 결정에 따라 외부조문 연결을 삭제하고 `본 규정 제5조【지급 기준액】` self-reference로 정정한다. 승인된 개정본 전에는 source 원문과 correction decision을 함께 보존한다. |
+| `P1-AUDIT-005` | 범위 충돌 | 초기 검색 요구는 전체검색으로 읽힐 수 있으나 기술자료/Vendor/L3-L4 정책은 강한 제한을 요구한다. | P1 첫 release는 Project/Document/Item-BOM/Equipment/Safety-MSDS/R&D의 internal metadata allowlist다. L1/L2 본문은 후속 결정/정책 승인 전 금지한다. |
 | `P1-AUDIT-006` | 역할 추정 위험 | 연구수당 검토·급여 참고자료 수신자를 새 직급/역할로 추정할 근거가 없다. | stable permission과 policy participant를 사용하고 신규 회사 역할을 seed하지 않는다. |
 | `P1-AUDIT-007` | 법정 수치 추정 위험 | 교정주기, MSDS 갱신, 폐기물/훈련 보존기간을 하나의 법정 고정값으로 만들 근거가 없다. | 대상별 versioned policy/source basis를 저장하고 승인 전 숫자 기본값을 두지 않는다. |
 | `P1-AUDIT-008` | offline 확대 위험 | P1 전체를 offline으로 해석할 수 있다. | 장비사용·안전 현장점검의 승인된 저위험 draft만 후보이며 BOM/수당/검색/index/공식 증거는 online-only다. |
@@ -62,11 +62,7 @@
 
 | 결정 | 차단 범위 | 현재 fail-closed 처리 |
 |---|---|---|
-| `OD-010-SEARCH-SCOPE` entity/field/body index 범위 | P1-M05 설계 승인 | internal metadata allowlist 이외 검색 index 생성 금지 |
-| `OD-024-ALLOWANCE-REFERENCE` 규정 조문 정정 | 수당 정책의 공식 규정 traceability | 잘못된 조문을 rule source로 사용하지 않음 |
-| 교정 만료장비 예외 권한·기간·재검토 | 장비 예외 사용 transition | 예외 기능 비활성, 만료 장비 사용 차단 |
-| Vendor BOM 허용 필드와 사용목적 | Vendor BOM projection | Vendor BOM read 전부 거부 |
-| L1/L2 본문색인 허용 문서유형·필드 | 본문 검색 | metadata-only |
+| L1/L2 본문색인 허용 문서유형·필드 | 후속 본문 검색 | P1 첫 release metadata-only, `OD-038` 승인 전 body 금지 |
 | 안전 P1 세부 보존/신고 정책 source version | production retention/job | 일반 5년, 더 긴 적용 근거 및 legal hold 중 최장만 논리 규칙으로 유지 |
 
 ## 7. 결론

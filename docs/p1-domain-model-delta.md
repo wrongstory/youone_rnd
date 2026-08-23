@@ -64,11 +64,11 @@ Line은 exact child Item revision, quantity, unit, scrap/remark의 허용된 typ
 
 ### `research_equipment`
 
-장비번호, 명칭, manufacturer/model/serial, 소유/임대 구분, 위치, 관리부서·custodian, 사용가능 lifecycle, 보안/반출 분류를 가진다. 장비 lifecycle과 교정상태는 서로 다른 상태머신이다.
+장비번호, 명칭, manufacturer/model/serial, 소유/임대 구분, 위치, 관리부서·custodian, serviceability lifecycle, 보안/반출 분류를 가진다. Equipment serviceability, Checkout custody, Usage와 Calibration은 서로 독립 상태축이다. 사용 중 고장/교정만료가 발생해 Equipment가 `OUT_OF_SERVICE`가 되어도 기존 Usage `IN_USE`와 Checkout `CHECKED_OUT` 사실을 잃지 않으며 종료·반납 전이를 계속 허용한다.
 
 ### `calibration_plan`, `calibration_policy_version`
 
-대상 장비/종류, 요구주기 또는 event-based trigger, 사전알림, 허용기관/방법, 판정기준, source basis, effective interval을 version으로 보존한다. 확정 주기는 장비·규정·제조사 근거별 값이며 전역 기본값을 두지 않는다.
+대상 장비/종류, 요구주기 또는 event-based trigger, 사전알림, 허용기관/방법, 판정기준, source basis, effective interval을 version으로 보존한다. `CalibrationPolicyVersion`은 exact typed Approval subject를 가진 sealed lifecycle이며 반려본은 `RETURNED` terminal, 정정은 successor `DRAFT`다. 확정 주기는 장비·규정·제조사 근거별 값이며 전역 기본값을 두지 않는다.
 
 ### `calibration_record`
 
@@ -138,17 +138,18 @@ Run은 정산월/기간과 policy set checksum을 가진다. Line은 사람·과
 
 - 계산·조정·승인·export는 서로 다른 사건이며 승인된 계산을 덮어쓰지 않는다.
 - 동일 person/month의 모든 포함 과제를 합산한다.
+- 과제별 ApprovalPolicyVersion이 참여 조합을 정하지만 participant는 canonical Lab Director 이상 공식 approval authority 또는 유효한 acting authority로 제한한다. Senior Researcher position 자체에는 승인권이 없다.
 - Vendor와 일반 Project member에게 금액·세무·임금 분류를 노출하지 않는다.
 
 ## 7. 권한필터 통합검색
 
 ### `search_index_policy`, `search_index_policy_version`
 
-허용 source entity/version, field, security level, actor kind, projection profile, tokenizer/snippet 정책, retention/purge SLA를 version으로 보존한다. `OD-010` 승인 전 기본안은 internal metadata allowlist뿐이다.
+허용 source entity/version, field, security level, actor kind, projection profile, tokenizer/snippet 정책, retention/purge SLA를 version으로 보존한다. `SearchIndexPolicyVersion`은 exact typed Approval subject와 `DRAFT → IN_REVIEW → RETURNED/APPROVED → EFFECTIVE → SUPERSEDED/REVOKED` lifecycle을 가지며 sealed 반려본은 immutable하다. P1 첫 릴리즈는 internal metadata-only다. Project, Document, Item/BOM, Equipment, Safety/MSDS, R&D source를 entity별 명시 field allowlist로만 색인한다. L1/L2 body는 후속 별도 결정/정책 전까지 금지한다.
 
 ### `search_index_entry`
 
-source type/id/version, policy version, owning scope IDs, security level, indexed field IDs, content checksum, indexed/purged time을 가진 파생 record다. source 내용을 정본으로 소유하지 않으며 source 삭제/권한회수 event에서 purge/reindex한다.
+source type/id/version, policy version, owning scope IDs, security level, indexed field IDs, content checksum, indexed/purged time을 가진 파생 record다. `INDEX_FAILED`와 보안상 중요한 `PURGE_FAILED`를 분리하며 purge 실패는 일반 재색인 queue로 이동할 수 없다. source 내용을 정본으로 소유하지 않으며 source 삭제/권한회수 event에서 purge/reindex한다.
 
 ### `search_query_audit`, `search_result_access_audit`
 
