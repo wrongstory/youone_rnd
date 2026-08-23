@@ -6,8 +6,9 @@ import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
-import { OperationsPolicyError, validateOperationsPolicyBundle } from "../../apps/worker/src/composition/operations-policy.js";
+import { OperationsPolicyError, validateOperationsPolicyBundle, type ProductionOperationsPolicy } from "../../apps/worker/src/composition/operations-policy.js";
 import {
+  approvedOperationsPolicySha256,
   evaluateReleaseCandidate,
   releaseEvidenceSha256,
   REQUIRED_RELEASE_EVIDENCE_IDS,
@@ -25,6 +26,20 @@ const approver = "16000000-0000-4000-8000-000000000001";
 const sessionId = "16000000-0000-4000-8000-000000000009";
 const subjectDigest = digest("target-subject");
 const issuerDigest = digest("https://tenant.supabase.co/auth/v1");
+const recoveryApprover = "16000000-0000-4000-8000-000000000002";
+const recoveryExecutor = "16000000-0000-4000-8000-000000000003";
+const requiredActionIds = [
+  "identity.account.disable", "authorization.assignment.manage", "audit.security.read",
+  "approval.step.approve", "approval.policy.manage", "contract.detail.finance.read",
+  "inspection.record.decide", "purchase.payment.record", "research_note.record.finalize",
+  "technical_document.content.preview", "technical_document.content.download",
+  "technical_document.copy.render", "technical_document.copy.print", "technical_document.copy.custody"
+];
+const managedDeviceActionIds = [
+  "audit.security.read", "contract.detail.finance.read", "technical_document.content.preview",
+  "technical_document.content.download", "technical_document.copy.render",
+  "technical_document.copy.print", "technical_document.copy.custody"
+];
 
 function digest(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
@@ -34,11 +49,12 @@ function approval(approvalEvidenceSha256: string) {
   return { status: "APPROVED", createdAt, approvedAt, effectiveFrom, approvedByActorId: approver, approvalEvidenceSha256, revokedAt: null };
 }
 
-function approvalArtifact(decisionId: string, policyVersion: string, includeBinding = false) {
+function approvalArtifact(decisionId: string, policyVersion: string, approvedPolicySha256: string, includeBinding = false) {
   return {
     schemaVersion: 1,
     decisionId,
     policyVersion,
+    approvedPolicySha256,
     approval: { status: "APPROVED", createdAt, approvedAt, effectiveFrom, approvedByActorId: approver, revokedAt: null },
     ...(includeBinding ? {
       targetSessionBinding: {
@@ -57,6 +73,20 @@ function approvalArtifact(decisionId: string, policyVersion: string, includeBind
         residualAccessTokenRisk: "ACKNOWLEDGED"
       }
     } : {})
+  };
+}
+
+function recoveryArtifact(policy: ProductionOperationsPolicy) {
+  return {
+    schemaVersion: 1,
+    result: "PASS",
+    policyDecisionId: policy.decisionId,
+    policyVersion: policy.policyVersion,
+    approvedPolicySha256: approvedOperationsPolicySha256(policy),
+    recoveryApprovedByActorId: recoveryApprover,
+    recoveryExecutedByActorIds: [recoveryExecutor],
+    startedAt: "2026-08-23T12:02:00.000Z",
+    completedAt: "2026-08-23T12:20:00.000Z"
   };
 }
 
@@ -97,10 +127,44 @@ function fixture() {
   const artifacts = new Map<ReleaseEvidenceId, Uint8Array>();
   for (const evidenceId of REQUIRED_RELEASE_EVIDENCE_IDS) artifacts.set(evidenceId, bytes(`evidence:${evidenceId}`));
   artifacts.set("STAGING_E2E_V1", bytes(stagingEvidence()));
-  artifacts.set("POLICY_OD019", bytes(approvalArtifact("OD-019-MFA-SESSION", "POL-MFA-SESSION-V1")));
-  artifacts.set("POLICY_OD035", bytes(approvalArtifact("OD-035-PRODUCTION-OPERATIONS", "POL-PRODUCTION-OPERATIONS-V1")));
-  artifacts.set("POLICY_OD036", bytes(approvalArtifact("OD-036-SUPABASE-SESSION-REVOKE", "POL-SUPABASE-SESSION-REVOKE-V1", true)));
+  const policies = {
+    schemaVersion: 1,
+    mfaSession: {
+      decisionId: "OD-019-MFA-SESSION", policyVersion: "POL-MFA-SESSION-V1", approval: approval("0".repeat(64)),
+      mfa: { requiredActorKinds: ["INTERNAL", "VENDOR"], requiredActionIds, factorTypes: ["TOTP"], requiredAssuranceLevel: "aal2" },
+      session: { jwtExpiryMinutes: 60, timeboxMinutes: 480, inactivityMinutes: 60, singleSessionPerUser: true },
+      device: { newDeviceReauthentication: true, managedDeviceRequiredForActionIds: managedDeviceActionIds }
+    },
+    productionOperations: {
+      decisionId: "OD-035-PRODUCTION-OPERATIONS", policyVersion: "POL-PRODUCTION-OPERATIONS-V1", approval: approval("0".repeat(64)),
+      recoveryObjectives: { rpoMinutes: 60, rtoMinutes: 240 }, databaseBackup: { cadenceMinutes: 60, retentionDays: 14 },
+      storageBackup: { cadenceMinutes: 60, retentionDays: 30 }, monitoringDestinationIds: ["MONITORING_SECURITY_CHANNEL"],
+      incidentOwnerActorIds: [approver], recoveryApproverActorIds: [recoveryApprover], recoveryExecutorActorIds: [recoveryExecutor],
+      evidenceLocationId: "OPERATIONS_EVIDENCE_VAULT"
+    },
+    providerSessionRevoke: {
+      decisionId: "OD-036-SUPABASE-SESSION-REVOKE", policyVersion: "POL-SUPABASE-SESSION-REVOKE-V1", approval: approval("0".repeat(64)),
+      mechanism: "SUPABASE_GLOBAL_SIGN_OUT_WITH_TARGET_JWT", scope: "global", applicationSessionCheck: "EXACT_AUTH_SESSIONS_ROW_EVERY_REQUEST",
+      maximumResidualAccessTokenMinutes: 60, retryAttempts: 3, reconciliationIntervalMinutes: 15,
+      limitationsAcknowledged: ["ACCESS_TOKEN_VALID_UNTIL_EXPIRY", "TARGET_USER_JWT_REQUIRED"]
+    }
+  };
+  const validated = validateOperationsPolicyBundle(policies, evaluatedAt);
+  artifacts.set("POLICY_OD019", bytes(approvalArtifact(
+    validated.mfaSession.decisionId, validated.mfaSession.policyVersion, approvedOperationsPolicySha256(validated.mfaSession)
+  )));
+  artifacts.set("POLICY_OD035", bytes(approvalArtifact(
+    validated.productionOperations.decisionId, validated.productionOperations.policyVersion, approvedOperationsPolicySha256(validated.productionOperations)
+  )));
+  artifacts.set("POLICY_OD036", bytes(approvalArtifact(
+    validated.providerSessionRevoke.decisionId, validated.providerSessionRevoke.policyVersion,
+    approvedOperationsPolicySha256(validated.providerSessionRevoke), true
+  )));
+  artifacts.set("RECOVERY_DB_STORAGE", bytes(recoveryArtifact(validated.productionOperations)));
   const artifact = (id: ReleaseEvidenceId) => artifacts.get(id) ?? new Uint8Array();
+  policies.mfaSession.approval = approval(digest(artifact("POLICY_OD019")));
+  policies.productionOperations.approval = approval(digest(artifact("POLICY_OD035")));
+  policies.providerSessionRevoke.approval = approval(digest(artifact("POLICY_OD036")));
   const evidence = REQUIRED_RELEASE_EVIDENCE_IDS.map((evidenceId) => ({
     evidenceId,
     sourceKind: sourceKind(evidenceId),
@@ -113,27 +177,6 @@ function fixture() {
     ...(evidenceId === "POLICY_OD036" ? { policyVersion: "POL-SUPABASE-SESSION-REVOKE-V1" } : {}),
     ...(evidenceId.startsWith("CI_") ? { runId: "32629729525" } : {})
   }));
-  const policies = {
-    schemaVersion: 1,
-    mfaSession: {
-      decisionId: "OD-019-MFA-SESSION", policyVersion: "POL-MFA-SESSION-V1", approval: approval(digest(artifact("POLICY_OD019"))),
-      mfa: { requiredActorKinds: ["INTERNAL", "VENDOR"], requiredActionIds: ["APPROVAL_FINAL_ACTION"], factorTypes: ["TOTP"], requiredAssuranceLevel: "aal2" },
-      session: { jwtExpiryMinutes: 60, timeboxMinutes: 480, inactivityMinutes: 60, singleSessionPerUser: true },
-      device: { newDeviceReauthentication: true, managedDeviceRequiredForActionIds: ["TECHNICAL_SOURCE_READ"] }
-    },
-    productionOperations: {
-      decisionId: "OD-035-PRODUCTION-OPERATIONS", policyVersion: "POL-PRODUCTION-OPERATIONS-V1", approval: approval(digest(artifact("POLICY_OD035"))),
-      recoveryObjectives: { rpoMinutes: 60, rtoMinutes: 240 }, databaseBackup: { cadenceMinutes: 60, retentionDays: 30 },
-      storageBackup: { cadenceMinutes: 60, retentionDays: 30 }, monitoringDestinationIds: ["MONITORING_SECURITY_CHANNEL"],
-      incidentOwnerActorIds: [approver], recoveryApproverActorIds: ["16000000-0000-4000-8000-000000000002"], evidenceLocationId: "OPERATIONS_EVIDENCE_VAULT"
-    },
-    providerSessionRevoke: {
-      decisionId: "OD-036-SUPABASE-SESSION-REVOKE", policyVersion: "POL-SUPABASE-SESSION-REVOKE-V1", approval: approval(digest(artifact("POLICY_OD036"))),
-      mechanism: "SUPABASE_GLOBAL_SIGN_OUT_WITH_TARGET_JWT", scope: "global", applicationSessionCheck: "EXACT_AUTH_SESSIONS_ROW_EVERY_REQUEST",
-      maximumResidualAccessTokenMinutes: 60, retryAttempts: 3, reconciliationIntervalMinutes: 5,
-      limitationsAcknowledged: ["ACCESS_TOKEN_VALID_UNTIL_EXPIRY", "TARGET_USER_JWT_REQUIRED"]
-    }
-  };
   const input = { schemaVersion: 1, candidateCommitSha: commitSha, environmentId: "youone-staging", operationsPolicies: policies, evidence, openBlockerIds: [] };
   const reader: ReleaseArtifactReader = { read: async (evidenceId) => {
     const value = artifacts.get(evidenceId);
@@ -158,6 +201,10 @@ describe("R06 versioned operations policies", () => {
     const placeholder = structuredClone(setup.policies);
     placeholder.productionOperations.monitoringDestinationIds = ["MONITORING_TBD"];
     expect(() => validateOperationsPolicyBundle(placeholder, evaluatedAt)).toThrowError(OperationsPolicyError);
+
+    const overlappingRecoveryRoles = structuredClone(setup.policies);
+    overlappingRecoveryRoles.productionOperations.recoveryExecutorActorIds = [recoveryApprover];
+    expect(() => validateOperationsPolicyBundle(overlappingRecoveryRoles, evaluatedAt)).toThrowError(OperationsPolicyError);
   });
 });
 
@@ -229,7 +276,11 @@ describe("R06 candidate-bound artifact gate", () => {
     expect((await evaluateReleaseCandidate(version.input, context(version.reader))).reasonCodes).toContain("R06_POLICY_EVIDENCE_MISMATCH");
 
     const binding = fixture();
-    const invalidArtifact = approvalArtifact("OD-036-SUPABASE-SESSION-REVOKE", "POL-SUPABASE-SESSION-REVOKE-V1", true);
+    const validated = validateOperationsPolicyBundle(binding.policies, evaluatedAt);
+    const invalidArtifact = approvalArtifact(
+      "OD-036-SUPABASE-SESSION-REVOKE", "POL-SUPABASE-SESSION-REVOKE-V1",
+      approvedOperationsPolicySha256(validated.providerSessionRevoke), true
+    );
     invalidArtifact.targetSessionBinding!.jwtSubjectSha256 = digest("different-subject");
     const invalidBytes = bytes(invalidArtifact);
     binding.artifacts.set("POLICY_OD036", invalidBytes);
@@ -237,6 +288,30 @@ describe("R06 candidate-bound artifact gate", () => {
     reference.sha256 = digest(invalidBytes);
     binding.policies.providerSessionRevoke.approval.approvalEvidenceSha256 = reference.sha256;
     expect((await evaluateReleaseCandidate(binding.input, context(binding.reader))).reasonCodes).toContain("R06_SESSION_REVOKE_BINDING_INVALID");
+  });
+
+  it.each([
+    ["OD-019 action allowlist", (setup: ReturnType<typeof fixture>) => { setup.policies.mfaSession.mfa.requiredActionIds = ["approval.step.approve"]; }],
+    ["OD-035 DB retention", (setup: ReturnType<typeof fixture>) => { setup.policies.productionOperations.databaseBackup.retentionDays = 30; }],
+    ["OD-036 reconciliation", (setup: ReturnType<typeof fixture>) => { setup.policies.providerSessionRevoke.reconciliationIntervalMinutes = 5; }]
+  ] as const)("blocks approved policy payload drift: %s", async (_label, mutate) => {
+    const setup = fixture();
+    mutate(setup);
+    const result = await evaluateReleaseCandidate(setup.input, context(setup.reader));
+    expect(result.status).toBe("BLOCKED");
+    expect(result.reasonCodes).toContain("R06_POLICY_EVIDENCE_MISMATCH");
+  });
+
+  it("blocks a recovery drill when the actual approver also executes the restore", async () => {
+    const setup = fixture();
+    const policy = validateOperationsPolicyBundle(setup.policies, evaluatedAt).productionOperations;
+    const artifact = { ...recoveryArtifact(policy), recoveryExecutedByActorIds: [recoveryApprover] };
+    const artifactBytes = bytes(artifact);
+    setup.artifacts.set("RECOVERY_DB_STORAGE", artifactBytes);
+    setup.input.evidence.find((item) => item.evidenceId === "RECOVERY_DB_STORAGE")!.sha256 = digest(artifactBytes);
+    const result = await evaluateReleaseCandidate(setup.input, context(setup.reader));
+    expect(result.status).toBe("BLOCKED");
+    expect(result.reasonCodes).toContain("R06_RECOVERY_ACTOR_SEPARATION_INVALID");
   });
 
   it("converts reader/internal errors to secretless BLOCKED output", async () => {

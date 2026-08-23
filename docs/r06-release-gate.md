@@ -20,6 +20,7 @@ Supabase 공식 문서상 global sign-out은 해당 사용자의 모든 session�
 - [Supabase Auth Admin signOut](https://supabase.com/docs/reference/javascript/auth-admin-signout)
 - [Supabase User sessions](https://supabase.com/docs/guides/auth/sessions)
 - [Supabase Multi-Factor Authentication](https://supabase.com/docs/guides/auth/auth-mfa)
+- [Supabase Database Backups](https://supabase.com/docs/guides/platform/backups)
 
 ## 3. 사용자 승인 체크리스트
 
@@ -51,6 +52,7 @@ managed-device 전용 후보는 `audit.security.read`, `contract.detail.finance.
 - [ ] 모니터링 목적지 stable ID
 - [ ] 사고대응 담당자 actor UUID
 - [ ] 복구 승인자 actor UUID
+- [ ] 복구 실행자 actor UUID와 승인자/실행자 집합 무교집합
 - [ ] 운영증거 보관 위치 stable ID
 
 구현수단은 비용을 고려할 수 있지만 승인된 RPO/RTO를 낮추거나 DB와 Storage 객체 백업을 혼동할 수 없다. DB backup cadence와 Storage manifest/byte backup cadence는 각각 60분 이하여야 하고, 격리 복구 실증이 RTO 240분 이내 완료됨을 증명해야 한다.
@@ -119,10 +121,15 @@ stable ID 후보:
 - [ ] Web용 `NOINHERIT`/`NOBYPASSRLS` request login과 별도 Identity Resolver login 발급
 - [ ] Worker용 별도 최소권한 login 발급; `youone_privileged_writer` 외 role SET 및 직접 table 권한 금지
 - [ ] Auth에서 TOTP/AAL2, JWT 60분, session 480분, inactivity 60분, single-session과 신규 device 재인증 적용·증거화
+- [ ] Supabase plan이 time-box/inactivity/single-session을 지원하는지 확인하고 미지원이면 activation 차단
+- [ ] time-box/inactivity/single-session 변경이 refresh 시점에 적용되고 JWT expiry까지 최대 60분 지연될 수 있음을 실제 세션으로 검증
+- [ ] new-device reauthentication/managed-device는 별도 application/device-trust 계약으로 검증하고 provider 부재 시 민감 action 차단
 - [ ] publishable key와 service-role key를 분리하고 service-role은 Worker secret store에만 저장
 - [ ] 모든 Storage bucket `public=false`; source와 recovery bucket/object가 서로 다른 project에 존재
 - [ ] DB 60분/14일과 Storage 60분/30일 backup job 및 실패 알림 구성
 - [ ] RPO 60분/RTO 240분 내 DB+Storage 격리 복구훈련, count/size/SHA-256 및 migration head 검증
+- [ ] DB restore 후 custom Web/Identity Resolver/Worker login password를 secret store에서 재프로비저닝
+- [ ] 재프로비저닝 후 Web database/request-auth와 Worker database/private-storage readiness 재검증
 - [ ] internal/Vendor/disabled/expired/cross-scope 계정과 exact Project/Contract grant fixture 준비
 - [ ] `apps/worker/.env.example`의 Staging 변수는 배포/GitHub secret에만 주입하고 populated env·token·URL을 commit/artifact/log에 남기지 않음
 - [ ] R05 live matrix 전체 PASS와 artifact digest를 exact candidate commit에 귀속
@@ -137,6 +144,14 @@ stable ID 후보:
 ```text
 evidence.commitSha == R06.candidateCommitSha == R05.commitSha == R06_PROMOTION_SOURCE_COMMIT
 ```
+
+각 `POLICY_OD019/035/036.artifact`는 `approvedPolicySha256`을 포함한다. R06는 approval metadata를 제외한 정책 본문 전체를 아래 범위로 canonicalize하고 SHA-256을 직접 재계산해 artifact 값과 exact 비교한다. 같은 policyVersion/approval artifact를 유지한 채 action allowlist, session/device 값, RPO/RTO·backup·actor/destination 값, revoke retry/reconciliation 값 중 하나라도 바꾸면 `R06_POLICY_EVIDENCE_MISMATCH`로 차단한다.
+
+- OD-019: `mfa`, `session`, `device`
+- OD-035: `recoveryObjectives`, `databaseBackup`, `storageBackup`, monitoring/incident/recovery approver/recovery executor/evidence-location binding
+- OD-036: mechanism/scope/request-session-check, residual/retry/reconciliation, acknowledged limitations
+
+`RECOVERY_DB_STORAGE.artifact`도 단순 존재·digest로 끝내지 않는다. exact OD-035 version와 `approvedPolicySha256`, `PASS`, 실제 승인자 UUID, 실제 실행자 UUID 목록, 시작·완료 UTC를 parse한다. 승인자는 승인된 `recoveryApproverActorIds`, 실행자는 승인된 `recoveryExecutorActorIds`에 속해야 하고 실제 승인자와 실행자 교집합은 없어야 한다. 훈련은 정책 효력 이후 시작하고 RTO 240분 안에 끝나야 하며 그렇지 않으면 `R06_RECOVERY_EVIDENCE_INVALID` 또는 `R06_RECOVERY_ACTOR_SEPARATION_INVALID`로 차단한다.
 
 Staging packet은 R05의 모든 check가 `PASS`, live credential 증거가 확인되고 environment/commit이 릴리즈 후보와 같아야 한다. R06는 입력에 복사된 packet이나 digest를 신뢰하지 않고 실제 `STAGING_E2E_V1.artifact`를 parse해 5개 readiness, required check 전체, artifact digest를 다시 검증한다.
 

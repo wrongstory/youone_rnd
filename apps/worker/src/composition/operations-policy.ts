@@ -48,6 +48,7 @@ export type ProductionOperationsPolicy = Readonly<{
   monitoringDestinationIds: readonly string[];
   incidentOwnerActorIds: readonly string[];
   recoveryApproverActorIds: readonly string[];
+  recoveryExecutorActorIds: readonly string[];
   evidenceLocationId: string;
 }>;
 
@@ -89,6 +90,7 @@ export class OperationsPolicyError extends Error {
 const shaPattern = /^[0-9a-f]{64}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const stableIdPattern = /^[A-Z][A-Z0-9_.-]{2,95}$/;
+const actionIdPattern = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){2,}$/;
 const policyVersionPattern = /^POL-[A-Z0-9-]+-V[1-9][0-9]*$/;
 
 export function validateOperationsPolicyBundle(input: unknown, evaluatedAt: string): OperationsPolicyBundle {
@@ -105,8 +107,8 @@ function validateMfaSession(input: unknown, evaluatedAt: number): MfaSessionPoli
   if (!isRecord(record.mfa) || !isRecord(record.session) || !isRecord(record.device)) fail("OPERATIONS_POLICY_INPUT_INVALID");
   const actorKinds = exactUniqueValues(record.mfa.requiredActorKinds, ["INTERNAL", "VENDOR"] as const, true);
   const factors = exactUniqueValues(record.mfa.factorTypes, ["PHONE", "TOTP"] as const, true);
-  const requiredActionIds = stableIds(record.mfa.requiredActionIds, true);
-  const managedDeviceActions = stableIds(record.device.managedDeviceRequiredForActionIds, false);
+  const requiredActionIds = actionIds(record.mfa.requiredActionIds, true);
+  const managedDeviceActions = actionIds(record.device.managedDeviceRequiredForActionIds, false);
   const jwtExpiryMinutes = boundedInteger(record.session.jwtExpiryMinutes, 5, 1_440);
   const timeboxMinutes = nullableBoundedInteger(record.session.timeboxMinutes, jwtExpiryMinutes, 525_600);
   const inactivityMinutes = nullableBoundedInteger(record.session.inactivityMinutes, jwtExpiryMinutes, 525_600);
@@ -135,6 +137,8 @@ function validateProductionOperations(input: unknown, evaluatedAt: number): Prod
   const monitoringDestinationIds = stableIds(record.monitoringDestinationIds, true);
   const incidentOwnerActorIds = actorIds(record.incidentOwnerActorIds);
   const recoveryApproverActorIds = actorIds(record.recoveryApproverActorIds);
+  const recoveryExecutorActorIds = actorIds(record.recoveryExecutorActorIds);
+  if (recoveryApproverActorIds.some((actorId) => recoveryExecutorActorIds.includes(actorId))) fail("OPERATIONS_POLICY_VALUE_INVALID");
   if (typeof record.evidenceLocationId !== "string" || !stableIdPattern.test(record.evidenceLocationId) || containsPlaceholderToken(record.evidenceLocationId)) fail("OPERATIONS_POLICY_VALUE_INVALID");
   return Object.freeze({
     decisionId: "OD-035-PRODUCTION-OPERATIONS",
@@ -146,6 +150,7 @@ function validateProductionOperations(input: unknown, evaluatedAt: number): Prod
     monitoringDestinationIds,
     incidentOwnerActorIds,
     recoveryApproverActorIds,
+    recoveryExecutorActorIds,
     evidenceLocationId: record.evidenceLocationId
   });
 }
@@ -214,6 +219,12 @@ function backupPolicy(input: Record<string, unknown>, rpoMinutes: number): Reado
 
 function stableIds(input: unknown, required: boolean): readonly string[] {
   if (!Array.isArray(input) || required && input.length === 0 || input.some((value) => typeof value !== "string" || !stableIdPattern.test(value) || containsPlaceholderToken(value))) fail("OPERATIONS_POLICY_VALUE_INVALID");
+  if (new Set(input).size !== input.length) fail("OPERATIONS_POLICY_VALUE_INVALID");
+  return Object.freeze([...input] as string[]);
+}
+
+function actionIds(input: unknown, required: boolean): readonly string[] {
+  if (!Array.isArray(input) || required && input.length === 0 || input.some((value) => typeof value !== "string" || !actionIdPattern.test(value))) fail("OPERATIONS_POLICY_VALUE_INVALID");
   if (new Set(input).size !== input.length) fail("OPERATIONS_POLICY_VALUE_INVALID");
   return Object.freeze([...input] as string[]);
 }

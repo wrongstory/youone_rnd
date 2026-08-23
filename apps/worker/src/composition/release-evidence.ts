@@ -4,8 +4,10 @@ import { DEPLOYMENT_COMPONENT_IDS } from "./deployment-readiness.js";
 import {
   OperationsPolicyError,
   validateOperationsPolicyBundle,
+  type MfaSessionPolicy,
   type OperationsPolicyBundle,
-  type PolicyApproval
+  type ProductionOperationsPolicy,
+  type ProviderSessionRevokePolicy
 } from "./operations-policy.js";
 import { REQUIRED_STAGING_CHECK_IDS } from "./staging-evidence.js";
 
@@ -72,6 +74,13 @@ export function releaseEvidenceSha256(value: unknown): string {
   return sha256(new TextEncoder().encode(canonicalJson(value)));
 }
 
+export type ApprovedOperationsPolicy = MfaSessionPolicy | ProductionOperationsPolicy | ProviderSessionRevokePolicy;
+
+/** Hashes the complete approved policy body while excluding version and approval metadata. */
+export function approvedOperationsPolicySha256(policy: ApprovedOperationsPolicy): string {
+  return releaseEvidenceSha256(approvedOperationsPolicyPayload(policy));
+}
+
 async function evaluate(input: unknown, context: ReleaseEvaluationContext): Promise<ReleaseGateReport> {
   const evaluationTime = safeTime(context.evaluatedAt);
   const promotionSourceCommitSha = commitPattern.test(context.promotionSourceCommitSha) ? context.promotionSourceCommitSha : null;
@@ -96,7 +105,7 @@ async function evaluate(input: unknown, context: ReleaseEvaluationContext): Prom
   const missingEvidenceIds = REQUIRED_RELEASE_EVIDENCE_IDS.filter((id) => !suppliedIds.has(id));
   if (missingEvidenceIds.length > 0) reasons.add("R06_EVIDENCE_SET_INCOMPLETE");
   const artifacts = await verifyArtifacts(evidence, context.artifacts, reasons);
-  if (policies !== null) validatePolicyEvidence(evidence, artifacts, policies, reasons);
+  if (policies !== null) validatePolicyEvidence(evidence, artifacts, policies, evaluationTime, reasons);
   validateStagingArtifact(evidence, artifacts, candidateCommitSha, promotionSourceCommitSha, environmentId, evaluationTime, reasons);
 
   if (!Array.isArray(input.openBlockerIds) || input.openBlockerIds.some((id) => typeof id !== "string" || !stableIdPattern.test(id)) || new Set(input.openBlockerIds).size !== input.openBlockerIds.length) {
@@ -191,7 +200,10 @@ async function verifyArtifacts(evidence: readonly ReleaseEvidenceReference[], re
   return verified;
 }
 
-function validatePolicyEvidence(evidence: readonly ReleaseEvidenceReference[], artifacts: ReadonlyMap<ReleaseEvidenceId, Uint8Array>, policies: OperationsPolicyBundle, reasons: Set<string>): void {
+function validatePolicyEvidence(
+  evidence: readonly ReleaseEvidenceReference[], artifacts: ReadonlyMap<ReleaseEvidenceId, Uint8Array>,
+  policies: OperationsPolicyBundle, evaluatedAt: number, reasons: Set<string>
+): void {
   const definitions = [
     { evidenceId: "POLICY_OD019", policy: policies.mfaSession },
     { evidenceId: "POLICY_OD035", policy: policies.productionOperations },
@@ -206,12 +218,16 @@ function validatePolicyEvidence(evidence: readonly ReleaseEvidenceReference[], a
       continue;
     }
     const artifact = parseJson(bytes);
-    if (!policyArtifactMatches(artifact, definition.policy.decisionId, definition.policy.policyVersion, definition.policy.approval)) {
+    if (!policyArtifactMatches(artifact, definition.policy)) {
       reasons.add("R06_POLICY_EVIDENCE_MISMATCH");
       continue;
     }
     if (definition.evidenceId === "POLICY_OD036" && !validSessionRevokeBindingArtifact(artifact)) reasons.add("R06_SESSION_REVOKE_BINDING_INVALID");
   }
+  const recoveryArtifact = parseJson(artifacts.get("RECOVERY_DB_STORAGE") ?? new Uint8Array());
+  const recoveryValidation = validateRecoveryArtifact(recoveryArtifact, policies.productionOperations, evaluatedAt);
+  if (recoveryValidation === "INVALID") reasons.add("R06_RECOVERY_EVIDENCE_INVALID");
+  if (recoveryValidation === "ACTOR_SEPARATION_INVALID") reasons.add("R06_RECOVERY_ACTOR_SEPARATION_INVALID");
 }
 
 function validateStagingArtifact(
@@ -272,10 +288,69 @@ function validArtifactDigests(input: unknown): boolean {
   });
 }
 
-function policyArtifactMatches(input: unknown, decisionId: string, policyVersion: string, approval: PolicyApproval): boolean {
-  if (!isRecord(input) || input.schemaVersion !== 1 || input.decisionId !== decisionId || input.policyVersion !== policyVersion || !isRecord(input.approval)) return false;
+function policyArtifactMatches(input: unknown, policy: ApprovedOperationsPolicy): boolean {
+  const approval = policy.approval;
+  if (
+    !isRecord(input) || input.schemaVersion !== 1 || input.decisionId !== policy.decisionId ||
+    input.policyVersion !== policy.policyVersion || input.approvedPolicySha256 !== approvedOperationsPolicySha256(policy) ||
+    !isRecord(input.approval)
+  ) return false;
   return input.approval.status === approval.status && input.approval.createdAt === approval.createdAt && input.approval.approvedAt === approval.approvedAt &&
     input.approval.effectiveFrom === approval.effectiveFrom && input.approval.approvedByActorId === approval.approvedByActorId && input.approval.revokedAt === null;
+}
+
+function approvedOperationsPolicyPayload(policy: ApprovedOperationsPolicy): Readonly<Record<string, unknown>> {
+  if (policy.decisionId === "OD-019-MFA-SESSION") {
+    return Object.freeze({ mfa: policy.mfa, session: policy.session, device: policy.device });
+  }
+  if (policy.decisionId === "OD-035-PRODUCTION-OPERATIONS") {
+    return Object.freeze({
+      recoveryObjectives: policy.recoveryObjectives,
+      databaseBackup: policy.databaseBackup,
+      storageBackup: policy.storageBackup,
+      monitoringDestinationIds: policy.monitoringDestinationIds,
+      incidentOwnerActorIds: policy.incidentOwnerActorIds,
+      recoveryApproverActorIds: policy.recoveryApproverActorIds,
+      recoveryExecutorActorIds: policy.recoveryExecutorActorIds,
+      evidenceLocationId: policy.evidenceLocationId
+    });
+  }
+  return Object.freeze({
+    mechanism: policy.mechanism,
+    scope: policy.scope,
+    applicationSessionCheck: policy.applicationSessionCheck,
+    maximumResidualAccessTokenMinutes: policy.maximumResidualAccessTokenMinutes,
+    retryAttempts: policy.retryAttempts,
+    reconciliationIntervalMinutes: policy.reconciliationIntervalMinutes,
+    limitationsAcknowledged: policy.limitationsAcknowledged
+  });
+}
+
+function validateRecoveryArtifact(
+  input: unknown, policy: ProductionOperationsPolicy, evaluatedAt: number
+): "VALID" | "INVALID" | "ACTOR_SEPARATION_INVALID" {
+  if (
+    !isRecord(input) || input.schemaVersion !== 1 || input.result !== "PASS" ||
+    input.policyDecisionId !== policy.decisionId || input.policyVersion !== policy.policyVersion ||
+    input.approvedPolicySha256 !== approvedOperationsPolicySha256(policy) ||
+    typeof input.recoveryApprovedByActorId !== "string" || !uuidPattern.test(input.recoveryApprovedByActorId) ||
+    !Array.isArray(input.recoveryExecutedByActorIds) || input.recoveryExecutedByActorIds.length === 0 ||
+    input.recoveryExecutedByActorIds.some((actorId) => typeof actorId !== "string" || !uuidPattern.test(actorId)) ||
+    new Set(input.recoveryExecutedByActorIds).size !== input.recoveryExecutedByActorIds.length
+  ) return "INVALID";
+  const startedAt = safeTime(input.startedAt);
+  const completedAt = safeTime(input.completedAt);
+  if (
+    startedAt === null || completedAt === null || startedAt < Date.parse(policy.approval.effectiveFrom) ||
+    completedAt < startedAt || completedAt > evaluatedAt || completedAt - startedAt > policy.recoveryObjectives.rtoMinutes * 60_000
+  ) return "INVALID";
+  const executors = input.recoveryExecutedByActorIds as string[];
+  if (
+    !policy.recoveryApproverActorIds.includes(input.recoveryApprovedByActorId) ||
+    executors.some((actorId) => !policy.recoveryExecutorActorIds.includes(actorId)) ||
+    executors.includes(input.recoveryApprovedByActorId)
+  ) return "ACTOR_SEPARATION_INVALID";
+  return "VALID";
 }
 
 function validSessionRevokeBindingArtifact(input: unknown): boolean {
