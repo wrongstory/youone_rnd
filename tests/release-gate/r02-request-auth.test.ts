@@ -11,16 +11,26 @@ import {
 } from "../../packages/infrastructure/supabase-auth/src/request.js";
 
 describe("R02 concrete Supabase request Auth", () => {
-  it("makes the active-session resolver the only identity bootstrap entry", () => {
+  it("makes the active-session resolver the only identity bootstrap entry and layers the free-tier OD-019 policy", () => {
     const migration = readFileSync(resolve(
       import.meta.dirname,
       "../../supabase/migrations/20260823001600_r02_active_auth_session.sql"
+    ), "utf8");
+    const freeTierPolicy = readFileSync(resolve(
+      import.meta.dirname,
+      "../../supabase/migrations/20260824001800_r06_free_session_policy.sql"
     ), "utf8");
     expect(migration).toContain("from auth.sessions");
     expect(migration).toContain("revoke execute on function app_private.resolve_actor_context_snapshot(text, timestamptz)");
     expect(migration).toContain("revoke execute on function app_private.resolve_user_account(text, timestamptz)");
     expect(migration).toContain("grant execute on function app_private.resolve_active_actor_context_snapshot(text, text, timestamptz)");
     expect(migration).not.toContain("grant execute on function app_private.resolve_active_actor_context_snapshot(text, text, timestamptz)\n  to youone_request");
+    expect(freeTierPolicy).toContain("interval '480 minutes'");
+    expect(freeTierPolicy).toContain("interval '60 minutes'");
+    expect(freeTierPolicy).toContain("current_session.aal::text = 'aal2'");
+    expect(freeTierPolicy).toContain("factor.factor_type::text = 'totp'");
+    expect(freeTierPolicy).toContain("factor.status::text = 'verified'");
+    expect(freeTierPolicy).toContain("from auth.sessions newer_session");
     const composition = readFileSync(resolve(
       import.meta.dirname,
       "../../apps/web/src/composition/request-auth.ts"
@@ -68,11 +78,24 @@ describe("R02 concrete Supabase request Auth", () => {
     const verifier = new SupabaseServerSessionVerifier({
       getUser: async () => ({ user: { id: "subject" } }),
       getClaims: async () => ({
-        claims: { exp: 1_700_000_000, session_id: "session", sub: "subject" }
+        claims: { aal: "aal2", exp: 1_700_000_000, session_id: "session", sub: "subject" }
       })
     }, () => 1_800_000_000_000);
 
     await expect(verifier.verify("token")).rejects.toThrow("verified session is expired");
+  });
+
+  it.each(["aal1", undefined] as const)("rejects a non-AAL2 business token: %s", async (aal) => {
+    const subject = "17000000-0000-4000-8000-000000000011";
+    const sessionId = "17000000-0000-4000-8000-000000000012";
+    const verifier = new SupabaseServerSessionVerifier({
+      getUser: async () => ({ user: { id: subject } }),
+      getClaims: async () => ({
+        claims: { ...(aal === undefined ? {} : { aal }), exp: 2_000_000_000, session_id: sessionId, sub: subject }
+      })
+    }, () => Date.parse("2026-08-23T00:00:00Z"));
+
+    await expect(verifier.verify("token")).rejects.toThrow("verified session assurance level is insufficient");
   });
 
   it("rejects plaintext production URLs and any service-role credential", () => {

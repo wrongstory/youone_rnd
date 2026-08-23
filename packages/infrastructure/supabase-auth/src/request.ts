@@ -153,6 +153,9 @@ export class SupabaseServerSessionVerifier implements AuthSessionVerifier {
     if (expiresAt.getTime() <= this.now()) {
       throw new IdentityVerificationError("verified session is expired");
     }
+    if (claimsResult.claims.aal !== "aal2") {
+      throw new IdentityVerificationError("verified session assurance level is insufficient");
+    }
     let verifiedSubject: string;
     let verifiedSessionId: string;
     try {
@@ -165,7 +168,7 @@ export class SupabaseServerSessionVerifier implements AuthSessionVerifier {
       authSubject: verifiedSubject,
       sessionId: verifiedSessionId,
       expiresAt: utcInstant(expiresAt),
-      assuranceLevel: claimsResult.claims.aal === "aal2" ? "AAL2" : claimsResult.claims.aal === "aal1" ? "AAL1" : "UNKNOWN"
+      assuranceLevel: "AAL2"
     });
   }
 }

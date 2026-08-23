@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
   IdentityResolverDatabaseBoundaryError,
@@ -23,6 +23,8 @@ const migrationSql = readdirSync(migrationDirectory)
 
 const authSubject = "18000000-0000-4000-8000-000000000001";
 const sessionId = "18000000-0000-4000-8000-000000000002";
+const factorId = "18000000-0000-4000-8000-000000000004";
+const newerSessionId = "18000000-0000-4000-8000-000000000005";
 const otherSubject = "18000000-0000-4000-8000-000000000003";
 const requestTime = utcInstant("2026-08-23T12:00:00.000Z");
 
@@ -45,6 +47,20 @@ function overprivilegedResolverUrl(): string {
   return url.toString();
 }
 
+function resetProviderSession(): void {
+  runAdmin(`
+    truncate auth.sessions, auth.mfa_factors;
+    insert into auth.mfa_factors(id, user_id, factor_type, status)
+    values ('${factorId}', '${authSubject}', 'totp', 'verified');
+    insert into auth.sessions(
+      id, user_id, created_at, updated_at, factor_id, aal, not_after, refreshed_at
+    ) values (
+      '${sessionId}', '${authSubject}', '2026-08-23T11:00:00Z', '2026-08-23T11:45:00Z',
+      '${factorId}', 'aal2', null, timestamp '2026-08-23 11:45:00'
+    );
+  `);
+}
+
 databaseDescribe.sequential("R02 active Supabase session identity boundary", () => {
   beforeAll(() => {
     if (!adminDatabaseUrl) return;
@@ -52,7 +68,22 @@ databaseDescribe.sequential("R02 active Supabase session identity boundary", () 
     runAdmin(migrationSql);
     runAdmin(`
       create schema auth;
-      create table auth.sessions(id uuid primary key, user_id uuid not null);
+      create table auth.mfa_factors(
+        id uuid primary key,
+        user_id uuid not null,
+        factor_type text not null,
+        status text not null
+      );
+      create table auth.sessions(
+        id uuid primary key,
+        user_id uuid not null,
+        created_at timestamptz,
+        updated_at timestamptz,
+        factor_id uuid,
+        aal text,
+        not_after timestamptz,
+        refreshed_at timestamp without time zone
+      );
       create role youone_identity_resolver_login login password 'resolver-test'
         nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
       grant youone_identity_resolver to youone_identity_resolver_login;
@@ -63,11 +94,15 @@ databaseDescribe.sequential("R02 active Supabase session identity boundary", () 
       grant youone_identity_resolver, r02_forbidden_bypass to youone_identity_overprivileged_login;
       insert into public.user_account(id, auth_subject, account_kind, status, valid_from)
       values ('${authSubject}', '${authSubject}', 'INTERNAL', 'ACTIVE', '2026-01-01');
-      insert into auth.sessions(id, user_id) values ('${sessionId}', '${authSubject}');
     `);
   }, 60_000);
 
-  it("loads identity only for the exact active provider session and subject", async () => {
+  beforeEach(() => {
+    if (!adminDatabaseUrl) return;
+    resetProviderSession();
+  });
+
+  it("loads identity only for the exact active TOTP AAL2 provider session and subject", async () => {
     if (!resolverDatabaseUrl) return;
     const pool = createNodePostgresIdentityResolverPool({
       connectionString: resolverDatabaseUrl,
@@ -83,6 +118,42 @@ databaseDescribe.sequential("R02 active Supabase session identity boundary", () 
 
     runAdmin(`delete from auth.sessions where id = '${sessionId}'`);
     await expect(source.load(authSubject, sessionId, requestTime)).resolves.toBeNull();
+    await pool.close();
+  });
+
+  it.each([
+    ["absolute lifetime", `update auth.sessions set created_at='2026-08-23T03:59:59Z', refreshed_at=timestamp '2026-08-23 11:45:00' where id='${sessionId}'`],
+    ["refresh inactivity", `update auth.sessions set refreshed_at=timestamp '2026-08-23 10:59:59' where id='${sessionId}'`],
+    ["provider not_after", `update auth.sessions set not_after='2026-08-23T11:59:59Z' where id='${sessionId}'`],
+    ["AAL1", `update auth.sessions set aal='aal1' where id='${sessionId}'`],
+    ["non-TOTP factor", `update auth.mfa_factors set factor_type='phone' where id='${factorId}'`]
+  ] as const)("rejects a session violating OD-019 %s", async (_label, mutation) => {
+    if (!resolverDatabaseUrl) return;
+    runAdmin(mutation);
+    const pool = createNodePostgresIdentityResolverPool({ connectionString: resolverDatabaseUrl, max: 1, tls: "disable" });
+    const source = new PostgresActorContextSource(pool);
+    await expect(source.load(authSubject, sessionId, requestTime)).resolves.toBeNull();
+    await pool.close();
+  });
+
+  it("rejects an older session when a newer sign-in exists for the same user", async () => {
+    if (!resolverDatabaseUrl) return;
+    runAdmin(`
+      insert into auth.sessions(id,user_id,created_at,updated_at,aal)
+      values ('${newerSessionId}','${authSubject}','2026-08-23T11:30:00Z','2026-08-23T11:30:00Z','aal1');
+    `);
+    const pool = createNodePostgresIdentityResolverPool({ connectionString: resolverDatabaseUrl, max: 1, tls: "disable" });
+    const source = new PostgresActorContextSource(pool);
+    await expect(source.load(authSubject, sessionId, requestTime)).resolves.toBeNull();
+    await pool.close();
+  });
+
+  it("uses created_at as inactivity baseline before the first refresh", async () => {
+    if (!resolverDatabaseUrl) return;
+    runAdmin(`update auth.sessions set created_at='2026-08-23T11:30:00Z', refreshed_at=null where id='${sessionId}'`);
+    const pool = createNodePostgresIdentityResolverPool({ connectionString: resolverDatabaseUrl, max: 1, tls: "disable" });
+    const source = new PostgresActorContextSource(pool);
+    await expect(source.load(authSubject, sessionId, requestTime)).resolves.toMatchObject({ identity: { userId: authSubject } });
     await pool.close();
   });
 
