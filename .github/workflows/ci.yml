@@ -632,4 +632,4 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify R06 operations policy and release evidence contract
-        run: pnpm exec vitest run tests/release-gate/r06-release-evidence.test.ts tests/release-gate/r05-readiness-evidence.test.ts tests/architecture/layer-boundaries.test.ts
+        run: pnpm exec vitest run tests/release-gate/r06-release-evidence.test.ts tests/release-gate/r06-session-revoke-binding.test.ts tests/release-gate/r05-readiness-evidence.test.ts tests/architecture/layer-boundaries.test.ts

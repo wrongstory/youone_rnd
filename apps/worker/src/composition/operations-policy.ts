@@ -8,10 +8,12 @@ export type OperationsPolicyDecisionId = typeof OPERATIONS_POLICY_DECISION_IDS[n
 
 export type PolicyApproval = Readonly<{
   status: "APPROVED";
+  createdAt: string;
   approvedAt: string;
   effectiveFrom: string;
   approvedByActorId: string;
   approvalEvidenceSha256: string;
+  revokedAt: null;
 }>;
 
 export type MfaSessionPolicy = Readonly<{
@@ -133,7 +135,7 @@ function validateProductionOperations(input: unknown, evaluatedAt: number): Prod
   const monitoringDestinationIds = stableIds(record.monitoringDestinationIds, true);
   const incidentOwnerActorIds = actorIds(record.incidentOwnerActorIds);
   const recoveryApproverActorIds = actorIds(record.recoveryApproverActorIds);
-  if (typeof record.evidenceLocationId !== "string" || !stableIdPattern.test(record.evidenceLocationId)) fail("OPERATIONS_POLICY_VALUE_INVALID");
+  if (typeof record.evidenceLocationId !== "string" || !stableIdPattern.test(record.evidenceLocationId) || containsPlaceholderToken(record.evidenceLocationId)) fail("OPERATIONS_POLICY_VALUE_INVALID");
   return Object.freeze({
     decisionId: "OD-035-PRODUCTION-OPERATIONS",
     policyVersion: record.policyVersion,
@@ -179,24 +181,27 @@ function validateProviderSessionRevoke(input: unknown, evaluatedAt: number, jwtE
 
 function policyRecord(input: unknown, decisionId: OperationsPolicyDecisionId, evaluatedAt: number): Readonly<Record<string, unknown> & { policyVersion: string; approval: PolicyApproval }> {
   if (!isRecord(input) || input.decisionId !== decisionId || typeof input.policyVersion !== "string") fail("OPERATIONS_POLICY_INPUT_INVALID");
-  if (!policyVersionPattern.test(input.policyVersion)) fail("OPERATIONS_POLICY_VERSION_INVALID");
+  if (!policyVersionPattern.test(input.policyVersion) || containsPlaceholderToken(input.policyVersion)) fail("OPERATIONS_POLICY_VERSION_INVALID");
   const approval = validateApproval(input.approval, evaluatedAt);
   return Object.freeze({ ...input, policyVersion: input.policyVersion, approval });
 }
 
 function validateApproval(input: unknown, evaluatedAt: number): PolicyApproval {
-  if (!isRecord(input) || input.status !== "APPROVED" || typeof input.approvedByActorId !== "string" || !uuidPattern.test(input.approvedByActorId) || typeof input.approvalEvidenceSha256 !== "string" || !shaPattern.test(input.approvalEvidenceSha256)) {
+  if (!isRecord(input) || input.status !== "APPROVED" || input.revokedAt !== null || typeof input.approvedByActorId !== "string" || !uuidPattern.test(input.approvedByActorId) || typeof input.approvalEvidenceSha256 !== "string" || !shaPattern.test(input.approvalEvidenceSha256)) {
     fail("OPERATIONS_POLICY_APPROVAL_INVALID");
   }
+  const createdAt = canonicalTime(input.createdAt, "OPERATIONS_POLICY_APPROVAL_INVALID");
   const approvedAt = canonicalTime(input.approvedAt, "OPERATIONS_POLICY_APPROVAL_INVALID");
   const effectiveFrom = canonicalTime(input.effectiveFrom, "OPERATIONS_POLICY_EFFECTIVE_DATE_INVALID");
-  if (approvedAt > evaluatedAt || effectiveFrom > evaluatedAt || effectiveFrom < approvedAt) fail("OPERATIONS_POLICY_EFFECTIVE_DATE_INVALID");
+  if (createdAt > approvedAt || approvedAt > effectiveFrom || effectiveFrom > evaluatedAt) fail("OPERATIONS_POLICY_EFFECTIVE_DATE_INVALID");
   return Object.freeze({
     status: "APPROVED",
+    createdAt: new Date(createdAt).toISOString(),
     approvedAt: new Date(approvedAt).toISOString(),
     effectiveFrom: new Date(effectiveFrom).toISOString(),
     approvedByActorId: input.approvedByActorId,
-    approvalEvidenceSha256: input.approvalEvidenceSha256
+    approvalEvidenceSha256: input.approvalEvidenceSha256,
+    revokedAt: null
   });
 }
 
@@ -208,7 +213,7 @@ function backupPolicy(input: Record<string, unknown>, rpoMinutes: number): Reado
 }
 
 function stableIds(input: unknown, required: boolean): readonly string[] {
-  if (!Array.isArray(input) || required && input.length === 0 || input.some((value) => typeof value !== "string" || !stableIdPattern.test(value))) fail("OPERATIONS_POLICY_VALUE_INVALID");
+  if (!Array.isArray(input) || required && input.length === 0 || input.some((value) => typeof value !== "string" || !stableIdPattern.test(value) || containsPlaceholderToken(value))) fail("OPERATIONS_POLICY_VALUE_INVALID");
   if (new Set(input).size !== input.length) fail("OPERATIONS_POLICY_VALUE_INVALID");
   return Object.freeze([...input] as string[]);
 }
@@ -241,6 +246,11 @@ function canonicalTime(input: unknown, reasonCode: OperationsPolicyError["reason
   const timestamp = Date.parse(input);
   if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== input) fail(reasonCode);
   return timestamp;
+}
+
+function containsPlaceholderToken(value: string): boolean {
+  const tokens = value.toUpperCase().split(/[^A-Z0-9]+/);
+  return tokens.some((token) => ["TBD", "TODO", "PLACEHOLDER", "CHANGEME", "FILLME", "UNSET", "UNKNOWN", "SAMPLE", "DUMMY"].includes(token));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
