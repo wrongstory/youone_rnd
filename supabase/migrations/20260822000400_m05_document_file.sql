@@ -1413,34 +1413,62 @@ revoke all on function app_private.m05_assert_user_command(timestamptz,text),app
 grant execute on function app_private.actor_has_document_scope(uuid,timestamptz),app_private.actor_can_read_document_version(uuid,timestamptz),app_private.actor_has_security_entitlement(text,timestamptz),
   app_private.actor_can_read_document_source(uuid,text,timestamptz) to youone_request;
 
--- Supabase Storage is optional in the plain PostgreSQL verification image. When
--- present, bootstrap an explicitly private bucket and install restrictive client
--- policies. Storage service credentials remain behind the authorized broker and
--- are never resolvable from the request container.
+-- Supabase Storage is optional in the plain PostgreSQL verification image. Hosted
+-- Supabase owns storage.objects as a provider service role; application migrations
+-- must not ALTER it or install policies as postgres. The M05 broker-only bucket is
+-- therefore safe only from a clean provider default-deny baseline, which is
+-- verified fail-closed below before the private bucket is accepted.
 do $storage$
+declare
+  storage_rls_enabled boolean;
+  storage_policy_count integer;
 begin
+  if to_regclass('storage.objects') is not null then
+    select c.relrowsecurity
+      into storage_rls_enabled
+      from pg_class c
+      join pg_namespace n on n.oid=c.relnamespace
+      where n.nspname='storage' and c.relname='objects';
+
+    if storage_rls_enabled is distinct from true then
+      raise exception 'Supabase Storage RLS is not enabled' using errcode='42501';
+    end if;
+
+    if has_table_privilege('youone_request','storage.objects','SELECT')
+      or has_table_privilege('youone_request','storage.objects','INSERT')
+      or has_table_privilege('youone_request','storage.objects','UPDATE')
+      or has_table_privilege('youone_request','storage.objects','DELETE')
+      or has_table_privilege('youone_request','storage.objects','TRUNCATE')
+      or has_table_privilege('youone_request','storage.objects','REFERENCES')
+      or has_table_privilege('youone_request','storage.objects','TRIGGER')
+      or has_table_privilege('youone_privileged_writer','storage.objects','SELECT')
+      or has_table_privilege('youone_privileged_writer','storage.objects','INSERT')
+      or has_table_privilege('youone_privileged_writer','storage.objects','UPDATE')
+      or has_table_privilege('youone_privileged_writer','storage.objects','DELETE')
+      or has_table_privilege('youone_privileged_writer','storage.objects','TRUNCATE')
+      or has_table_privilege('youone_privileged_writer','storage.objects','REFERENCES')
+      or has_table_privilege('youone_privileged_writer','storage.objects','TRIGGER') then
+      raise exception 'youone capability roles must not access provider-owned storage.objects' using errcode='42501';
+    end if;
+
+    select count(*) into storage_policy_count
+      from pg_policy
+      where polrelid='storage.objects'::regclass;
+    if storage_policy_count<>0 then
+      raise exception 'clean Storage bootstrap requires provider default-deny policy baseline' using errcode='42501';
+    end if;
+  end if;
+
   if to_regclass('storage.buckets') is not null then
     execute $sql$
       insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
       values('PRIVATE_BUSINESS','PRIVATE_BUSINESS',false,50000000,
         array['application/pdf','image/png','image/jpeg','text/plain','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
-      on conflict(id) do update set public=false,file_size_limit=excluded.file_size_limit,allowed_mime_types=excluded.allowed_mime_types
+      on conflict(id) do update
+      set public=false,file_size_limit=excluded.file_size_limit,allowed_mime_types=excluded.allowed_mime_types
     $sql$;
-  end if;
-  if to_regclass('storage.objects') is not null then
-    execute 'alter table storage.objects enable row level security';
-    execute 'revoke all on table storage.objects from youone_request,youone_privileged_writer';
-    if exists(select 1 from pg_roles where rolname='authenticated') then
-      execute $sql$create policy m05_private_business_client_select on storage.objects as restrictive for select to authenticated using(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_client_insert on storage.objects as restrictive for insert to authenticated with check(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_client_update on storage.objects as restrictive for update to authenticated using(bucket_id<>'PRIVATE_BUSINESS') with check(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_client_delete on storage.objects as restrictive for delete to authenticated using(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-    end if;
-    if exists(select 1 from pg_roles where rolname='anon') then
-      execute $sql$create policy m05_private_business_anon_select on storage.objects as restrictive for select to anon using(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_anon_insert on storage.objects as restrictive for insert to anon with check(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_anon_update on storage.objects as restrictive for update to anon using(bucket_id<>'PRIVATE_BUSINESS') with check(bucket_id<>'PRIVATE_BUSINESS')$sql$;
-      execute $sql$create policy m05_private_business_anon_delete on storage.objects as restrictive for delete to anon using(bucket_id<>'PRIVATE_BUSINESS')$sql$;
+    if not exists(select 1 from storage.buckets where id='PRIVATE_BUSINESS' and name='PRIVATE_BUSINESS' and public=false and file_size_limit=50000000) then
+      raise exception 'PRIVATE_BUSINESS bucket bootstrap mismatch' using errcode='42501';
     end if;
   end if;
 end

@@ -108,10 +108,12 @@ describe("M05 document/file migration contract", () => {
     expect(sql).toContain("if target_reason_code is null then raise exception 'attachment removal reason required'");
   });
 
-  it("bootstraps a private Supabase bucket when the provider schema exists", () => {
+  it("bootstraps a private Supabase bucket from a hosted provider default-deny baseline", () => {
+    expect(sql).toContain("to_regclass('storage.objects')");
+    expect(sql).toContain("storage_rls_enabled is distinct from true");
+    expect(sql).toContain("youone capability roles must not access provider-owned storage.objects");
+    expect(sql).toContain("storage_policy_count<>0");
     expect(sql).toContain("to_regclass('storage.buckets')");
     expect(sql).toContain("values('PRIVATE_BUSINESS','PRIVATE_BUSINESS',false,50000000");
-    expect(sql).toContain("as restrictive for select to authenticated");
-    expect(sql).toContain("bucket_id<>'PRIVATE_BUSINESS'");
   });
 });
