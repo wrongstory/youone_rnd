@@ -25,7 +25,15 @@ const migrationPattern = /^\d{14}_[a-z0-9_]+\.sql$/;
 
 function validObject(item: StorageBackupObject): StorageBackupObject {
   if (!/^[a-z0-9][a-z0-9_-]{1,62}$/.test(item.bucket)) throw new Error("invalid private bucket identifier");
-  if (item.objectKey.length === 0 || item.objectKey.length > 1024 || /^(?:https?:|\/)/i.test(item.objectKey) || item.objectKey.includes("..")) {
+  const segments = item.objectKey.split("/");
+  if (
+    item.objectKey.length === 0 ||
+    item.objectKey.length > 1024 ||
+    /^(?:https?:|\/)/i.test(item.objectKey) ||
+    item.objectKey.includes("\\") ||
+    /[\u0000-\u001f\u007f]/.test(item.objectKey) ||
+    segments.some((segment) => segment === "" || segment === "." || segment === "..")
+  ) {
     throw new Error("storage manifest requires a relative private object key");
   }
   if (!Number.isSafeInteger(item.sizeBytes) || item.sizeBytes < 0) throw new Error("invalid storage object size");

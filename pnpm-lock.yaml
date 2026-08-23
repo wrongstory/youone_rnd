@@ -102,7 +102,11 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
 
-  apps/worker: {}
+  apps/worker:
+    dependencies:
+      '@youone/infra-supabase-storage':
+        specifier: workspace:*
+        version: link:../../packages/infrastructure/supabase-storage
 
   packages/application-kernel:
     dependencies:
@@ -311,6 +315,9 @@ importers:
 
   packages/infrastructure/supabase-storage:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: 2.112.3
+        version: 2.112.3
       '@youone/core-file':
         specifier: workspace:*
         version: link:../../core/file

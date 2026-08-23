@@ -553,3 +553,24 @@ jobs:
 
       - name: Verify R03 offline handler PostgreSQL boundary
         run: pnpm exec vitest run tests/release-gate/r03-postgres.integration.test.ts
+
+  r04-private-storage-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/setup@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify R04 private Storage and recovery boundary
+        run: pnpm exec vitest run tests/release-gate/r04-private-storage.test.ts tests/m05/storage-contract.test.ts tests/m16/integration-recovery-manifest.test.ts tests/architecture/layer-boundaries.test.ts

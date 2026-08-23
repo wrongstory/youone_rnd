@@ -228,6 +228,8 @@ R02 request Auth는 SDK의 session persistence/refresh를 끄고 caller token을
 
 R03은 `ADR-010`의 exact schema를 가진 다섯 Application handler만 offline registry에 조합한다. `OfflineSyncService`는 trusted actor를 포함해 하나의 request PostgreSQL UnitOfWork를 열고, 그 transaction에 묶인 command application port를 handler에 전달한다. `offline_command` 등록, 업무 aggregate write, 상태전이, 업무 audit, 최소 outbox, terminal result/conflict는 같은 connection에서 commit 또는 rollback된다. Checklist/Inspection/FieldNote/FieldRecord는 별도 typed draft aggregate이며 공식 Safety item, sealed InspectionAttempt, ResearchNote를 오프라인에서 수정하지 않는다. 네 draft는 INTERNAL only이고 WBS progress만 exact assigned Vendor Scope를 허용한다. 다섯 handler 중 하나라도 없거나 DB capability probe가 실패하면 offline-sync readiness는 `not_ready`다.
 
+R04 Private Storage는 일반 File Application 계약인 `@youone/infra-supabase-storage/public`과 서비스 역할 전용 `@youone/infra-supabase-storage/service`를 분리한다. 서비스 진입점만 Supabase SDK와 `SUPABASE_SERVICE_ROLE_KEY`를 사용하며 Web source는 이를 import할 수 없다. 구성된 bucket allowlist의 실제 bucket이 모두 private인지 provider에서 확인한 뒤에만 객체를 cursor pagination으로 열거하고, 상대경로 검증·무덮어쓰기 upload·재다운로드 SHA-256 검증을 수행한다. 복구 orchestration은 DB dump evidence와 Storage manifest를 하나의 backup set으로 묶고, 전체 backup artifact를 쓰기 전에 검증하며 원본과 다른 빈 격리 target만 허용한다. 부분 provider failure가 발생한 target은 자동 삭제·재사용하지 않고 증거 보존 후 폐기 대상으로 처리한다. Worker readiness는 DB와 Private Storage concrete capability가 모두 성공해야 `ready`이며 환경변수만으로 준비 상태를 선언하지 않는다.
+
 ## 10. 배포 구조
 
 ### 초기 권장
