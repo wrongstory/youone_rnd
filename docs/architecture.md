@@ -220,6 +220,8 @@ M15는 Dexie `4.4.5`를 통해 IndexedDB에 위 명령의 `offline_outbox`, 로�
 
 명령에는 immutable `command_id`, stable command type, authenticated/effective actor, session binding hash, aggregate ID/type, `base_version`, schema version, UTC 생성시각, canonical minimized payload와 SHA-256을 포함한다. `/api/v1/sync/commands`는 현재 서버 세션으로 `TrustedActorContext`를 다시 만들고 등록된 정상 Application handler에 권한·Scope·상태·precondition·낙관적 버전 검사를 위임한다. M16 live request adapter 조합 전에는 endpoint가 `503 SYNC_REQUEST_ADAPTER_NOT_CONFIGURED`로 fail-closed한다. 서버 version이 다르면 양쪽 payload를 보존한 `SYNC_CONFLICT`를 만들고 자동 적용하지 않으며, 승인된 field merge 정책이 없는 P0에서는 `DISCARD_LOCAL` 또는 최신 server version을 기준으로 새 명령을 만드는 `RETRY_AS_NEW`만 기록한다.
 
+M16 request boundary는 Bearer session과 provider가 발급한 non-empty `session_id`를 요구하고, 서버 DB에서 현재 identity/permission/Scope를 다시 읽는다. actor/vendor/project/contract/scope를 body 값으로 조립하지 않는다. live DB/Auth/command-handler adapter가 모두 실제 조합되기 전 readiness는 `503 not_ready`이며 환경변수 존재만으로 준비 상태를 선언하지 않는다. 상세 운영·복구·사고대응 및 production activation blocker는 `docs/security-operations.md`를 정본으로 한다.
+
 ## 10. 배포 구조
 
 ### 초기 권장

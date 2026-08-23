@@ -10,6 +10,7 @@
     "./service": "./src/service.ts"
   },
   "dependencies": {
+    "@youone/core-authorization": "workspace:*",
     "@youone/core-identity": "workspace:*",
     "@youone/shared-kernel": "workspace:*"
   }

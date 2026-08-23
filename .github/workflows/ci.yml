@@ -389,3 +389,51 @@ jobs:
 
       - name: Verify M15 PostgreSQL boundary
         run: pnpm exec vitest run tests/m15/postgres.integration.test.ts
+
+  m16-security-operations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: youone_m16_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d youone_m16_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      M16_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/youone_m16_test
+      PSQL_BIN: psql
+      PG_DUMP_BIN: pg_dump
+      PG_RESTORE_BIN: pg_restore
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Create isolated recovery database
+        run: psql "$M16_TEST_DATABASE_URL" --set ON_ERROR_STOP=1 --command "create database youone_m16_recovery_test"
+
+      - name: Set up pnpm
+        uses: pnpm/setup@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify M16 security matrix and audit boundary
+        run: pnpm exec vitest run tests/m16/postgres.integration.test.ts
+
+      - name: Verify clean upgrade and full restore drill
+        env:
+          M16_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/youone_m16_recovery_test
+        run: pnpm exec vitest run tests/m16/integration-recovery-postgres.test.ts

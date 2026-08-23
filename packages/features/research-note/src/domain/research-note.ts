@@ -195,7 +195,7 @@ export class ResearchNote {
 
   public static restore(snapshot: ResearchNoteSnapshot): ResearchNote {
     assertSnapshot(snapshot);
-    return new ResearchNote(snapshot);
+    return new ResearchNote(deepFreezeSnapshot(snapshot));
   }
 
   public snapshot(): ResearchNoteSnapshot { return this.current; }
@@ -344,10 +344,33 @@ function assertEntryShape(entry: ResearchNoteEntrySnapshot): void {
 function deepFreezeEntry(entry: ResearchNoteEntrySnapshot): ResearchNoteEntrySnapshot {
   return Object.freeze({ ...entry, rndProgramIds: Object.freeze([...entry.rndProgramIds]), attachments: Object.freeze(entry.attachments.map((file) => Object.freeze({ ...file }))) });
 }
+function deepFreezeSnapshot(snapshot: ResearchNoteSnapshot): ResearchNoteSnapshot {
+  const cloned = structuredClone(snapshot);
+  return Object.freeze({
+    ...cloned,
+    rndProgramIds: Object.freeze([...cloned.rndProgramIds]),
+    entries: Object.freeze(cloned.entries.map(deepFreezeEntry)),
+    reviews: Object.freeze(cloned.reviews.map((review) => Object.freeze({ ...review }))),
+    finalization: cloned.finalization ? Object.freeze({ ...cloned.finalization }) : undefined
+  });
+}
 function assertSnapshot(snapshot: ResearchNoteSnapshot): void {
   if (!snapshot.projectId || !snapshot.researchNoteId || !snapshot.authorUserId) fail("RESEARCH_NOTE_SNAPSHOT_INVALID", "Root IDs are required.");
+  if (!Number.isSafeInteger(snapshot.rowVersion) || snapshot.rowVersion < 0) fail("RESEARCH_NOTE_SNAPSHOT_INVALID", "A non-negative optimistic row version is required.");
+  snapshot.entries.forEach((entry, index) => {
+    assertEntryShape(entry);
+    if (entry.researchNoteId !== snapshot.researchNoteId || entry.projectId !== snapshot.projectId || entry.authorUserId !== snapshot.authorUserId) fail("RESEARCH_NOTE_ENTRY_SUBJECT_MISMATCH", "Every restored entry must belong to the exact note root.");
+    const previous = snapshot.entries[index - 1];
+    if (Number(entry.entryVersion) !== index + 1 || (previous ? entry.previousEntryId !== previous.entryId : entry.previousEntryId !== undefined)) fail("RESEARCH_NOTE_ENTRY_LINEAGE_INVALID", "Restored entries must form one direct immutable version chain.");
+  });
   if ((snapshot.state === "FINALIZED" || snapshot.state === "CORRECTED_BY_ADDENDUM") && !snapshot.finalization) fail("RESEARCH_NOTE_FINALIZATION_REQUIRED", "Finalized state requires exact finalization evidence.");
-  if (snapshot.finalization) assertExactEntry(snapshot.entries.find((entry) => entry.entryId === snapshot.finalization!.entryId) ?? fail("RESEARCH_NOTE_FINALIZED_ENTRY_MISSING", "Finalized entry is missing."), snapshot.finalization);
+  if (snapshot.finalization) {
+    const finalizedEntry = snapshot.entries.find((entry) => entry.entryId === snapshot.finalization!.entryId) ?? fail("RESEARCH_NOTE_FINALIZED_ENTRY_MISSING", "Finalized entry is missing.");
+    assertExactEntry(finalizedEntry, snapshot.finalization);
+    const latestEntry = latest(snapshot.entries);
+    if (snapshot.state === "FINALIZED" && latestEntry.entryId !== finalizedEntry.entryId) fail("RESEARCH_NOTE_FINALIZATION_LINEAGE_INVALID", "A finalized note cannot contain entries after its exact finalized entry.");
+    if (snapshot.state === "CORRECTED_BY_ADDENDUM" && (latestEntry.kind === "ORIGINAL" || latestEntry.correctsEntryId !== finalizedEntry.entryId)) fail("RESEARCH_NOTE_CORRECTION_LINEAGE_INVALID", "A corrected note must end with an addendum linked to its exact finalized entry.");
+  }
 }
 function assertExactEntry(entry: ResearchNoteEntrySnapshot, exact: { entryId: Uuid; entryVersion: Version; entryChecksum: Sha256; entrySealedAt: UtcInstant }): void {
   if (entry.entryId !== exact.entryId || entry.entryVersion !== exact.entryVersion || entry.checksum !== exact.entryChecksum || entry.sealedAt !== exact.entrySealedAt) fail("RESEARCH_NOTE_EXACT_ENTRY_MISMATCH", "Exact immutable entry snapshot does not match.");

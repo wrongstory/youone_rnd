@@ -66,6 +66,9 @@ export interface ProjectActorSnapshot {
   readonly active: boolean;
   readonly authorities: readonly ProjectAuthority[];
   readonly projectScopeId?: Uuid;
+  readonly projectScopeProjectId?: Uuid;
+  readonly projectScopeValidFrom?: UtcInstant;
+  readonly projectScopeValidUntil?: UtcInstant;
 }
 
 export interface ProjectCommand {
@@ -325,21 +328,27 @@ export class WbsNode {
   public snapshot(): WbsNodeSnapshot { return clone(this.value); }
 
   public ready(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "BACKLOG"); this.requireInternal(command.actor, "PM"); if (!this.value.assigneeUserId && !this.value.assignedVendorId) fail("WBS_ASSIGNMENT_REQUIRED", "A user or Vendor assignment is required before READY."); if (command.dependenciesSatisfied === false) fail("WBS_DEPENDENCY_BLOCKED", "WBS dependencies are not satisfied."); return this.transition(command, "READY", WBS_EVENT_IDS.READIED); }
-  public start(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "READY"); this.requireAssigneePmOrScopedVendor(command.actor); if (!command.projectIsActive) fail("WBS_PROJECT_NOT_ACTIVE", "WBS work may start only while Project is active."); return this.transition(command, "IN_PROGRESS", WBS_EVENT_IDS.STARTED); }
-  public block(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "IN_PROGRESS"); this.requireAssigneePmOrScopedVendor(command.actor); requireText(command.reason ?? "", "WBS_BLOCK_REASON_REQUIRED"); return this.transition(command, "BLOCKED", WBS_EVENT_IDS.BLOCKED); }
+  public start(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "READY"); this.requireAssigneePmOrScopedVendor(command.actor, command.at); if (!command.projectIsActive) fail("WBS_PROJECT_NOT_ACTIVE", "WBS work may start only while Project is active."); return this.transition(command, "IN_PROGRESS", WBS_EVENT_IDS.STARTED); }
+  public block(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "IN_PROGRESS"); this.requireAssigneePmOrScopedVendor(command.actor, command.at); requireText(command.reason ?? "", "WBS_BLOCK_REASON_REQUIRED"); return this.transition(command, "BLOCKED", WBS_EVENT_IDS.BLOCKED); }
   public unblock(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "BLOCKED"); if (command.actor.actorKind === "VENDOR") fail("WBS_VENDOR_UNBLOCK_FORBIDDEN", "Vendor cannot unblock work without internal review."); if (!command.actor.userId || (command.actor.userId !== this.value.assigneeUserId && !hasAuthority(command.actor, "PM"))) fail("WBS_ASSIGNEE_OR_PM_REQUIRED", "Only the assignee or PM may unblock work."); requireText(command.reason ?? "", "WBS_UNBLOCK_NOTE_REQUIRED"); return this.transition(command, "IN_PROGRESS", WBS_EVENT_IDS.UNBLOCKED); }
-  public submitReview(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "IN_PROGRESS"); this.requireAssigneeOrScopedVendor(command.actor); if (command.evidenceSatisfied === false) fail("WBS_EVIDENCE_REQUIRED", "Required evidence or deliverable is missing."); return this.transition(command, "REVIEW_REQUIRED", WBS_EVENT_IDS.SUBMITTED_REVIEW); }
+  public submitReview(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "IN_PROGRESS"); this.requireAssigneeOrScopedVendor(command.actor, command.at); if (command.evidenceSatisfied === false) fail("WBS_EVIDENCE_REQUIRED", "Required evidence or deliverable is missing."); return this.transition(command, "REVIEW_REQUIRED", WBS_EVENT_IDS.SUBMITTED_REVIEW); }
   public accept(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "REVIEW_REQUIRED"); if (command.actor.actorKind !== "INTERNAL" || !hasAuthority(command.actor, "INTERNAL_REVIEWER")) fail("WBS_INTERNAL_REVIEWER_REQUIRED", "Only an internal reviewer may accept vendor or internal work."); this.value = { ...this.value, progressPercent: 100 }; return this.transition(command, "DONE", WBS_EVENT_IDS.ACCEPTED); }
   public rework(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "REVIEW_REQUIRED"); this.requireInternal(command.actor, "INTERNAL_REVIEWER"); requireText(command.reason ?? "", "WBS_REWORK_REASON_REQUIRED"); return this.transition(command, "IN_PROGRESS", WBS_EVENT_IDS.REWORKED); }
   public cancel(command: WbsCommand): ProjectMutation<WbsNodeSnapshot> { this.guard(command, "BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW_REQUIRED"); this.requireInternal(command.actor, "PM", "DIRECTOR"); requireText(command.reason ?? "", "WBS_CANCEL_REASON_REQUIRED"); return this.transition(command, "CANCELLED", WBS_EVENT_IDS.CANCELLED); }
 
   private guard(command: WbsCommand, ...states: readonly WbsState[]): void { if (command.expectedVersion !== this.value.version) fail("WBS_STALE_VERSION", "Optimistic version mismatch."); if (!states.includes(this.value.state)) fail("WBS_STATE_INVALID", `Operation is not allowed from ${this.value.state}.`); if (!command.actor.active) fail("WBS_ACTOR_INACTIVE", "Inactive actors cannot change WBS work."); }
   private requireInternal(actor: ProjectActorSnapshot, ...authorities: readonly ProjectAuthority[]): void { if (actor.actorKind !== "INTERNAL" || !hasAuthority(actor, ...authorities)) fail("WBS_INTERNAL_AUTHORITY_REQUIRED", "Required internal authority is missing."); }
-  private requireAssigneePmOrScopedVendor(actor: ProjectActorSnapshot): void {
-    if (actor.actorKind === "VENDOR") { if (!actor.projectScopeId || !actor.vendorId || actor.vendorId !== this.value.assignedVendorId || !hasAuthority(actor, "VENDOR_ASSIGNEE")) fail("WBS_VENDOR_SCOPE_REQUIRED", "Exact active ProjectScope and assignment are required."); return; }
+  private requireAssigneePmOrScopedVendor(actor: ProjectActorSnapshot, at: UtcInstant): void {
+    if (actor.actorKind === "VENDOR") {
+      const scopeEffective = actor.projectScopeValidFrom !== undefined
+        && actor.projectScopeValidFrom <= at
+        && (actor.projectScopeValidUntil === undefined || actor.projectScopeValidUntil > at);
+      if (!actor.projectScopeId || actor.projectScopeProjectId !== this.value.projectId || !scopeEffective || !actor.vendorId || actor.vendorId !== this.value.assignedVendorId || !hasAuthority(actor, "VENDOR_ASSIGNEE")) fail("WBS_VENDOR_SCOPE_REQUIRED", "Exact currently effective ProjectScope and assignment are required.");
+      return;
+    }
     if (!actor.userId || (actor.userId !== this.value.assigneeUserId && !hasAuthority(actor, "PM"))) fail("WBS_ASSIGNEE_OR_PM_REQUIRED", "Assignee or PM authority is required.");
   }
-  private requireAssigneeOrScopedVendor(actor: ProjectActorSnapshot): void { if (actor.actorKind === "VENDOR") return this.requireAssigneePmOrScopedVendor(actor); if (!actor.userId || actor.userId !== this.value.assigneeUserId) fail("WBS_ASSIGNEE_REQUIRED", "Assigned user is required."); }
+  private requireAssigneeOrScopedVendor(actor: ProjectActorSnapshot, at: UtcInstant): void { if (actor.actorKind === "VENDOR") return this.requireAssigneePmOrScopedVendor(actor, at); if (!actor.userId || actor.userId !== this.value.assigneeUserId) fail("WBS_ASSIGNEE_REQUIRED", "Assigned user is required."); }
   private transition(command: WbsCommand, state: WbsState, eventType: string): ProjectMutation<WbsNodeSnapshot> { const expectedVersion = this.value.version; this.value = { ...this.value, state, version: nextVersion(this.value.version), updatedAt: command.at }; return WbsNode.mutation(this.value, command, expectedVersion, eventType); }
   private static mutation(snapshot: WbsNodeSnapshot, command: Omit<WbsCommand, "expectedVersion">, expectedVersion: Version, eventType: string): ProjectMutation<WbsNodeSnapshot> { const payload = { state: snapshot.state, projectId: snapshot.projectId, wbsNodeId: snapshot.wbsNodeId } as const; return { expectedVersion, snapshot: clone(snapshot), event: { eventId: command.eventId, eventType: eventType as StableCode, machineId: WBS_MACHINE_ID, aggregateId: snapshot.wbsNodeId, aggregateVersion: snapshot.version, occurredAt: command.at, correlationId: command.correlationId, idempotencyKey: command.idempotencyKey, payload }, audit: { eventType: eventType as StableCode, actor: clone(command.actor), aggregateId: snapshot.wbsNodeId, occurredAt: command.at, correlationId: command.correlationId, ...(command.reason ? { reason: command.reason } : {}) } }; }
 }

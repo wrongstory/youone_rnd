@@ -52,7 +52,7 @@ describe("SM-WBS-V1", () => {
   it("permits scoped Vendor submission but never Vendor self-acceptance or child auto-completion", () => {
     const node = WbsNode.restore(createWbs());
     node.ready(wbsCommand(1, actor()));
-    const vendor = actor({ actorKind: "VENDOR", userId: undefined, vendorId, projectScopeId: uuid("10000000-0000-4000-8000-000000000007"), authorities: ["VENDOR_ASSIGNEE"] });
+    const vendor = actor({ actorKind: "VENDOR", userId: undefined, vendorId, projectScopeId: uuid("10000000-0000-4000-8000-000000000007"), projectScopeProjectId: projectId, projectScopeValidFrom: utcInstant("2026-08-01T00:00:00Z"), projectScopeValidUntil: utcInstant("2026-09-01T00:00:00Z"), authorities: ["VENDOR_ASSIGNEE"] });
     node.start(wbsCommand(2, vendor));
     node.submitReview(wbsCommand(3, vendor));
     expect(() => node.accept(wbsCommand(4, vendor))).toThrowError(expect.objectContaining({ code: "WBS_INTERNAL_REVIEWER_REQUIRED" }));
