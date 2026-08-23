@@ -612,3 +612,24 @@ jobs:
 
       - name: Verify R05 readiness, evidence and Worker PostgreSQL boundary
         run: pnpm exec vitest run tests/release-gate/r05-readiness-evidence.test.ts tests/release-gate/r05-worker-database.test.ts tests/release-gate/r05-postgres.integration.test.ts tests/architecture/layer-boundaries.test.ts
+
+  r06-release-evidence-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/setup@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify R06 operations policy and release evidence contract
+        run: pnpm exec vitest run tests/release-gate/r06-release-evidence.test.ts tests/release-gate/r05-readiness-evidence.test.ts tests/architecture/layer-boundaries.test.ts

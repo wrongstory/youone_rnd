@@ -232,6 +232,8 @@ R04 Private Storage는 일반 File Application 계약인 `@youone/infra-supabase
 
 R05는 Web의 `database`/`request-auth`/`offline-sync`와 Worker의 `database`/`private-storage`를 번역된 라벨이 아닌 다섯 stable deployment component ID로 통합한다. Worker DB는 별도 `NOINHERIT` login이 `youone_privileged_writer`만 SET할 수 있고 table 직접권한·소유권·RLS bypass가 없으며 exact Outbox capability와 clean context를 갖는지 실제 connection에서 확인한다. Staging runner는 HTTPS non-production label, Preview 금지, exact commit SHA를 요구하고 live readiness와 필수 보안/업무/PWA/복구 matrix의 digest가 모두 있을 때만 versioned evidence를 `READY`로 만든다. 누락 자격증명은 `BLOCKED`, live probe/검증 실패는 `NOT_READY`이며 비밀·URL·object key·payload는 evidence slot 자체가 없다.
 
+R06 release boundary는 Worker composition의 순수 검증기로 운영정책과 증거 참조를 정규화한다. 정책 입력은 `OD-019`/`OD-035`/`OD-036`의 exact decision ID, policy version, 승인자·효력시각·승인 digest 및 명시값을 요구한다. 릴리즈 증거는 allowlisted ID/source kind, 동일 candidate commit, UTC, SHA-256만 보존하며 Staging R05 packet의 live credential/readiness/check/artifact를 다시 검증한다. 검증기는 deployment나 GitHub를 직접 변경하지 않고 `BLOCKED` 또는 `READY_FOR_RELEASE_PR`만 반환하므로 `main` 승격 권한은 별도 사용자 Gate에 남는다.
+
 ## 10. 배포 구조
 
 ### 초기 권장

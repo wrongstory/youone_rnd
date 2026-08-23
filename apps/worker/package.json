@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.build.json",
+    "release:verify": "tsx src/release-gate.ts",
     "start": "node dist/index.js",
     "staging:e2e": "tsx src/staging-e2e.ts",
     "typecheck": "tsc --noEmit"

@@ -122,3 +122,11 @@ R05 adds the concrete minimum-privilege Worker PostgreSQL pool and exact five-co
 The Staging runner rejects non-Staging, Preview, localhost and credential-bearing targets. Its evidence schema records only a stable environment ID, exact commit SHA, UTC interval, correlation ID, five readiness results, the required actor/Scope/immutability/concurrency/offline/PWA/mobile/recovery matrix and artifact SHA-256 values. Missing configuration returns a small `BLOCKED` record; a live failed readiness returns `NOT_READY`; only a credential-backed live run with every required check passing and retained artifact digests can return `READY`.
 
 Repository CI validates this behavior and the Worker DB principal against PostgreSQL 16, but it is not Staging proof. The live executor, non-production credentials and retained artifacts are absent from the repository, so the activation blockers remain open. Execution and evidence-preservation steps are in `docs/staging-e2e.md`.
+
+### 9.2 R06 operations policy and release evidence status
+
+R06 requires approved versioned snapshots for `OD-019`, `OD-035` and `OD-036`; a pending status, invalid/future effective time, missing approver/evidence digest, duplicate/unsupported value or backup cadence worse than the selected RPO fails closed. No production duration, owner, destination or provider credential is seeded in the repository.
+
+The exact release evidence set covers quality, M07–M16, R01–R05, migration clean/upgrade/rollback-or-forward-fix, DB+Storage recovery, Staging E2E, PWA/mobile, critical/high-zero and three policy snapshots. Every reference must match the candidate commit and source kind and carry a UTC observation time and SHA-256. R05 Staging evidence is revalidated for exact environment/commit, five live readiness components, every required PASS check and artifact digest. The normalized report has no token, cookie, URL, body, personal-data or Storage-key field.
+
+`READY_FOR_RELEASE_PR` does not update production or `main`; it only permits a separate user-approved promotion PR. Current policy approvals and live Staging artifacts are absent, so the production activation result remains `BLOCKED`. The checklist and execution contract are in `docs/r06-release-gate.md`.
