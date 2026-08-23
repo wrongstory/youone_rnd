@@ -87,11 +87,13 @@ P1은 P0 `AUTHZ-VENDOR-V1`, trusted ActorContext/ResourceContext, action-bound P
 
 1. active VendorUser와 VendorMembership;
 2. exact Project grant;
-3. Contract-bound BOM이면 same VendorUser의 exact Contract grant;
+3. same VendorUser의 exact active Contract grant;
 4. Deliverable/WBS/BOM assignment;
 5. effective approved BomVersion;
 6. `bom.vendor.assigned.read` action;
 7. `BOM_VENDOR_ASSIGNED_V1` projection.
+
+Vendor BOM projection에는 exact active Project와 exact active Contract가 항상 존재해야 한다. Contract가 없거나 Project/Contract 연결이 불완전한 BOM은 Vendor projection 대상이 아니며 fail-closed로 거부한다.
 
 Project ID 또는 Contract ID 하나만 query에 전달하는 것은 authority가 아니다.
 
