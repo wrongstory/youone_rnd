@@ -1,12 +1,32 @@
 -- M03 Auth/RBAC/Scope
 -- ProjectScope, ContractScope, and DocumentVersion grants are added with their real FK targets in M06/M07/M05.
+-- 2026-08-24: hosted Supabase compatibility re-baseline. The prior merged form never applied successfully to Staging;
+-- redundant ALTER ROLE security-attribute resets are replaced by fail-closed pg_roles validation.
 
 do $$ begin
   if not exists (select 1 from pg_roles where rolname='youone_identity_resolver') then
     create role youone_identity_resolver nologin nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
   end if;
 end $$;
-alter role youone_identity_resolver nologin nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
+
+do $identity_role_guard$
+declare
+  target pg_roles%rowtype;
+begin
+  select * into target from pg_roles where rolname='youone_identity_resolver';
+  if not found
+    or target.rolsuper
+    or target.rolcreatedb
+    or target.rolcreaterole
+    or target.rolinherit
+    or target.rolcanlogin
+    or target.rolreplication
+    or target.rolbypassrls then
+    raise exception 'unsafe or missing youone_identity_resolver attributes' using errcode='42501';
+  end if;
+end
+$identity_role_guard$;
+
 grant usage on schema app_private to youone_identity_resolver;
 
 insert into public.aggregate_type_definition(aggregate_type) values

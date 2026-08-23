@@ -1,5 +1,6 @@
 -- M02 DB/Audit Kernel
--- Forward-fix policy: never edit this migration after merge. Add a later migration.
+-- Forward-fix policy: after this pre-release hosted-Supabase compatibility re-baseline, never edit this migration after merge. Add a later migration.
+-- 2026-08-24: the prior merged form never applied successfully to Staging; redundant ALTER ROLE security-attribute resets were replaced by fail-closed pg_roles validation because hosted Supabase postgres is not SUPERUSER.
 -- No business feature tables, workflow states, or production feature codes belong here.
 
 create schema if not exists extensions;
@@ -19,8 +20,25 @@ begin
 end
 $roles$;
 
-alter role youone_request nobypassrls nosuperuser nocreatedb nocreaterole noreplication;
-alter role youone_privileged_writer nobypassrls nosuperuser nocreatedb nocreaterole noreplication;
+do $role_guard$
+declare
+  role_count integer;
+  unsafe_role_count integer;
+begin
+  select count(*) into role_count
+  from pg_roles
+  where rolname in ('youone_request', 'youone_privileged_writer');
+
+  select count(*) into unsafe_role_count
+  from pg_roles
+  where rolname in ('youone_request', 'youone_privileged_writer')
+    and (rolsuper or rolcreatedb or rolcreaterole or rolinherit or rolcanlogin or rolreplication or rolbypassrls);
+
+  if role_count <> 2 or unsafe_role_count <> 0 then
+    raise exception 'unsafe or missing youone capability role attributes' using errcode = '42501';
+  end if;
+end
+$role_guard$;
 
 grant usage on schema app_private to youone_request, youone_privileged_writer;
 

@@ -60,4 +60,12 @@ describe("M03 migration contract",()=>{
       expect(sql).toContain(`'${role}'`);
     }
   });
+  it("supports hosted Supabase without weakening the identity-resolver role",()=>{
+    expect(sql).toMatch(/create role youone_identity_resolver[\s\S]*nobypassrls/i);
+    expect(sql).toContain("unsafe or missing youone_identity_resolver attributes");
+    for (const attribute of ["rolsuper", "rolcreatedb", "rolcreaterole", "rolinherit", "rolcanlogin", "rolreplication", "rolbypassrls"]) {
+      expect(sql).toContain(attribute);
+    }
+    expect(sql).not.toMatch(/alter\s+role\s+youone_identity_resolver\b/i);
+  });
 });

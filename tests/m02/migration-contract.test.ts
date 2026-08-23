@@ -40,4 +40,12 @@ describe("M02 migration contract", () => {
     expect(migration).toContain("alter table public.audit_log enable row level security");
     expect(migration).toContain("revoke all on all tables in schema public");
   });
+
+  it("supports hosted Supabase without weakening capability-role attributes", () => {
+    expect(migration).toContain("unsafe or missing youone capability role attributes");
+    for (const attribute of ["rolsuper", "rolcreatedb", "rolcreaterole", "rolinherit", "rolcanlogin", "rolreplication", "rolbypassrls"]) {
+      expect(migration).toContain(attribute);
+    }
+    expect(migration).not.toMatch(/alter\s+role\s+youone_(request|privileged_writer)\b/i);
+  });
 });
