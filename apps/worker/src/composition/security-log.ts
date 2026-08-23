@@ -1,9 +1,11 @@
 export type WorkerSecurityLogInput = Readonly<{
-  component: "database" | "private-storage" | "staging-e2e";
+  component: "database" | "private-storage" | "release-gate" | "staging-e2e";
   correlationId: string;
   event:
     | "STAGING_E2E_COMPLETED"
     | "STAGING_E2E_FAILED"
+    | "RELEASE_GATE_COMPLETED"
+    | "RELEASE_GATE_FAILED"
     | "WORKER_DATABASE_IDLE_CLIENT_ERROR"
     | "WORKER_READINESS_FAILED";
   outcome: string;

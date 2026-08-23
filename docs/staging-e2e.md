@@ -52,4 +52,4 @@ Retain the packet and referenced artifacts under the approved operations evidenc
 
 ## 6. Current blocker
 
-No Staging credentials or reviewed live matrix executor are stored in this repository. Therefore repository completion of R05 does not close the production activation blockers in `docs/security-operations.md`. R06 must attach an actual retained run and approved `OD-019`, `OD-035` and `OD-036` outcomes before release promotion can be considered.
+No Staging credentials or reviewed live matrix executor are stored in this repository. Therefore repository completion of R05 does not close the production activation blockers in `docs/security-operations.md`. R06 revalidates the retained packet against the same environment and candidate commit, but still requires an actual run and approved `OD-019`, `OD-035` and `OD-036` outcomes before release promotion can be considered. See `docs/r06-release-gate.md`.
