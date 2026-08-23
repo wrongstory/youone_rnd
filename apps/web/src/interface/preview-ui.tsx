@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Children, type ReactNode } from "react";
 
 import { previewDataEnabled } from "../composition/preview-mode";
+import { QuickPreviewButton } from "./app-overlays";
 import { formatDisplayText } from "./display-format";
 import { PreviewIcon, RecordTypeIcon } from "./preview-icons";
 
@@ -66,6 +67,7 @@ export function RecordCard({
       </Link>
       <div className="recordMeta" aria-label={`${title} 요약`}>
         {meta.map((item) => <span data-tone={metaTone(item)} key={item}>{formatDisplayText(item)}</span>)}
+        <QuickPreviewButton href={href} title={formatDisplayText(title)} eyebrow={formatDisplayText(eyebrow)} meta={meta.map(formatDisplayText)} />
       </div>
       {children}
     </li>

@@ -5,6 +5,8 @@
 - mobile implementation: `C:\Users\Admin\AppData\Local\Temp\youone-feature-screen-audit\14-projects-mobile-final.png`
 - desktop implementation: `C:\Users\Admin\AppData\Local\Temp\youone-feature-screen-audit\15-approvals-desktop-final.png`
 - combined comparison: `C:\Users\Admin\AppData\Local\Temp\youone-feature-screen-audit\16-feature-theme-comparison.png`
+- overlay evidence: `C:\Users\Admin\AppData\Local\Temp\youone-overlay-audit\01-notification-popover-desktop.png`, `02-quick-preview-drawer-desktop.png`, `03-action-modal-desktop.png`
+- overlay comparison: `C:\Users\Admin\AppData\Local\Temp\youone-overlay-audit\04-source-overlay-comparison.png`
 - mobile viewport/state: `390 × 844` CSS px, light theme, preview-data enabled, project list
 - desktop viewport/state: `1440 × 900` CSS px, light theme, preview-data enabled, approval inbox
 - source pixels: `853 × 1844`, Lanczos normalized to `390 × 844` for comparison
@@ -71,13 +73,24 @@ Combined comparison에서 다음 공통 구조가 동일한 방향으로 유지�
 - evidence: `14-projects-mobile-final.png`, `15-approvals-desktop-final.png`, `16-feature-theme-comparison.png`
 - result: actionable P0/P1/P2 mismatch 없음.
 
+### Iteration 5 — passed
+
+- evidence: `01-notification-popover-desktop.png`, `02-quick-preview-drawer-desktop.png`, `03-action-modal-desktop.png`, `04-source-overlay-comparison.png`
+- finding: 알림·사용자·동기화는 현재 업무 맥락을 유지하는 compact popover/bottom sheet가 적합하고, record 요약은 PC drawer/mobile full-screen sheet, 확인·사유 입력은 modal이 적합하다. 반면 filter/sort는 목록과 동시에 보여야 하므로 popover에 숨기지 않는다.
+- implementation: 최근 알림 3건과 전체 이력 deep link, 동기화 요약과 정식 conflict 화면 deep link, 허용된 목록 projection만 사용하는 빠른 보기, 실제 명령이 비활성인 실행 확인 preview를 추가했다. filter/sort는 기존 inline toolbar를 유지했다.
+- comparison: 승인 source의 navy shell, teal action, white compact panel, 얇은 line과 높은 정보 밀도를 overlay surface까지 유지했고, drawer 배경에 blur/scrim을 적용해 업무 맥락과 활성 layer가 명확히 분리된다.
+- result: actionable P0/P1/P2 mismatch 없음.
+
 ## Primary interactions and runtime checks
 
 - PC sidebar `프로젝트·WBS` → `/projects`
 - mobile bottom navigation `결재` → `/approvals`
 - 결재 목록 `정식 연구과제 승격 신청 상세` → exact approval detail route
 - fresh verification tab console error: `0`
-- `pnpm check`: lint/typecheck, `534 passed / 157 skipped`, production build 통과
+- 알림 bell → 최근 알림 popover → 전체 이력 `/notifications`
+- 목록 `빠른 보기` → PC 우측 drawer → exact 상세 route
+- 결재 `동작 화면 미리보기` → 의견/사유 modal, 실제 실행 disabled
+- `pnpm check`: lint/typecheck, `535 passed / 157 skipped`, production build 통과
 
 ## Findings
 
@@ -94,5 +107,9 @@ Combined comparison에서 다음 공통 구조가 동일한 방향으로 유지�
 - [x] semantic status tone와 한국어 display label
 - [x] React server/client boundary
 - [x] console/lint/typecheck/test/build
+- [x] 알림·사용자·동기화 responsive overlay
+- [x] 허용 projection 기반 업무 미리보기 drawer/sheet
+- [x] 실행 불가 확인·의견 modal
+- [x] filter/sort inline toolbar 유지
 
 final result: passed

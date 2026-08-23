@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Bell,
   Buildings,
   CaretRight,
   CheckSquare,
@@ -16,7 +15,6 @@ import {
   Package,
   ShieldCheck,
   ShoppingCart,
-  SignOut,
   Stamp,
   UserCircle,
   WifiHigh,
@@ -29,7 +27,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 
 import { navigationGroups, primaryNavigation } from "./app-navigation";
-import { ConnectivityStatus } from "./connectivity-status";
+import { NotificationCenter, ProfileCenter, SyncStatusCenter } from "./app-overlays";
 
 type IconComponent = ComponentType<{ "aria-hidden"?: boolean; size?: number; weight?: "regular" | "fill" | "bold" }>;
 
@@ -109,7 +107,6 @@ function HierarchicalNavigation({ pathname, onNavigate }: { pathname: string; on
 export function AppShell({ children, previewEnabled }: { children: ReactNode; previewEnabled: boolean }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
   const activeNavigation = navigationItems.find((item) => isCurrentPath(pathname, item.href));
   const workspaceTitle = pathname === "/" ? "업무 대시보드" : (activeNavigation?.label ?? "R&D 업무관리");
@@ -135,23 +132,9 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
       <header className="mobileAppBar">
         <ProductBrand compact />
         <div className="appBarActions">
-          <Link className="iconButton notificationButton" href="/notifications" aria-label="알림 3건">
-            <Bell aria-hidden size={22} weight="bold" />
-            <span aria-hidden>3</span>
-          </Link>
-          <button className="profileButton" type="button" aria-expanded={profileOpen} aria-controls="mobile-profile-menu" onClick={() => setProfileOpen((value) => !value)}>
-            <UserCircle aria-hidden size={30} weight="fill" />
-            <span className="srOnly">사용자 메뉴</span>
-          </button>
+          <NotificationCenter compact />
+          <ProfileCenter previewEnabled={previewEnabled} compact />
         </div>
-        {profileOpen ? (
-          <div className="profileMenu" id="mobile-profile-menu">
-            <strong>{previewEnabled ? "박현우 연구소장" : "사용자 정보 연결 대기"}</strong>
-            <span>{previewEnabled ? "화면 검토용 사용자" : "운영 Identity Resolver가 필요합니다."}</span>
-            <Link href="/settings/approval" onClick={() => setProfileOpen(false)}><GearSix aria-hidden size={18} />설정</Link>
-            <button type="button" disabled><SignOut aria-hidden size={18} />운영 Auth 연결 후 로그아웃</button>
-          </div>
-        ) : null}
       </header>
 
       <aside className="desktopSidebar">
@@ -170,12 +153,9 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
             <strong>{workspaceTitle}</strong>
           </div>
           <div className="workspaceUtilities">
-            <ConnectivityStatus className="workspaceConnectivity" detail />
-            <Link className="workspaceIconButton" href="/notifications" aria-label="알림 3건">
-              <Bell aria-hidden size={21} weight="bold" />
-              <span aria-hidden>3</span>
-            </Link>
-            <span className="workspaceUser"><UserCircle aria-hidden size={30} weight="fill" /><span><strong>{previewEnabled ? "박현우" : "사용자 확인 중"}</strong><small>{previewEnabled ? "연구소장" : "Identity 연결 대기"}</small></span></span>
+            <SyncStatusCenter previewEnabled={previewEnabled} />
+            <NotificationCenter />
+            <ProfileCenter previewEnabled={previewEnabled} />
           </div>
         </header>
         <div className="appContent">{children}</div>
@@ -206,10 +186,7 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
             <button ref={drawerCloseButtonRef} className="iconButton" type="button" aria-label="전체 메뉴 닫기" onClick={() => setDrawerOpen(false)}><X aria-hidden size={22} /></button>
           </div>
           <HierarchicalNavigation pathname={pathname} onNavigate={() => setDrawerOpen(false)} />
-          <Link className="drawerOfflineStatus" href="/offline-sync" onClick={() => setDrawerOpen(false)}>
-            <ConnectivityStatus className="drawerConnectivity" detail />
-            <CaretRight aria-hidden size={16} />
-          </Link>
+          <div className="drawerOfflineStatus"><SyncStatusCenter previewEnabled={previewEnabled} compact /></div>
         </aside>
       ) : null}
     </div>

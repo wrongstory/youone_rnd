@@ -1,6 +1,7 @@
 import { uuid } from "@youone/shared-kernel/public";
 import { approvalActionDisabled } from "@youone/ui/public";
 
+import { SecureActionPreview } from "../../../interface/app-overlays";
 import { FactGrid, PageBackLink, PreviewNotice } from "../../../interface/preview-ui";
 import { approvalInboxQuery } from "../query";
 
@@ -57,24 +58,26 @@ export default async function ApprovalDetailPage({ params }: { params: Promise<{
           <h2 id="approval-actions-title">가능한 동작</h2>
           <div className="actionRow">
             {detail.actions.map((action) => (
-              <button
-                key={action.actionId}
-                disabled={approvalActionDisabled({
-                  id: action.actionId,
-                  label: action.label,
-                  authorized: action.authorized,
-                  commandAvailable: action.commandAvailable,
-                  decisionId: action.decisionId,
-                  evaluatedAt: action.evaluatedAt,
-                  evidenceIds: action.evidenceIds,
-                  obligations: action.obligations,
-                  denyReasonCode: action.denyReasonCode
-                })}
-                title={action.denyReasonCode ?? (!action.commandAvailable ? "COMMAND_ADAPTER_NOT_CONFIGURED" : undefined)}
-                data-decision-id={action.decisionId}
-              >
-                {action.label}{action.denyReasonCode ? ` — ${action.denyReasonCode}` : !action.commandAvailable ? " — 데모에서 실행 불가" : ""}
-              </button>
+              <div className="actionCluster" key={action.actionId}>
+                <button
+                  disabled={approvalActionDisabled({
+                    id: action.actionId,
+                    label: action.label,
+                    authorized: action.authorized,
+                    commandAvailable: action.commandAvailable,
+                    decisionId: action.decisionId,
+                    evaluatedAt: action.evaluatedAt,
+                    evidenceIds: action.evidenceIds,
+                    obligations: action.obligations,
+                    denyReasonCode: action.denyReasonCode
+                  })}
+                  title={action.denyReasonCode ?? (!action.commandAvailable ? "COMMAND_ADAPTER_NOT_CONFIGURED" : undefined)}
+                  data-decision-id={action.decisionId}
+                >
+                  {action.label}{action.denyReasonCode ? ` — ${action.denyReasonCode}` : !action.commandAvailable ? " — 데모에서 실행 불가" : ""}
+                </button>
+                <SecureActionPreview actionLabel={action.label} subjectLabel={detail.subjectKind} />
+              </div>
             ))}
           </div>
         </section>
