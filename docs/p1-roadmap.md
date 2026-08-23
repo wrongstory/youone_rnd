@@ -43,12 +43,12 @@ P1에서도 다음은 포함하지 않는다.
 - [ ] P0 Release Gate 이슈 `#36` 완료
 - [ ] `dev → main` P0 릴리즈 승격 승인·병합
 - [x] `P1-SCOPE-V1.0` 사용자 승인
-- [ ] P1 source delta audit 완료
-- [ ] 모듈별 상태머신·권한·감사 이벤트·보존정책 승인
-- [ ] 논리 ERD와 P0 데이터 migration/backfill 영향 검토
+- [x] P1 source delta audit 완료 — PR #49
+- [x] 모듈별 상태머신·권한·감사 이벤트·보존정책 승인 — PR #49
+- [x] 논리 ERD와 P0 데이터 migration/backfill 영향 검토 — PR #49
 - [x] `OD-010`, `OD-024` 초기 P1 결정 해소; 후속 L1/L2 body index는 `OD-038`로 분리
-- [ ] P1 기술·보안 ADR 승인
-- [ ] P1 이슈, 파일 소유권, migration 단일 작성자, 병합 순서 확정
+- [x] P1 기술·보안 ADR 승인 — ADR-011, PR #49
+- [x] P1 파일 소유권, migration 단일 작성자, 병합 순서 확정 — `docs/p1-workstreams.md`, PR #49
 
 P0 운영출시 준비와 P1 설계는 병렬로 진행할 수 있다. P1 제품 코드는 위 Gate 이후에만 시작한다.
 

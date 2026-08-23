@@ -1,7 +1,7 @@
 # P1 Workstreams and Merge Order
 
 - 문서 ID: `P1-WORKSTREAMS-V0.1`
-- 상태: `PROPOSED_FOR_REVIEW`
+- 상태: `APPROVED_PLAN`
 - 추적 이슈: GitHub `#48`
 
 ## 1. Gate와 병합 원칙

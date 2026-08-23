@@ -1,6 +1,6 @@
 # ADR-011: P1 Module, Search, Offline, and Migration Boundaries
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-23
 - Decision IDs: `OD-037-P1-DEVELOPMENT-GATE`, `OD-010-SEARCH-SCOPE`, `OD-024-ALLOWANCE-REFERENCE`
 - Tracking: GitHub `#48`

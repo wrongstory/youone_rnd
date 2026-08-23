@@ -11,10 +11,11 @@ export { combineDeploymentReadiness, DEPLOYMENT_COMPONENT_IDS } from "./composit
 export { createStagingEvidence, REQUIRED_STAGING_CHECK_IDS } from "./composition/staging-evidence.js";
 export { runStagingE2E } from "./composition/staging-e2e.js";
 export { validateOperationsPolicyBundle, OPERATIONS_POLICY_DECISION_IDS } from "./composition/operations-policy.js";
-export { evaluateReleaseCandidate, releaseEvidenceSha256, REQUIRED_RELEASE_EVIDENCE_IDS } from "./composition/release-evidence.js";
+export { approvedOperationsPolicySha256, evaluateReleaseCandidate, releaseEvidenceSha256, REQUIRED_RELEASE_EVIDENCE_IDS } from "./composition/release-evidence.js";
 export { filesystemReleaseArtifactReader } from "./composition/release-artifacts.js";
 export {
   createRecoveryManifest,
+  isMigrationHead,
   verifyRestore,
   type RecoveryManifest,
   type RestoreEvidence,
