@@ -17,8 +17,8 @@ import {
 } from "@youone/core-audit/public";
 import type { Version } from "@youone/shared-kernel/public";
 
-import type { SqlConnection, SqlPool, SqlQueryResult } from "./driver.js";
-import { StaleVersionError } from "./driver.js";
+import type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";
+import { StaleVersionError } from "./driver";
 
 const SET_TRANSACTION_CONTEXT = `
 select
@@ -30,6 +30,15 @@ select
   set_config('app.correlation_id', $6, true),
   set_config('app.causation_id', $7, true)
 `;
+
+const REQUEST_TRANSACTION_BOUNDARY = `
+set local role youone_request;
+set local row_security = on
+`;
+
+export type PostgresTransactionOptions = Readonly<{
+  principal?: "youone_request";
+}>;
 
 export interface PostgresTransactionScope extends TransactionScope {
   query<Row extends object = Record<string, unknown>>(
@@ -182,7 +191,10 @@ class PostgresTransaction implements PostgresTransactionScope {
 }
 
 export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> {
-  public constructor(private readonly pool: SqlPool) {}
+  public constructor(
+    private readonly pool: SqlPool,
+    private readonly options: PostgresTransactionOptions = {}
+  ) {}
 
   public async execute<Result>(
     actor: ActorEnvelope,
@@ -195,6 +207,9 @@ export class PostgresUnitOfWork implements UnitOfWork<PostgresTransactionScope> 
     try {
       await connection.query("begin");
       began = true;
+      if (this.options.principal === "youone_request") {
+        await connection.query(REQUEST_TRANSACTION_BOUNDARY);
+      }
       await connection.query(SET_TRANSACTION_CONTEXT, [
         actor.actorKind,
         actor.authenticatedActorId ?? "",

@@ -126,6 +126,8 @@ sequenceDiagram
 
 M03의 request composition은 Supabase가 서버에서 검증한 subject/expiry/session/AAL만 인증 증거로 사용하고, Role·Position·Vendor·Scope는 user metadata나 request body가 아니라 현재 DB 레코드에서 다시 구성한다. 검증된 subject의 서버 snapshot은 ordinary request role이 호출할 수 없는 전용 NOBYPASSRLS `youone_identity_resolver` 경계에서만 읽는다. 검증 팩토리가 만든 명목상 `TrustedActorContext`만 request PostgreSQL UnitOfWork에 전달할 수 있다. Supabase request adapter와 privileged service/secret adapter는 서로 다른 export이며, web request interface는 privileged adapter를 import할 수 없다.
 
+R01의 concrete request PostgreSQL composition은 `apps/web/src/composition`에서만 `pg` Pool을 조립한다. 배포가 제공한 별도 `NOINHERIT`/`NOBYPASSRLS`/non-superuser LOGIN으로 접속한 뒤, 매 업무 transaction에서 `SET LOCAL ROLE youone_request`와 `row_security=on`을 먼저 적용한다. checkout probe는 effective role, login role, `NOBYPASSRLS`, 빈 actor/session context를 모두 확인하며 하나라도 어긋나면 연결을 폐기한다. `/api/health/ready`의 database component도 이 실제 probe가 성공해야만 `ready`다. URL 존재만으로 준비 상태를 만들지 않으며 worker/service-role pool은 web composition에서 해석할 수 없다.
+
 Authorization은 boolean만 반환하지 않는다. 결정에는 stable reason, 사용한 Scope/assignment evidence, 서버가 등록한 projection profile ID/version, audit·재인가·step-up 같은 obligation을 포함한다. 실제 Project/Contract/DocumentVersion FK가 생기기 전에는 generic resource UUID Scope table을 만들지 않으며, M05/M06/M07 migration이 typed FK와 RLS를 함께 추가한다.
 
 Actor, Resource Context, Projection은 모두 factory provenance를 런타임에 검증한다. Feature의 Resource loader가 DB에서 resource ID와 실제 Vendor/Project/Contract/DocumentVersion 관계, workflow/security 판정, Approval participant evidence를 함께 읽는다. 외주 조회는 exact Project/Contract Scope와 action-bound Vendor projection이 없으면 거부하며, owner 또는 Organization Scope를 우회 근거로 사용하지 않는다.

@@ -1,8 +1,8 @@
 import type { ActorEnvelope } from "@youone/application-kernel/public";
 import { assertTrustedActorContext, type TrustedActorContext } from "@youone/core-authorization/public";
 
-import type { SqlPool } from "./driver.js";
-import { PostgresUnitOfWork, type PostgresTransactionScope } from "./transaction.js";
+import type { SqlPool } from "./driver";
+import { PostgresUnitOfWork, type PostgresTransactionScope } from "./transaction";
 
 export type RequestDatabaseBoundary = Readonly<{
   bypassRls: false;
@@ -47,9 +47,16 @@ export class TrustedRequestUnitOfWork {
 }
 
 export function createTrustedRequestUnitOfWork(pool: SqlPool): TrustedRequestUnitOfWork {
-  return new TrustedRequestUnitOfWork(new PostgresUnitOfWork(pool));
+  return new TrustedRequestUnitOfWork(new PostgresUnitOfWork(pool, { principal: "youone_request" }));
 }
 
-export type { SqlConnection, SqlPool, SqlQueryResult } from "./driver.js";
-export { StaleVersionError } from "./driver.js";
-export type { PostgresTransactionScope } from "./transaction.js";
+export type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";
+export { StaleVersionError } from "./driver";
+export {
+  NodePostgresRequestPool,
+  RequestDatabaseBoundaryError,
+  createNodePostgresRequestPool,
+  type NodePostgresRequestPoolOptions,
+  type RequestDatabaseProbe
+} from "./node-request-pool";
+export type { PostgresTransactionScope } from "./transaction";
