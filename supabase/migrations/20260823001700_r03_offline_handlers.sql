@@ -330,7 +330,9 @@ begin
  if not command_row.payload ?& array['projectId','observedAt','note']
   or exists(select 1 from jsonb_object_keys(command_row.payload) k where k not in ('projectId','wbsNodeId','observedAt','note'))
   or (command_row.payload->>'projectId')::uuid<>target_project_id
-  or case when not command_row.payload ? 'wbsNodeId' or jsonb_typeof(command_row.payload->'wbsNodeId')='null' then target_wbs_node_id is not null else (command_row.payload->>'wbsNodeId')::uuid is distinct from target_wbs_node_id end
+  or ((not (command_row.payload ? 'wbsNodeId') or jsonb_typeof(command_row.payload->'wbsNodeId')='null') and target_wbs_node_id is not null)
+  or (command_row.payload ? 'wbsNodeId' and jsonb_typeof(command_row.payload->'wbsNodeId')<>'null'
+      and (command_row.payload->>'wbsNodeId')::uuid is distinct from target_wbs_node_id)
   or command_row.payload->>'note'<>target_note or (command_row.payload->>'observedAt')::timestamptz<>target_observed_at then raise exception 'Field note payload and arguments differ' using errcode='22023'; end if;
  perform app_private.r03_assert_internal_project(target_project_id,target_occurred_at);
  if length(trim(target_note)) not between 1 and 12000 or target_observed_at>target_occurred_at+interval '5 minutes'
@@ -400,10 +402,14 @@ begin
  if not command_row.payload ?& array['projectId','recordType','summary','observedAt','measurements']
   or exists(select 1 from jsonb_object_keys(command_row.payload) k where k not in ('projectId','wbsNodeId','recordType','summary','observedAt','location','measurements'))
   or (command_row.payload->>'projectId')::uuid<>target_project_id
-  or case when not command_row.payload ? 'wbsNodeId' or jsonb_typeof(command_row.payload->'wbsNodeId')='null' then target_wbs_node_id is not null else (command_row.payload->>'wbsNodeId')::uuid is distinct from target_wbs_node_id end
+  or ((not (command_row.payload ? 'wbsNodeId') or jsonb_typeof(command_row.payload->'wbsNodeId')='null') and target_wbs_node_id is not null)
+  or (command_row.payload ? 'wbsNodeId' and jsonb_typeof(command_row.payload->'wbsNodeId')<>'null'
+      and (command_row.payload->>'wbsNodeId')::uuid is distinct from target_wbs_node_id)
   or command_row.payload->>'recordType'<>target_record_type or command_row.payload->>'summary'<>target_summary
   or (command_row.payload->>'observedAt')::timestamptz<>target_observed_at
-  or case when not command_row.payload ? 'location' or jsonb_typeof(command_row.payload->'location')='null' then target_location is not null else command_row.payload->>'location' is distinct from target_location end
+  or ((not (command_row.payload ? 'location') or jsonb_typeof(command_row.payload->'location')='null') and target_location is not null)
+  or (command_row.payload ? 'location' and jsonb_typeof(command_row.payload->'location')<>'null'
+      and command_row.payload->>'location' is distinct from target_location)
   or command_row.payload->'measurements'<>target_measurements then raise exception 'Field record payload and arguments differ' using errcode='22023'; end if;
  perform app_private.r03_assert_internal_project(target_project_id,target_occurred_at);
  perform app_private.r03_assert_json_array(target_measurements,200,'measurements');
