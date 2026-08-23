@@ -6,7 +6,7 @@ Build the mobile-first PWA 업무관리 system for (주)유원산업기술 기�
 
 ## Current Phase
 
-`IMPLEMENTATION_ACTIVE`. The user approved the Development Gate on 2026-08-21 (Asia/Seoul). Execute the approved P0 plan in `M00` through `M16` order; the active delivery wave starts with `M00` and `M01`.
+`IMPLEMENTATION_ACTIVE`. The user approved the P0 Development Gate on 2026-08-21 (Asia/Seoul). P0 `M00` through `M16` are merged; finish the P0 production-activation Release Gate in GitHub issue `#36`. P1 is planning-only until `P1-SCOPE-V1.0`, the P1 Development Gate, and the P0 release promotion are explicitly approved.
 
 Implementation rules in this phase:
 
@@ -46,6 +46,8 @@ Never silently choose between unresolved sources. Record the conflict in `docs/s
 - `docs/open-decisions.md`: unresolved decisions and blocking level.
 - `docs/legal-policy-baseline.md`: versioned initial contract, approval, acceptance/payment, controlled-print, and allowance-tax policies.
 - `docs/p0-scope-checklist.md`: user-owned P0/P1/P2 implementation cut and Development Gate confirmation.
+- `docs/p1-scope-checklist.md`: user-owned P1 module depth and Development Gate checklist; no P1 code before approval.
+- `docs/p1-roadmap.md`: proposed P1 prerequisites, merge order, invariants, verification, and release gates.
 - `docs/project-structure.md`: workspace, package, route, dependency, DB, and P0 physical-boundary specification.
 - `docs/agent-workstreams.md`: subagent ownership, delivery waves, merge order, handoff packet, and Definition of Done.
 - `docs/security-operations.md`: M16 trusted runtime, readiness, logging, recovery, incident, and production-activation gate.
