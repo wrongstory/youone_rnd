@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Stamp,
   UserCircle,
+  UsersThree,
   WifiHigh,
   Wrench,
   X
@@ -38,6 +39,7 @@ const routeIcons: Record<string, IconComponent> = {
   "/approvals/completed": CheckSquare,
   "/settings/approval": GearSix,
   "/projects": FolderOpen,
+  "/projects/formal-research-applications": ClipboardText,
   "/rnd-programs": Flask,
   "/research-notes": FileText,
   "/documents": FileText,
@@ -48,7 +50,13 @@ const routeIcons: Record<string, IconComponent> = {
   "/engineering-changes": Wrench,
   "/purchases": ShoppingCart,
   "/safety": ShieldCheck,
-  "/offline-sync": WifiHigh
+  "/offline-sync": WifiHigh,
+  "/settings/users": UsersThree,
+  "/settings/vendors": Buildings,
+  "/settings/organization": Buildings,
+  "/settings/access": LockKey,
+  "/settings/security": ShieldCheck,
+  "/settings/audit": ClipboardText
 };
 
 const navigationItems = navigationGroups.flatMap((group) =>
@@ -58,7 +66,12 @@ const navigationItems = navigationGroups.flatMap((group) =>
 function isCurrentPath(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/approvals") return pathname === href || (pathname.startsWith(`${href}/`) && !pathname.startsWith("/approvals/submitted") && !pathname.startsWith("/approvals/completed"));
+  if (href === "/projects") return pathname === href || (pathname.startsWith(`${href}/`) && !pathname.startsWith("/projects/formal-research-applications"));
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isPublicEntryPath(pathname: string) {
+  return pathname === "/login" || pathname === "/session-expired" || pathname.startsWith("/auth/");
 }
 
 function ProductBrand({ compact = false }: { compact?: boolean }) {
@@ -126,6 +139,8 @@ export function AppShell({ children, previewEnabled }: { children: ReactNode; pr
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [drawerOpen]);
+
+  if (isPublicEntryPath(pathname)) return <div className="publicEntryFrame">{children}</div>;
 
   return (
     <div className="appFrame">

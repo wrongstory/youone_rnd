@@ -101,3 +101,15 @@ Issue `#53` 병합 뒤 이전 Staging evidence를 재사용하지 않는다. 운
 - 확인·의견·사유 입력은 modal 패턴을 사용한다. 실제 Command Adapter와 최신 ActorContext·상태·버전·감사 경계가 없으면 최종 실행은 비활성 상태를 유지한다.
 - 다단계 기안·결재설정·계약·검수·복구·충돌 해결 등 복잡한 업무는 독립 페이지를 유지한다.
 - 필터와 정렬은 별도 popover로 숨기지 않고 목록 상단의 compact inline toolbar로 테마에 통합한다. 실제 query adapter가 없는 필터 결과를 화면에서 추정하지 않는다.
+
+## 8. 운영 Frontend 전환
+
+- GitHub: Issue `#59`
+- Backend 계약: Issue `#58`
+- 로그인, TOTP 등록·challenge, 계정 복구, 세션 만료 화면은 공통 앱 셸과 분리된 public entry route로 제공한다.
+- 시스템 관리에는 사용자, 외주 계정, 조직·직책, 역할·권한 현황, 세션·MFA, 마스킹된 감사 로그를 둔다.
+- 프로젝트는 생성 화면과 개요/WBS/구성원/Product·R&D 연결/문서·결재/변경 이력/설정 작업공간을 제공한다.
+- 정식 연구과제는 Project 직접 flag가 아니라 별도 immutable application 화면에서 작성하며 연구소장 검토·동의 후 designation으로 표시한다.
+- Issue `#58`이 실제 DTO/Command/Query/Auth를 제공하기 전에는 입력 형식·화면 검토까지만 허용하고 저장·인증·봉인 성공을 표현하지 않는다.
+- 실제 Backend 연결 전까지 위 3절의 운영 체크리스트는 완료 처리하지 않는다.
+- 이 변경 병합 뒤 기존 Staging evidence는 폐기하고 새 exact `dev` merge SHA로 #36 증거를 다시 생성한다.

@@ -98,6 +98,8 @@ P1 계획 `DELIVERY-PLAN-P1-V0.1`과 확정 범위 `P1-SCOPE-V1.0`은 GitHub 이
 
 P0 화면 오버레이 기준도 2026-08-24 사용자 승인으로 확정했다. 알림·사용자·동기화 요약은 PC popover와 모바일 bottom sheet, 목록 업무 요약은 허용된 projection만 사용하는 PC drawer/모바일 full-screen sheet, 확인·의견·사유 입력은 modal을 사용한다. 전체 알림 이력·동기화 충돌·다단계 업무는 정식 페이지를 유지하며 필터·정렬은 별도 popover가 아니라 compact inline toolbar로 노출한다. 이 패턴은 조회 편의를 위한 UI일 뿐 Command/권한/상태/감사 검증을 대체하지 않으며, 운영 어댑터가 없는 실제 실행은 계속 비활성이다.
 
+P0 운영 Frontend는 Issue `#59`로 로그인·TOTP·복구·세션 만료 public entry, 사용자/외주/조직/권한/세션/감사 시스템 관리, 일반 Project 생성과 개요/WBS/구성원/Product·R&D 연결/문서·결재/이력/설정 작업공간, 별도 정식 연구과제 신청본 화면을 추가한다. Backend Issue `#58`의 Auth·UserAccount·Project DTO/Command/Query가 연결되기 전에는 입력 검토와 현실적인 preview projection만 제공하고 인증·저장·봉인 성공을 만들지 않는다. UI는 Supabase SDK나 actor/role/scope를 직접 조립하지 않고 서버가 제공할 trusted action 계약만 소비한다. 정식 연구과제는 Project 직접 flag가 아니라 연구소장 검토·동의를 마친 immutable designation에서만 파생하며, Project 종료·재개는 `OD-014` 전까지 비활성이다. 병합 뒤 #36 Staging evidence는 새 exact `dev` SHA로 다시 생성한다.
+
 `STRUCTURE-PROPOSAL-V1`과 `DELIVERY-PLAN-P0-V1`을 작성했다. 권장 구조는 pnpm workspace, Next.js App Router web, 별도 worker, Core/Feature/Process/Infrastructure package, 전역 SQL migration 정본이다. 서브에이전트는 Platform/Security, Approval/Evidence, Business/Quality의 세 역할과 Root Integration/Release로 나눈다.
 
 ## Known Gaps

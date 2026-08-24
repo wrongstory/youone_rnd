@@ -33,6 +33,7 @@ export const navigationGroups: readonly AppNavigationGroup[] = Object.freeze([
     label: "프로젝트·연구",
     items: [
       { href: "/projects", label: "프로젝트·WBS" },
+      { href: "/projects/formal-research-applications", label: "정식 연구과제 신청" },
       { href: "/rnd-programs", label: "R&D 과제관리" },
       { href: "/research-notes", label: "연구노트" }
     ]
@@ -63,6 +64,17 @@ export const navigationGroups: readonly AppNavigationGroup[] = Object.freeze([
       { href: "/safety", label: "안전관리" },
       { href: "/offline-sync", label: "오프라인·동기화" }
     ]
+  },
+  {
+    id: "system",
+    label: "시스템 관리",
+    items: [
+      { href: "/settings/users", label: "사용자 관리" },
+      { href: "/settings/vendors", label: "외주 계정 관리" },
+      { href: "/settings/organization", label: "조직·부서·직책" },
+      { href: "/settings/access", label: "역할·권한 현황" },
+      { href: "/settings/security", label: "세션·MFA 보안" },
+      { href: "/settings/audit", label: "감사 로그" }
+    ]
   }
 ]);
-
