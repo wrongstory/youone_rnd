@@ -27,6 +27,43 @@ describe("P0 mobile-first application shell", () => {
     expect(shell.match(/<HierarchicalNavigation/g)).toHaveLength(2);
     expect(shell).toContain('aria-label="주요 메뉴"');
     expect(shell).toContain('aria-label="전체 업무 메뉴"');
+    expect(shell).toContain('className="desktopWorkspaceBar"');
+    expect(shell).toContain("workspaceTitle");
+  });
+
+  it("renders every shared feature collection as an enterprise work list", () => {
+    const previewUi = read("apps/web/src/interface/preview-ui.tsx");
+    const icons = read("apps/web/src/interface/preview-icons.tsx");
+    const styles = read("apps/web/src/app/styles.css");
+
+    expect(previewUi).toContain('className="recordCollection"');
+    expect(previewUi).toContain("Children.count(children)");
+    expect(previewUi).toContain('className="collectionHeader"');
+    expect(previewUi).toContain('className="recordOpen"');
+    expect(previewUi).toContain("metaTone(item)");
+    expect(previewUi).toContain("<QuickPreviewButton");
+    expect(icons).toContain('href.startsWith("/technical-copies")');
+    expect(icons).toContain('href.startsWith("/contracts")');
+    expect(styles).toContain("/* P0 enterprise feature workspace */");
+    expect(styles).toContain("grid-template-columns: minmax(0, 1fr)");
+  });
+
+  it("uses approved overlays while keeping filters and complex history as full-page flows", () => {
+    const shell = read("apps/web/src/interface/app-shell.tsx");
+    const overlays = read("apps/web/src/interface/app-overlays.tsx");
+    const completion = read("docs/p0-ui-completion.md");
+
+    expect(shell).toContain("<NotificationCenter");
+    expect(shell).toContain("<SyncStatusCenter");
+    expect(shell).toContain("<ProfileCenter");
+    expect(overlays).toContain('href="/notifications"');
+    expect(overlays).toContain('href="/offline-sync"');
+    expect(overlays).toContain('role="dialog"');
+    expect(overlays).toContain('aria-modal="true"');
+    expect(overlays).toContain("권한이 필요한 원문이나 민감 필드는 미리보기에 포함하지 않습니다.");
+    expect(overlays).toContain("운영 인증 후 실행");
+    expect(completion).toContain("compact inline toolbar");
+    expect(completion).toContain("별도 popover로 숨기지 않고");
   });
 
   it("keeps dashboard preview data explicit and live data fail-closed", () => {
