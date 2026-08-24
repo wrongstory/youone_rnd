@@ -5,7 +5,7 @@ import type {
   OperationalAuthAttemptOutcome,
   OperationalAuthRateLimitDecision
 } from "@youone/core-identity/public";
-import { stableCode, version } from "@youone/shared-kernel/public";
+import { stableCode, uuid, version } from "@youone/shared-kernel/public";
 
 import type { SqlPool } from "./driver";
 import { PostgresUnitOfWork } from "./transaction";
@@ -35,8 +35,12 @@ export class PostgresOperationalAuthAbusePrevention implements OperationalAuthAb
     const actionId = RATE_LIMIT_ACTION_IDS[attempt.action];
     return this.unitOfWork.execute(actor, async (transaction) => {
       await transaction.query("select set_config('app.request_time', $1, true)", [attempt.occurredAt]);
-      const result = await transaction.query<{ allowed: boolean; retry_after_seconds: number }>(
-        `select allowed, retry_after_seconds
+      const result = await transaction.query<{
+        allowed: boolean;
+        policy_version_id: string;
+        retry_after_seconds: number;
+      }>(
+        `select allowed, policy_version_id, retry_after_seconds
          from app_private.consume_auth_rate_limit($1, $2, $3, $4, $5::timestamptz)`,
         [
           attempt.subjectFingerprint,
@@ -49,10 +53,12 @@ export class PostgresOperationalAuthAbusePrevention implements OperationalAuthAb
       const row = result.rows[0];
       if (
         result.rowCount !== 1 || row === undefined || typeof row.allowed !== "boolean" ||
+        typeof row.policy_version_id !== "string" ||
         !Number.isSafeInteger(row.retry_after_seconds) || row.retry_after_seconds < 0
       ) {
         throw new Error("AUTH_RATE_LIMIT_EVIDENCE_UNAVAILABLE");
       }
+      const selectedPolicyVersionId = uuid(row.policy_version_id);
       await transaction.audit.append({
         id: attempt.rateLimitAuditId,
         actor,
@@ -62,9 +68,14 @@ export class PostgresOperationalAuthAbusePrevention implements OperationalAuthAb
         resourceVersion: version(0),
         result: row.allowed ? "SUCCEEDED" : "DENIED",
         reasonCode: stableCode(row.allowed ? "AUTH_RATE_LIMIT_ALLOWED" : "AUTH_RATE_LIMITED"),
+        reasonRecordRef: selectedPolicyVersionId,
         occurredAt: attempt.occurredAt
       });
-      return Object.freeze({ allowed: row.allowed, retryAfterSeconds: row.retry_after_seconds });
+      return Object.freeze({
+        allowed: row.allowed,
+        policyVersionId: selectedPolicyVersionId,
+        retryAfterSeconds: row.retry_after_seconds
+      });
     });
   }
 
@@ -73,17 +84,20 @@ export class PostgresOperationalAuthAbusePrevention implements OperationalAuthAb
     const actionId = RATE_LIMIT_ACTION_IDS[attempt.action];
     return this.unitOfWork.execute(actor, async (transaction) => {
       await transaction.query("select set_config('app.request_time', $1, true)", [attempt.occurredAt]);
-      await transaction.audit.append({
-        id: outcome.auditId,
-        actor,
-        actionId: stableCode(`${actionId}.result`),
-        resourceType: stableCode("AUTH_SECURITY_ATTEMPT"),
-        resourceId: attempt.attemptId,
-        resourceVersion: version(0),
-        result: outcome.result,
-        reasonCode: outcome.reasonCode,
-        occurredAt: attempt.occurredAt
-      });
+      await transaction.query(
+        `select app_private.append_auth_rate_limit_outcome(
+          $1::uuid, $2::uuid, $3, $4::uuid, $5, $6, $7::timestamptz
+        )`,
+        [
+          outcome.auditId,
+          attempt.attemptId,
+          actionId,
+          outcome.policyVersionId,
+          outcome.result,
+          outcome.reasonCode,
+          attempt.occurredAt
+        ]
+      );
     });
   }
 }

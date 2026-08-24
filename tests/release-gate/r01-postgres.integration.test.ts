@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -24,6 +25,19 @@ const migrationSql = readdirSync(migrationDirectory)
   .join("\n");
 
 const actorId = uuid("17000000-0000-4000-8000-000000000001");
+const directorId = uuid("17000000-0000-4000-8000-000000000002");
+const ratePolicyId = uuid("17000000-0000-4000-8000-000000000090");
+const ratePolicyVersion = "AUTH_RATE_LIMIT_R01_TEST_V1";
+const ratePolicySha256 = createHash("sha256").update([
+  "YOUONE_AUTH_RATE_LIMIT_POLICY_V1",
+  ratePolicyVersion,
+  "auth.login|60|2|3",
+  "auth.logout|60|2|3",
+  "auth.mfa.enroll|60|2|3",
+  "auth.mfa.verify|60|2|3",
+  "auth.recovery|60|2|3",
+  "auth.refresh|60|2|3"
+].join("\n"), "utf8").digest("hex");
 const requestTime = utcInstant("2026-08-23T12:00:00.000Z");
 
 function overprivilegedDatabaseUrl(): string {
@@ -94,22 +108,108 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
         nosuperuser nocreatedb nocreaterole noinherit noreplication nobypassrls;
       grant youone_request, r01_forbidden_bypass to youone_request_overprivileged_login;
       insert into public.user_account(id, auth_subject, account_kind, status, valid_from)
-      values ('${actorId}', 'r01-internal', 'INTERNAL', 'ACTIVE', '2026-01-01');
-      insert into public.auth_rate_limit_policy_version(
-        id, policy_version, approval_snapshot_sha256, created_at, approved_at, effective_at, approved_by_user_id
+      values
+        ('${actorId}', 'r01-internal', 'INTERNAL', 'ACTIVE', '2026-01-01'),
+        ('${directorId}', 'r01-director', 'INTERNAL', 'ACTIVE', '2026-01-01');
+      insert into public.user_role_assignment(id,user_id,role_id,valid_from,grant_reason_code)
+      values ('17000000-0000-4000-8000-000000000010','${actorId}',
+        '20000000-0000-4000-8000-000000000007','2026-01-01','R01_SECURITY_OWNER');
+      insert into public.user_position_assignment(id,user_id,position_id,valid_from,is_primary,grant_reason_code)
+      values ('17000000-0000-4000-8000-000000000011','${directorId}',
+        '10000000-0000-4000-8000-000000000003','2026-01-01',true,'R01_LAB_DIRECTOR');
+
+      insert into public.approval_policy(id,stable_code,status)
+      values ('17000000-0000-4000-8000-000000000020','AUTH_RATE_LIMIT_APPROVAL','ACTIVE');
+      insert into public.approval_policy_version(
+        id,policy_id,version_no,state,subject_kind,checksum,recall_allowed,valid_from,created_by_user_id
       ) values (
-        '17000000-0000-4000-8000-000000000090', 'AUTH_RATE_LIMIT_R01_TEST_V1', '${"9".repeat(64)}',
-        '2026-08-23T10:00:00Z', '2026-08-23T10:01:00Z', '2026-08-23T10:02:00Z', '${actorId}'
+        '17000000-0000-4000-8000-000000000021','17000000-0000-4000-8000-000000000020',1,
+        'DRAFT','AUTH_RATE_LIMIT_POLICY_VERSION','${"8".repeat(64)}',false,'2026-01-01','${actorId}'
+      );
+      insert into public.approval_policy_step_rule(
+        id,policy_version_id,step_key,sequence_no,step_role,completion_mode,required
+      ) values
+        ('17000000-0000-4000-8000-000000000022','17000000-0000-4000-8000-000000000021',
+          'SECURITY_OWNER_AGREEMENT',1,'AGREEMENT','SPECIFIC',true),
+        ('17000000-0000-4000-8000-000000000023','17000000-0000-4000-8000-000000000021',
+          'LAB_DIRECTOR_APPROVAL',2,'APPROVAL','SPECIFIC',true);
+      insert into public.approval_policy_participant_rule(
+        id,step_rule_id,selector_kind,role_id,position_id,participant_order,required_for_completion
+      ) values
+        ('17000000-0000-4000-8000-000000000024','17000000-0000-4000-8000-000000000022',
+          'ROLE','20000000-0000-4000-8000-000000000007',null,1,true),
+        ('17000000-0000-4000-8000-000000000025','17000000-0000-4000-8000-000000000023',
+          'POSITION',null,'10000000-0000-4000-8000-000000000003',1,true);
+      update public.approval_policy_version set state='PUBLISHED'
+      where id='17000000-0000-4000-8000-000000000021';
+      insert into public.approval_instance(
+        id,policy_version_id,policy_version_no,policy_checksum_snapshot,submitter_user_id,generation,
+        state,line_checksum,version_no,created_at,submitted_at,completed_at
+      ) values (
+        '17000000-0000-4000-8000-000000000030','17000000-0000-4000-8000-000000000021',1,
+        '${"8".repeat(64)}','${actorId}',1,'COMPLETED','${"7".repeat(64)}',5,
+        '2026-08-23T10:00:00Z','2026-08-23T10:00:30Z','2026-08-23T10:01:40Z'
+      );
+      insert into public.approval_step(
+        id,instance_id,policy_step_rule_id,step_key,sequence_no,step_role,completion_mode,required,state,version_no
+      ) values
+        ('17000000-0000-4000-8000-000000000031','17000000-0000-4000-8000-000000000030',
+          '17000000-0000-4000-8000-000000000022','SECURITY_OWNER_AGREEMENT',1,'AGREEMENT','SPECIFIC',true,'AGREED',2),
+        ('17000000-0000-4000-8000-000000000032','17000000-0000-4000-8000-000000000030',
+          '17000000-0000-4000-8000-000000000023','LAB_DIRECTOR_APPROVAL',2,'APPROVAL','SPECIFIC',true,'APPROVED',2);
+      insert into public.approval_participant(
+        id,step_id,policy_participant_rule_id,participant_user_id,position_id_snapshot,role_id_snapshot,
+        assignment_evidence_id,participant_order,required_for_completion,state,version_no
+      ) values
+        ('17000000-0000-4000-8000-000000000033','17000000-0000-4000-8000-000000000031',
+          '17000000-0000-4000-8000-000000000024','${actorId}',null,
+          '20000000-0000-4000-8000-000000000007','17000000-0000-4000-8000-000000000010',1,true,'ACTED',2),
+        ('17000000-0000-4000-8000-000000000034','17000000-0000-4000-8000-000000000032',
+          '17000000-0000-4000-8000-000000000025','${directorId}',
+          '10000000-0000-4000-8000-000000000003',null,'17000000-0000-4000-8000-000000000011',1,true,'ACTED',2);
+      insert into public.audit_log(
+        id,actor_kind,actor_user_id,effective_actor_user_id,action_id,resource_type,resource_id,
+        resource_version,result,reason_code,correlation_id,occurred_at
+      ) values
+        ('17000000-0000-4000-8000-000000000035','USER','${actorId}','${actorId}',
+          'approval.step.agree','APPROVAL_INSTANCE','17000000-0000-4000-8000-000000000030',4,
+          'SUCCEEDED','R01_SECURITY_OWNER_AGREED','request:r01-policy-approval','2026-08-23T10:01:00Z'),
+        ('17000000-0000-4000-8000-000000000036','USER','${directorId}','${directorId}',
+          'approval.step.approve','APPROVAL_INSTANCE','17000000-0000-4000-8000-000000000030',5,
+          'SUCCEEDED','R01_LAB_DIRECTOR_APPROVED','request:r01-policy-approval','2026-08-23T10:01:30Z');
+      insert into public.approval_action(
+        id,instance_id,step_id,participant_id,audit_log_id,event_id,actor_kind,
+        authenticated_actor_user_id,effective_actor_user_id,occurred_at
+      ) values
+        ('17000000-0000-4000-8000-000000000037','17000000-0000-4000-8000-000000000030',
+          '17000000-0000-4000-8000-000000000031','17000000-0000-4000-8000-000000000033',
+          '17000000-0000-4000-8000-000000000035','AGREE','USER','${actorId}','${actorId}','2026-08-23T10:01:00Z'),
+        ('17000000-0000-4000-8000-000000000038','17000000-0000-4000-8000-000000000030',
+          '17000000-0000-4000-8000-000000000032','17000000-0000-4000-8000-000000000034',
+          '17000000-0000-4000-8000-000000000036','APPROVE','USER','${directorId}','${directorId}','2026-08-23T10:01:30Z');
+
+      insert into public.auth_rate_limit_policy_version(
+        id, policy_version, approval_snapshot_sha256, created_at, effective_at
+      ) values (
+        '${ratePolicyId}', '${ratePolicyVersion}', '${ratePolicySha256}',
+        '2026-08-23T10:00:00Z', '2026-08-23T10:02:00Z'
       );
       insert into public.auth_rate_limit_policy_rule(
         policy_version_id, action_id, window_seconds, subject_max_attempts, global_max_attempts
       ) values
-        ('17000000-0000-4000-8000-000000000090','auth.login',60,2,3),
-        ('17000000-0000-4000-8000-000000000090','auth.logout',60,2,3),
-        ('17000000-0000-4000-8000-000000000090','auth.mfa.enroll',60,2,3),
-        ('17000000-0000-4000-8000-000000000090','auth.mfa.verify',60,2,3),
-        ('17000000-0000-4000-8000-000000000090','auth.recovery',60,2,3),
-        ('17000000-0000-4000-8000-000000000090','auth.refresh',60,2,3);
+        ('${ratePolicyId}','auth.login',60,2,3),
+        ('${ratePolicyId}','auth.logout',60,2,3),
+        ('${ratePolicyId}','auth.mfa.enroll',60,2,3),
+        ('${ratePolicyId}','auth.mfa.verify',60,2,3),
+        ('${ratePolicyId}','auth.recovery',60,2,3),
+        ('${ratePolicyId}','auth.refresh',60,2,3);
+      insert into public.auth_rate_limit_policy_approval(
+        policy_version_id,approval_instance_id,security_owner_action_id,lab_director_action_id,linked_at
+      ) values (
+        '${ratePolicyId}','17000000-0000-4000-8000-000000000030',
+        '17000000-0000-4000-8000-000000000037','17000000-0000-4000-8000-000000000038',
+        '2026-08-23T10:01:50Z'
+      );
     `);
   }, 60_000);
 
@@ -179,19 +279,37 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
       subjectFingerprint
     });
 
-    await expect(prevention.consume(attempt(1))).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
-    await expect(prevention.consume(attempt(2))).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(prevention.consume(attempt(1))).resolves.toEqual({
+      allowed: true,
+      policyVersionId: ratePolicyId,
+      retryAfterSeconds: 0
+    });
+    await expect(prevention.consume(attempt(2))).resolves.toEqual({
+      allowed: true,
+      policyVersionId: ratePolicyId,
+      retryAfterSeconds: 0
+    });
     await expect(prevention.consume(attempt(3))).resolves.toMatchObject({ allowed: false });
     await expect(prevention.consume(attempt(4, otherSubject))).resolves.toMatchObject({ allowed: false });
     await prevention.recordOutcome(attempt(1), {
       auditId: uuid("17000000-0000-4000-8000-000000000301"),
+      policyVersionId: ratePolicyId,
       reasonCode: stableCode("AUTH_REQUEST_COMPLETED"),
       result: "SUCCEEDED"
     });
+    await expect(prevention.recordOutcome(attempt(5), {
+      auditId: uuid("17000000-0000-4000-8000-000000000302"),
+      policyVersionId: ratePolicyId,
+      reasonCode: stableCode("AUTH_REQUEST_COMPLETED"),
+      result: "SUCCEEDED"
+    })).rejects.toThrow();
 
     expect(runAdmin("select count(*) from public.audit_log where resource_type='AUTH_SECURITY_ATTEMPT';")).toBe("5");
     expect(runAdmin("select count(*) from public.auth_rate_limit_bucket;")).toBe("3");
     expect(runAdmin("select count(*) from public.audit_log where anonymous_subject_fingerprint is null and resource_type='AUTH_SECURITY_ATTEMPT';")).toBe("0");
+    expect(runAdmin(`select count(*) from public.audit_log where resource_type='AUTH_SECURITY_ATTEMPT' and reason_record_ref='${ratePolicyId}';`)).toBe("5");
+    expect(runAdmin(`select app_private.auth_rate_limit_policy_sha256('${ratePolicyId}');`)).toBe(ratePolicySha256);
+    expect(runAdmin(`select app_private.auth_rate_limit_policy_approval_valid('${ratePolicyId}','2026-08-23T12:00:00Z');`)).toBe("t");
     await pool.close();
   });
 

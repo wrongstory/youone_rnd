@@ -2,6 +2,7 @@ import type {
   OperationalAuthAbusePreventionPort,
   OperationalAuthAttempt,
   OperationalAuthFailure,
+  OperationalAuthRateLimitDecision,
   OperationalAuthRateLimitAction,
   OperationalAuthReasonCode,
   OperationalAuthResponse,
@@ -56,7 +57,13 @@ type CookieNames = Readonly<{
   access: string;
   csrf: string;
   factor: string;
+  rateSubject: string;
   refresh: string;
+}>;
+
+type AuthorizedAuthAttempt = Readonly<{
+  attempt: OperationalAuthAttempt;
+  policyVersionId: OperationalAuthRateLimitDecision["policyVersionId"];
 }>;
 
 export type OperationalAuthHttpDependencies = Readonly<{
@@ -77,6 +84,7 @@ export type OperationalAuthHttpDependencies = Readonly<{
   randomToken?: () => string;
   rateLimitFingerprintSecret: string;
   rateLimitPolicyVersion: string;
+  rateLimitSubjectGenerator?: () => string;
   wait?: (milliseconds: number) => Promise<void>;
 }>;
 
@@ -85,6 +93,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
   const randomToken = dependencies.randomToken ?? (() => randomBytes(32).toString("base64url"));
   const idGenerator = dependencies.idGenerator ?? randomUUID;
   const authAttemptIdGenerator = dependencies.authAttemptIdGenerator ?? randomUUID;
+  const rateLimitSubjectGenerator = dependencies.rateLimitSubjectGenerator ?? (() => randomBytes(32).toString("base64url"));
   const now = dependencies.now ?? (() => new Date());
   const wait = dependencies.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const expectedOrigin = validatedOrigin(dependencies.expectedOrigin, dependencies.production);
@@ -95,7 +104,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
     action: OperationalAuthRateLimitAction,
     subjectMaterial: string,
     requestCorrelationId: string
-  ): Promise<OperationalAuthAttempt> {
+  ): Promise<AuthorizedAuthAttempt> {
     const attempt = Object.freeze({
       action,
       attemptId: uuid(authAttemptIdGenerator()),
@@ -113,11 +122,11 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
     }
     if (!decision.allowed) throw new AuthHttpError("AUTH_RATE_LIMITED", decision.retryAfterSeconds);
-    return attempt;
+    return Object.freeze({ attempt, policyVersionId: decision.policyVersionId });
   }
 
   async function attemptResponse(
-    attempt: OperationalAuthAttempt,
+    authorizedAttempt: AuthorizedAuthAttempt,
     operation: () => Promise<Response>,
     compensateEvidenceFailure?: () => Promise<void>
   ): Promise<Response> {
@@ -125,8 +134,9 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
     try {
       response = await operation();
     } catch (error) {
+      await compensateBestEffort(compensateEvidenceFailure);
       await recordAttemptOutcome(
-        attempt,
+        authorizedAttempt,
         authReason(error) === "AUTH_PROVIDER_UNAVAILABLE" ? "FAILED" : "DENIED",
         authReason(error)
       );
@@ -134,36 +144,41 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
     }
     try {
       await recordAttemptOutcome(
-        attempt,
+        authorizedAttempt,
         response.status < 400 ? "SUCCEEDED" : response.status < 500 ? "DENIED" : "FAILED",
         response.status < 400 ? "AUTH_REQUEST_COMPLETED" : response.status < 500 ? "AUTH_REQUEST_DENIED" : "AUTH_REQUEST_FAILED"
       );
     } catch {
-      if (compensateEvidenceFailure !== undefined) {
-        try {
-          await compensateEvidenceFailure();
-        } catch {
-          // The response remains fail-closed; provider compensation is best effort only.
-        }
-      }
+      await compensateBestEffort(compensateEvidenceFailure);
       throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
     }
     return response;
   }
 
   async function recordAttemptOutcome(
-    attempt: OperationalAuthAttempt,
+    authorizedAttempt: AuthorizedAuthAttempt,
     result: "DENIED" | "FAILED" | "SUCCEEDED",
     reasonCode: string
   ): Promise<void> {
+    const { attempt, policyVersionId } = authorizedAttempt;
     try {
       await dependencies.abusePrevention.recordOutcome(attempt, Object.freeze({
         auditId: uuid(authAttemptIdGenerator()),
+        policyVersionId,
         reasonCode: stableCode(reasonCode),
         result
       }));
     } catch {
       throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
+    }
+  }
+
+  async function compensateBestEffort(compensation?: () => Promise<void>): Promise<void> {
+    if (compensation === undefined) return;
+    try {
+      await compensation();
+    } catch {
+      // The response remains fail-closed; provider compensation is best effort only.
     }
   }
 
@@ -217,6 +232,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
         const body = await readJson(request);
         const identifier = requiredEmail(body.identifier);
         const credential = requiredCredential(body.credential);
+        const rateSubject = requiredRateLimitSubject(rateLimitSubjectGenerator());
         const attempt = await beginAttempt("LOGIN", identifier, requestCorrelationId);
         let establishedSession: OperationalProviderSession | undefined;
         return attemptResponse(attempt, async () => {
@@ -227,6 +243,12 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
             nextAction: result.nextAction
           });
           setSessionCookies(response.headers, names, result.session, dependencies.production);
+          appendCookie(response.headers, names.rateSubject, rateSubject, {
+            httpOnly: true,
+            maxAge: MAXIMUM_SESSION_SECONDS,
+            path: "/",
+            production: dependencies.production
+          });
           if (result.factorId !== undefined) {
             appendCookie(response.headers, names.factor, requiredFactorId(result.factorId), {
               httpOnly: true,
@@ -248,7 +270,8 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/mfa/enroll", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const attempt = await beginAttempt("MFA_ENROLL", session.accessToken, requestCorrelationId);
+        const rateSubject = requireRateLimitSubject(request, names);
+        const attempt = await beginAttempt("MFA_ENROLL", rateSubject, requestCorrelationId);
         return attemptResponse(attempt, async () => {
           const enrollment = await dependencies.gateway.enrollTotp(session);
           const response = json<OperationalMfaEnrollmentResponse>(200, {
@@ -272,9 +295,10 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/mfa/verify", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
+        const rateSubject = requireRateLimitSubject(request, names);
         const factorId = requiredFactorId(readCookie(request, names.factor) ?? "");
         const code = requiredTotpCode((await readJson(request)).code);
-        const attempt = await beginAttempt("MFA_VERIFY", session.accessToken, requestCorrelationId);
+        const attempt = await beginAttempt("MFA_VERIFY", rateSubject, requestCorrelationId);
         let verifiedSession: OperationalProviderSession | undefined;
         return attemptResponse(attempt, async () => {
           const verified = await dependencies.gateway.verifyTotp(session, factorId, code);
@@ -297,7 +321,8 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const refreshToken = readCookie(request, names.refresh);
         if (refreshToken === null || !validOpaque(refreshToken)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
-        const attempt = await beginAttempt("REFRESH", refreshToken, requestCorrelationId);
+        const rateSubject = requireRateLimitSubject(request, names);
+        const attempt = await beginAttempt("REFRESH", rateSubject, requestCorrelationId);
         let refreshedSession: OperationalProviderSession | undefined;
         return attemptResponse(attempt, async () => {
           let result: Awaited<ReturnType<SupabaseOperationalAuthGateway["refresh"]>>;
@@ -355,7 +380,8 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/logout", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const attempt = await beginAttempt("LOGOUT", session.accessToken, requestCorrelationId);
+        const rateSubject = requireRateLimitSubject(request, names);
+        const attempt = await beginAttempt("LOGOUT", rateSubject, requestCorrelationId);
         return attemptResponse(attempt, async () => {
           if (
             dependencies.actors === undefined || dependencies.sessions === undefined ||
@@ -564,6 +590,17 @@ function requireSession(request: Request, names: CookieNames): OperationalProvid
   return Object.freeze({ accessToken, refreshToken, expiresInSeconds: 3_600 });
 }
 
+function requireRateLimitSubject(request: Request, names: CookieNames): string {
+  const subject = readCookie(request, names.rateSubject);
+  if (subject === null) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
+  return requiredRateLimitSubject(subject);
+}
+
+function requiredRateLimitSubject(value: string): string {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(value)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
+  return value;
+}
+
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!/^application\/json(?:\s*;|$)/.test(contentType)) throw new AuthHttpError("AUTH_REQUEST_INVALID");
@@ -634,6 +671,7 @@ function clearAuthCookies(headers: Headers, names: CookieNames, production: bool
   clearCookie(headers, names.access, "/", production);
   clearCookie(headers, names.refresh, "/", production);
   clearCookie(headers, names.factor, "/", production);
+  clearCookie(headers, names.rateSubject, "/", production);
   clearCookie(headers, names.csrf, "/", production, false);
 }
 
@@ -643,6 +681,7 @@ function cookieNames(production: boolean): CookieNames {
     access: `${prefix}youone-access`,
     csrf: `${prefix}youone-csrf`,
     factor: `${prefix}youone-mfa-factor`,
+    rateSubject: `${prefix}youone-auth-rate-subject`,
     refresh: `${prefix}youone-refresh`
   });
 }

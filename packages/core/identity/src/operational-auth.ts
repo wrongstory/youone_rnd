@@ -24,11 +24,13 @@ export type OperationalAuthAttempt = Readonly<{
 
 export type OperationalAuthRateLimitDecision = Readonly<{
   allowed: boolean;
+  policyVersionId: Uuid;
   retryAfterSeconds: number;
 }>;
 
 export type OperationalAuthAttemptOutcome = Readonly<{
   auditId: Uuid;
+  policyVersionId: Uuid;
   reasonCode: StableCode;
   result: "DENIED" | "FAILED" | "SUCCEEDED";
 }>;

@@ -119,11 +119,19 @@ describe("B01 distributed Auth rate-limit and audit migration contract", () => {
   it("requires an immutable approved policy and exact six-action rule set without seeding defaults", () => {
     expect(rateLimit).toContain("create table public.auth_rate_limit_policy_version");
     expect(rateLimit).toContain("approval_snapshot_sha256");
-    expect(rateLimit).toContain("approved_by_user_id uuid not null references public.user_account(id)");
+    expect(rateLimit).toContain("create table public.auth_rate_limit_policy_approval");
+    expect(rateLimit).toContain("security_owner_action_id uuid not null unique references public.approval_action(id)");
+    expect(rateLimit).toContain("lab_director_action_id uuid not null unique references public.approval_action(id)");
     expect(rateLimit).toContain("auth_rate_limit_policy_version_immutable");
     expect(rateLimit).toContain("auth_rate_limit_policy_rule_immutable");
+    expect(rateLimit).toContain("auth_rate_limit_policy_approval_immutable");
     expect(rateLimit).toContain("select count(*) from public.auth_rate_limit_policy_rule");
     expect(rateLimit).toContain(") <> 6 then");
+    expect(rateLimit).toContain("YOUONE_AUTH_RATE_LIMIT_POLICY_V1");
+    expect(rateLimit).toContain("policy.approval_snapshot_sha256 = app_private.auth_rate_limit_policy_sha256(policy.id)");
+    expect(rateLimit).toContain("security_role.stable_code = 'ADMIN_SECURITY'");
+    expect(rateLimit).toContain("director_position.stable_code = 'POSITION_LAB_DIRECTOR'");
+    expect(rateLimit).toContain("security_action.effective_actor_user_id <> director_action.effective_actor_user_id");
     expect(rateLimit).not.toMatch(/insert\s+into\s+public\.auth_rate_limit_policy_version/i);
   });
 
@@ -138,11 +146,22 @@ describe("B01 distributed Auth rate-limit and audit migration contract", () => {
 
   it("keeps policy and counters out of Data API roles and exposes only the request capability", () => {
     expect(rateLimit).toContain("alter table public.auth_rate_limit_bucket force row level security");
+    expect(rateLimit).toContain("alter table public.auth_rate_limit_policy_approval force row level security");
     expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from public, youone_request");
     expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from anon");
     expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from authenticated");
     expect(rateLimit).toMatch(
       /grant\s+execute\s+on\s+function\s+app_private\.consume_auth_rate_limit\(text,text,text,text,timestamptz\)[\s\S]*to\s+youone_request/i
+    );
+  });
+
+  it("binds consume and result audit evidence to one exact approved policy version", () => {
+    expect(rateLimit).toContain("returns table(allowed boolean, policy_version_id uuid, retry_after_seconds integer)");
+    expect(rateLimit).toContain("create or replace function app_private.append_auth_rate_limit_outcome");
+    expect(rateLimit).toContain("consumed.reason_record_ref = entry_policy_version_id");
+    expect(rateLimit).toContain("consumed.action_id = entry_action_id || '.rate_limit.consume'");
+    expect(rateLimit).toMatch(
+      /grant\s+execute\s+on\s+function\s+app_private\.append_auth_rate_limit_outcome\(uuid,uuid,text,uuid,text,text,timestamptz\)[\s\S]*to\s+youone_request/i
     );
   });
 
