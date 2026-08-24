@@ -197,6 +197,7 @@ describe("workspace package inventory", () => {
       } else if (boundary.name === "@youone/infra-supabase-auth") {
         expect(packageJson.exports).toEqual({
           ".": "./src/index.ts",
+          "./operational": "./src/operational.ts",
           "./public": "./src/public.ts",
           "./request": "./src/request.ts",
           "./service": "./src/service.ts"

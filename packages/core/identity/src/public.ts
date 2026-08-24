@@ -74,3 +74,5 @@ export class IdentityVerificationError extends Error {
     this.name = "IdentityVerificationError";
   }
 }
+
+export * from "./operational-auth";

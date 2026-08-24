@@ -6,6 +6,7 @@ export const IDENTITY_RESOLVER_DATABASE_BOUNDARY = Object.freeze({
 });
 
 export { PostgresActorContextSource } from "./identity";
+export { PostgresAuthSessionPresenceSource } from "./auth-session";
 export {
   IdentityResolverDatabaseBoundaryError,
   NodePostgresIdentityResolverPool,
