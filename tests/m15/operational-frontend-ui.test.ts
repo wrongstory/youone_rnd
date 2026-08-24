@@ -69,6 +69,28 @@ describe("P0 operational frontend issue 59", () => {
     expect(styles).toContain("P0 operational frontend");
   });
 
+  it("does not render preview operational projections as live data when preview is disabled", () => {
+    const paths = [
+      "apps/web/src/app/projects/[projectId]/history/page.tsx",
+      "apps/web/src/app/projects/formal-research-applications/page.tsx",
+      "apps/web/src/app/settings/organization/page.tsx",
+      "apps/web/src/app/settings/access/page.tsx",
+      "apps/web/src/app/settings/security/page.tsx"
+    ];
+    const sources = paths.map(read);
+
+    for (const source of sources) {
+      expect(source).toContain("previewDataEnabled");
+      expect(source).toContain("EmptyOperationalState");
+    }
+    expect(sources[0]).toContain("변경 이력 Query 연결 대기");
+    expect(sources[1]).toContain("정식 연구과제 Query 연결 대기");
+    expect(sources[2]).toContain("조직·직책 Query 연결 대기");
+    expect(sources[3]).toContain("역할·권한 Query 연결 대기");
+    expect(sources[4]).toContain("현재 세션 Query 연결 대기");
+    expect(sources[4]).toContain("trusted /api/auth/session");
+  });
+
   it("does not introduce P1-only navigation", () => {
     const navigation = read("apps/web/src/interface/app-navigation.ts");
     expect(navigation).not.toContain("/bom");
