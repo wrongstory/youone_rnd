@@ -126,7 +126,8 @@ export function ProfileCenter({ previewEnabled, compact = false }: { previewEnab
               <UserCircle aria-hidden size={42} weight="fill" />
               <span><strong>{previewEnabled ? "박현우 연구소장" : "사용자 정보 연결 대기"}</strong><small>{previewEnabled ? "화면 검토용 사용자 · INTERNAL" : "운영 Identity Resolver가 필요합니다."}</small></span>
             </div>
-            <Link className="overlayMenuItem" href="/settings/approval" onClick={close}><GearSix aria-hidden size={18} />결재 정책 설정<ArrowRight aria-hidden size={15} /></Link>
+            <Link className="overlayMenuItem" href="/settings/users" onClick={close}><UserCircle aria-hidden size={18} />사용자·권한 관리<ArrowRight aria-hidden size={15} /></Link>
+            <Link className="overlayMenuItem" href="/settings/security" onClick={close}><GearSix aria-hidden size={18} />세션·MFA 보안<ArrowRight aria-hidden size={15} /></Link>
             <button className="overlayMenuItem" type="button" disabled><SignOut aria-hidden size={18} />운영 Auth 연결 후 로그아웃</button>
           </section>
         </MobilePortal>
