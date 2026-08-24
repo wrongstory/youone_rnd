@@ -1,9 +1,26 @@
 -- B01 exact Supabase session revocation confirmation and durable reconciliation handoff.
 -- No provider token, refresh token, cookie, password, or raw provider response is persisted.
+-- Plain PostgreSQL CI does not define Supabase Data API roles. PUBLIC and internal
+-- capability revokes are unconditional; anon/authenticated revokes are conditional
+-- while remaining exact on hosted Supabase where those roles exist.
 
-revoke execute on all functions in schema app_private from public, anon, authenticated;
+revoke execute on all functions in schema app_private from public;
 alter default privileges for role postgres in schema app_private
-  revoke execute on functions from public, anon, authenticated;
+  revoke execute on functions from public;
+
+do $data_api_role_lockdown$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on all functions in schema app_private from anon';
+    execute 'alter default privileges for role postgres in schema app_private revoke execute on functions from anon';
+  end if;
+
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke execute on all functions in schema app_private from authenticated';
+    execute 'alter default privileges for role postgres in schema app_private revoke execute on functions from authenticated';
+  end if;
+end
+$data_api_role_lockdown$;
 
 insert into public.aggregate_type_definition(aggregate_type)
 values ('AUTH_SESSION_REVOCATION')
@@ -63,7 +80,17 @@ end
 $$;
 
 revoke all on function app_private.auth_session_exists(text,text)
-  from public, anon, authenticated, youone_request, youone_privileged_writer;
+  from public, youone_request, youone_privileged_writer;
+do $auth_session_exists_data_api_revoke$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function app_private.auth_session_exists(text,text) from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function app_private.auth_session_exists(text,text) from authenticated';
+  end if;
+end
+$auth_session_exists_data_api_revoke$;
 grant execute on function app_private.auth_session_exists(text,text)
   to youone_identity_resolver;
 
@@ -122,7 +149,17 @@ end
 $$;
 
 revoke all on function app_private.enforce_auth_session_revocation_reconciliation()
-  from public, anon, authenticated, youone_request, youone_privileged_writer, youone_identity_resolver;
+  from public, youone_request, youone_privileged_writer, youone_identity_resolver;
+do $reconciliation_data_api_revoke$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on function app_private.enforce_auth_session_revocation_reconciliation() from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on function app_private.enforce_auth_session_revocation_reconciliation() from authenticated';
+  end if;
+end
+$reconciliation_data_api_revoke$;
 
 create trigger auth_session_revocation_reconciliation_binding
 before insert on public.outbox_event
