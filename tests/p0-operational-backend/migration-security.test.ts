@@ -12,19 +12,35 @@ const allMigrations = readdirSync(migrationsDirectory)
   .join("\n");
 
 describe("B01 hosted Supabase Data API function security contract", () => {
-  it("removes existing and future function execution from every Data API role", () => {
+  it("removes existing and future function execution from PUBLIC and every available Data API role", () => {
     expect(migration).toMatch(
-      /revoke\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+public\s+from\s+public,\s*anon,\s*authenticated/i
+      /revoke\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+public\s+from\s+public/i
     );
     expect(migration).toMatch(
-      /alter\s+default\s+privileges\s+for\s+role\s+postgres\s+in\s+schema\s+public[\s\S]*revoke\s+execute\s+on\s+functions\s+from\s+public,\s*anon,\s*authenticated/i
+      /alter\s+default\s+privileges\s+for\s+role\s+postgres\s+in\s+schema\s+public[\s\S]*revoke\s+execute\s+on\s+functions\s+from\s+public/i
+    );
+    expect(migration).toContain("rolname = 'anon'");
+    expect(migration).toContain("revoke execute on all functions in schema public from anon");
+    expect(migration).toContain(
+      "alter default privileges for role postgres in schema public revoke execute on functions from anon"
+    );
+    expect(migration).toContain("rolname = 'authenticated'");
+    expect(migration).toContain("revoke execute on all functions in schema public from authenticated");
+    expect(migration).toContain(
+      "alter default privileges for role postgres in schema public revoke execute on functions from authenticated"
     );
   });
 
   it("fails the migration when a public SECURITY DEFINER RPC remains exposed", () => {
     expect(migration).toContain("function_record.prosecdef");
-    expect(migration).toContain("has_function_privilege('anon', function_record.oid, 'execute')");
-    expect(migration).toContain("has_function_privilege('authenticated', function_record.oid, 'execute')");
+    expect(migration).toContain("pg_catalog.to_regrole('anon')");
+    expect(migration).toContain("pg_catalog.to_regrole('authenticated')");
+    expect(migration).toContain(
+      "has_function_privilege(pg_catalog.to_regrole('anon'), function_record.oid, 'execute')"
+    );
+    expect(migration).toContain(
+      "has_function_privilege(pg_catalog.to_regrole('authenticated'), function_record.oid, 'execute')"
+    );
     expect(migration).toContain("if exposed_count <> 0 then");
     expect(migration).toContain("using errcode = '42501'");
   });
@@ -66,7 +82,13 @@ describe("B01 exact session revocation migration contract", () => {
     expect(confirmation).toContain("create or replace function app_private.auth_session_exists");
     expect(confirmation).toContain("where id = $1::uuid and user_id = $2::uuid");
     expect(confirmation).toMatch(
-      /revoke\s+all\s+on\s+function\s+app_private\.auth_session_exists\(text,text\)[\s\S]*from\s+public,\s*anon,\s*authenticated,\s*youone_request,\s*youone_privileged_writer/i
+      /revoke\s+all\s+on\s+function\s+app_private\.auth_session_exists\(text,text\)[\s\S]*from\s+public,\s*youone_request,\s*youone_privileged_writer/i
+    );
+    expect(confirmation).toContain(
+      "revoke all on function app_private.auth_session_exists(text,text) from anon"
+    );
+    expect(confirmation).toContain(
+      "revoke all on function app_private.auth_session_exists(text,text) from authenticated"
     );
     expect(confirmation).toMatch(
       /grant\s+execute\s+on\s+function\s+app_private\.auth_session_exists\(text,text\)[\s\S]*to\s+youone_identity_resolver/i
