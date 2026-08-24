@@ -41,13 +41,51 @@ describe("B01 hosted Supabase Data API function security contract", () => {
     }
   });
 
-  it("keeps the lockdown as the migration head so later grants cannot bypass it", () => {
+  it("keeps every later migration from reopening public Data API RPC execution", () => {
     const orderedNames = readdirSync(migrationsDirectory)
       .filter((name) => /^\d+_.*\.sql$/.test(name))
       .sort();
+    const lockdownIndex = orderedNames.indexOf(migrationName);
+    const laterSql = orderedNames
+      .slice(lockdownIndex + 1)
+      .map((name) => readFileSync(resolve(migrationsDirectory, name), "utf8"))
+      .join("\n");
 
-    expect(orderedNames.at(-1)).toBe(migrationName);
+    expect(lockdownIndex).toBeGreaterThanOrEqual(0);
+    expect(laterSql).not.toMatch(/grant\s+execute\s+on\s+function\s+public\./i);
     expect(allMigrations.lastIndexOf("revoke execute on all functions in schema public"))
       .toBeGreaterThan(allMigrations.lastIndexOf("grant execute on function public."));
+  });
+});
+
+describe("B01 exact session revocation migration contract", () => {
+  const confirmationName = "20260824115454_b01_auth_session_revocation_confirmation.sql";
+  const confirmation = readFileSync(resolve(migrationsDirectory, confirmationName), "utf8");
+
+  it("exposes exact presence only to the identity resolver", () => {
+    expect(confirmation).toContain("create or replace function app_private.auth_session_exists");
+    expect(confirmation).toContain("where id = $1::uuid and user_id = $2::uuid");
+    expect(confirmation).toMatch(
+      /revoke\s+all\s+on\s+function\s+app_private\.auth_session_exists\(text,text\)[\s\S]*from\s+public,\s*anon,\s*authenticated,\s*youone_request,\s*youone_privileged_writer/i
+    );
+    expect(confirmation).toMatch(
+      /grant\s+execute\s+on\s+function\s+app_private\.auth_session_exists\(text,text\)[\s\S]*to\s+youone_identity_resolver/i
+    );
+  });
+
+  it("binds reconciliation to the trusted actor/session and approved retry cadence", () => {
+    expect(confirmation).toContain("auth_session_revocation_reconciliation_binding");
+    expect(confirmation).toContain("new.payload->>'retryAttempts' <> '3'");
+    expect(confirmation).toContain("new.payload->>'reconciliationIntervalMinutes' <> '15'");
+    expect(confirmation).toContain("new.available_at <> new.occurred_at + interval '15 minutes'");
+    expect(confirmation).toContain("payload_session is distinct from app_private.required_setting('app.session_id')");
+    expect(confirmation).toContain("account.id = new.actor_user_id");
+    expect(confirmation).toContain("account.auth_subject = payload_subject");
+  });
+
+  it("registers a typed audit/outbox contract without credential fields", () => {
+    expect(confirmation).toContain("AUTH_SESSION_REVOCATION_RECONCILIATION_REQUESTED");
+    expect(confirmation).toContain("AUTH_SESSION_REVOCATION_RECONCILIATION_V1");
+    expect(confirmation).not.toMatch(/['"](?:accessToken|refreshToken|password|cookie|authorization)['"]/i);
   });
 });

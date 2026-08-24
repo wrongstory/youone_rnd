@@ -32,6 +32,8 @@ The first slice fixes the browser/server authentication contract before Project 
 
 The Supabase SDK remains under `@youone/infra-supabase-auth/operational`. Routes consume a provider-independent gateway through Web composition. Access/refresh/factor values are server-only `HttpOnly`, `SameSite=Strict` cookies; production cookies use `Secure` valid `__Host-` attributes. Mutation routes require exact same-origin plus double-submit CSRF. Responses and fixed-field security logs have no slot for token, cookie, password, provider error body or session/factor identifier. AAL1 can only continue to TOTP enrollment/challenge; `GET /api/auth/session` succeeds only after the existing trusted ActorContext factory revalidates `aal2`, `auth.sessions`, current UserAccount and effective assignments.
 
+Global logout now derives the exact provider subject/session from that trusted ActorContext, invokes provider `global` sign-out, and uses a separate resolver-only `auth_session_exists(subject, session_id)` capability up to three times. Confirmed absence and unresolved absence are both written as append-only audit evidence. An unresolved or unavailable probe creates a typed outbox event exactly 15 minutes later in the same transaction; a database trigger binds its subject to the authenticated `UserAccount`, its session to transaction-local `app.session_id`, and its retry/cadence values to the approved `3 / 15 minutes`. JWTs, refresh values and cookies are never retained in audit/outbox. The event consumer and live Staging reconciliation execution remain open.
+
 Provider-dependent configuration is `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `APP_ORIGIN`, `REQUEST_AUTH_TIMEOUT_MS` and the existing Identity Resolver settings. Missing or changed runtime composition is fail-closed. `service_role` remains forbidden in Web.
 
 ## 4. Still open in #58
@@ -39,7 +41,7 @@ Provider-dependent configuration is `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, 
 This first slice does not close B01 or issue `#58`.
 
 - Two Supabase projects exist, but the primary candidate is not named/bound as `YOUONE_STAGING_PRIMARY`; no project reference, publishable key, custom SMTP, Web/Identity Resolver login or live user is configured in the repository or local environment.
-- Global sign-out is invoked and local cookies are cleared, but the operational endpoint still needs a concrete post-sign-out exact `auth.sessions` absence port, retry three times and 15-minute reconciliation with durable audit.
+- Global sign-out, exact post-sign-out presence probing, three attempts and durable 15-minute reconciliation handoff are implemented, but the Worker consumer, incident escalation and live Staging evidence are not.
 - Provider rate-limit reason mapping exists; an application-owned distributed limiter and append-only login/MFA/logout audit store are not yet composed.
 - New-device/managed-device trust and sensitive-action step-up remain fail-closed design requirements without a provider implementation.
 - Password recovery request is generic and non-enumerating, but recovery-link exchange, new-password mutation and global session reconciliation are not implemented.

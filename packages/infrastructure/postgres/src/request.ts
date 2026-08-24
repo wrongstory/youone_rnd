@@ -53,6 +53,10 @@ export function createTrustedRequestUnitOfWork(pool: SqlPool): TrustedRequestUni
 export type { SqlConnection, SqlPool, SqlQueryResult } from "./driver";
 export { StaleVersionError } from "./driver";
 export {
+  PostgresAuthSessionRevocationEvidenceStore,
+  type AuthSessionRevocationEvidence
+} from "./auth-session";
+export {
   NodePostgresRequestPool,
   RequestDatabaseBoundaryError,
   createNodePostgresRequestPool,

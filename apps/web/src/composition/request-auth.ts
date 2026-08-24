@@ -2,6 +2,7 @@ import { TrustedActorContextFactory } from "@youone/core-authorization/public";
 import {
   IdentityResolverDatabaseBoundaryError,
   PostgresActorContextSource,
+  PostgresAuthSessionPresenceSource,
   createNodePostgresIdentityResolverPool,
   type NodePostgresIdentityResolverPoolOptions,
   type SqlPool
@@ -17,6 +18,11 @@ import { utcInstant } from "@youone/shared-kernel/public";
 import { createHash } from "node:crypto";
 
 import { writeSecurityLog } from "./security-log";
+
+export type RequestAuthSecurityComposition = Readonly<{
+  actors: TrustedActorContextFactory;
+  sessions: PostgresAuthSessionPresenceSource;
+}>;
 
 export type RequestAuthReadiness = Readonly<
   | { ready: true }
@@ -53,14 +59,25 @@ export function requestActorContextFactory(
   authFactory: RequestAuthFactory = createSupabaseRequestAuthApi,
   identityPoolFactory: IdentityResolverPoolFactory = createNodePostgresIdentityResolverPool
 ): TrustedActorContextFactory | null {
+  return requestAuthSecurityComposition(environment, authFactory, identityPoolFactory)?.actors ?? null;
+}
+
+export function requestAuthSecurityComposition(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+  authFactory: RequestAuthFactory = createSupabaseRequestAuthApi,
+  identityPoolFactory: IdentityResolverPoolFactory = createNodePostgresIdentityResolverPool
+): RequestAuthSecurityComposition | null {
   const runtime = requestAuthRuntime(environment, authFactory);
   const identityPool = identityResolverPool(environment, identityPoolFactory);
   if (runtime === null || identityPool === null) return null;
-  return new TrustedActorContextFactory(
-    new SupabaseServerSessionVerifier(runtime),
-    new PostgresActorContextSource(identityPool),
-    { now: () => utcInstant(new Date()) }
-  );
+  return Object.freeze({
+    actors: new TrustedActorContextFactory(
+      new SupabaseServerSessionVerifier(runtime),
+      new PostgresActorContextSource(identityPool),
+      { now: () => utcInstant(new Date()) }
+    ),
+    sessions: new PostgresAuthSessionPresenceSource(identityPool)
+  });
 }
 
 export async function probeRequestAuth(

@@ -57,3 +57,13 @@ export type OperationalActorSessionResponse = Readonly<{
     roles: readonly string[];
   }>;
 }> | OperationalAuthFailure;
+
+export type OperationalLogoutResponse = Readonly<{
+  outcome: "SUCCESS" | "ACCEPTED";
+  nextAction: "LOGIN";
+  revocation: "CONFIRMED" | "RECONCILIATION_SCHEDULED";
+}> | OperationalAuthFailure;
+
+export interface OperationalSessionPresencePort {
+  exists(authSubject: string, sessionId: string): Promise<boolean>;
+}

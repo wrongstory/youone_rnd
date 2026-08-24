@@ -20,6 +20,31 @@ const renewed = Object.freeze({
 }) satisfies OperationalProviderSession;
 const factorId = "58000000-0000-4000-8000-000000000001";
 const csrf = "csrf-token-that-is-long-enough-for-validation";
+const authSubject = "58000000-0000-4000-8000-000000000010";
+const providerSessionId = "58000000-0000-4000-8000-000000000011";
+
+function actor() {
+  return Object.freeze({
+    actorKind: "INTERNAL",
+    assuranceLevel: "AAL2",
+    authenticatedActorId: "58000000-0000-4000-8000-000000000012",
+    effectiveActorId: "58000000-0000-4000-8000-000000000012",
+    authSubject,
+    sessionId: providerSessionId,
+    requestTime: "2026-08-24T12:00:00.000Z",
+    correlationId: "request:logout-test",
+    organizations: [],
+    departments: [],
+    positions: [],
+    roles: [],
+    permissions: [],
+    vendorMemberships: [],
+    scopeGrants: [],
+    actingAuthorities: [],
+    securityEntitlements: [],
+    evidenceIds: []
+  }) as never;
+}
 
 function provider(overrides: Partial<OperationalAuthProvider> = {}): OperationalAuthProvider {
   return {
@@ -235,22 +260,101 @@ describe("#58 operational Supabase Auth gateway", () => {
     expect(verified.headers.get("set-cookie")).toContain("renewed-access-token-long-enough");
   });
 
-  it("clears every local auth cookie even when global provider logout fails", async () => {
+  it("binds global logout to the trusted actor and records exact session absence", async () => {
+    const authProvider = provider();
+    const sessions = { exists: vi.fn(async () => false) };
+    const revocations = { record: vi.fn(async () => undefined) };
+    const ids = [
+      "58000000-0000-4000-8000-000000000020",
+      "58000000-0000-4000-8000-000000000021"
+    ];
     const http = createOperationalAuthHttp({
-      gateway: new SupabaseOperationalAuthGateway(provider({
-        signOutGlobally: vi.fn(async () => { throw new SupabaseOperationalAuthError("AUTH_PROVIDER_UNAVAILABLE"); })
-      })),
+      actors: { create: vi.fn(async () => actor()) },
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
       expectedOrigin: "http://localhost",
-      production: false
+      idGenerator: () => ids.shift() ?? "",
+      now: () => new Date("2026-08-24T12:01:00.000Z"),
+      production: false,
+      revocations,
+      sessions,
+      wait: vi.fn(async () => undefined)
     });
     const response = await http.logout(authRequest("/api/auth/logout", {}));
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ outcome: "UNAVAILABLE", reasonCode: "AUTH_PROVIDER_UNAVAILABLE" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ outcome: "SUCCESS", nextAction: "LOGIN", revocation: "CONFIRMED" });
+    expect(authProvider.signOutGlobally).toHaveBeenCalledOnce();
+    expect(sessions.exists).toHaveBeenCalledWith(authSubject, providerSessionId);
+    expect(revocations.record).toHaveBeenCalledWith(actor(), expect.objectContaining({
+      outcome: "CONFIRMED",
+      operationId: "58000000-0000-4000-8000-000000000021"
+    }));
     const cookies = response.headers.get("set-cookie") ?? "";
     expect(cookies).toContain("youone-access=; Path=/; Max-Age=0");
     expect(cookies).toContain("youone-refresh=; Path=/; Max-Age=0");
     expect(cookies).not.toContain(session.accessToken);
     expect(cookies).not.toContain(session.refreshToken);
+  });
+
+  it("retries exact absence three times and durably schedules 15-minute reconciliation", async () => {
+    const authProvider = provider({
+      signOutGlobally: vi.fn(async () => { throw new SupabaseOperationalAuthError("AUTH_PROVIDER_UNAVAILABLE"); })
+    });
+    const sessions = { exists: vi.fn(async () => true) };
+    const revocations = { record: vi.fn(async () => undefined) };
+    const wait = vi.fn(async () => undefined);
+    const ids = [
+      "58000000-0000-4000-8000-000000000030",
+      "58000000-0000-4000-8000-000000000031",
+      "58000000-0000-4000-8000-000000000032"
+    ];
+    const http = createOperationalAuthHttp({
+      actors: { create: vi.fn(async () => actor()) },
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      idGenerator: () => ids.shift() ?? "",
+      now: () => new Date("2026-08-24T12:01:00.000Z"),
+      production: false,
+      revocations,
+      sessions,
+      wait
+    });
+
+    const response = await http.logout(authRequest("/api/auth/logout", {}));
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({
+      outcome: "ACCEPTED",
+      nextAction: "LOGIN",
+      revocation: "RECONCILIATION_SCHEDULED"
+    });
+    expect(sessions.exists).toHaveBeenCalledTimes(3);
+    expect(wait).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenNthCalledWith(1, 250);
+    expect(revocations.record).toHaveBeenCalledWith(actor(), expect.objectContaining({
+      outcome: "RECONCILIATION_SCHEDULED",
+      reconciliationAt: "2026-08-24T12:16:00.000Z"
+    }));
+  });
+
+  it("fails closed and clears cookies when durable revocation evidence cannot commit", async () => {
+    const http = createOperationalAuthHttp({
+      actors: { create: vi.fn(async () => actor()) },
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(provider()),
+      idGenerator: (() => {
+        const ids = [
+          "58000000-0000-4000-8000-000000000040",
+          "58000000-0000-4000-8000-000000000041"
+        ];
+        return () => ids.shift() ?? "";
+      })(),
+      production: false,
+      revocations: { record: vi.fn(async () => { throw new Error("database unavailable"); }) },
+      sessions: { exists: vi.fn(async () => false) }
+    });
+    const response = await http.logout(authRequest("/api/auth/logout", {}));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ outcome: "UNAVAILABLE", reasonCode: "AUTH_PROVIDER_UNAVAILABLE" });
+    expect(response.headers.get("set-cookie")).toContain("youone-access=; Path=/; Max-Age=0");
   });
 
   it("clears stale cookies when refresh cannot establish a provider session", async () => {
