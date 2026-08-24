@@ -1,12 +1,26 @@
 export type SecurityLogInput = Readonly<{
   event:
+    | "AUTH_REQUEST_COMPLETED"
+    | "AUTH_REQUEST_DENIED"
+    | "AUTH_REQUEST_FAILED"
     | "IDENTITY_RESOLVER_IDLE_CLIENT_ERROR"
     | "REQUEST_DATABASE_IDLE_CLIENT_ERROR"
     | "SYNC_REQUEST_COMPLETED"
     | "SYNC_REQUEST_DENIED"
     | "SYNC_REQUEST_FAILED";
   correlationId: string;
-  route: "/api/v1/sync/commands" | "runtime:identity-resolver" | "runtime:request-database";
+  route:
+    | "/api/auth/csrf"
+    | "/api/auth/login"
+    | "/api/auth/logout"
+    | "/api/auth/mfa/enroll"
+    | "/api/auth/mfa/verify"
+    | "/api/auth/recovery"
+    | "/api/auth/refresh"
+    | "/api/auth/session"
+    | "/api/v1/sync/commands"
+    | "runtime:identity-resolver"
+    | "runtime:request-database";
   outcome: string;
   status: number;
 }>;

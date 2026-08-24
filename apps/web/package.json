@@ -12,6 +12,7 @@
     "@phosphor-icons/react": "2.1.10",
     "@youone/core-approval": "workspace:*",
     "@youone/core-authorization": "workspace:*",
+    "@youone/core-identity": "workspace:*",
     "@youone/core-sync": "workspace:*",
     "@youone/feature-change": "workspace:*",
     "@youone/feature-contract": "workspace:*",

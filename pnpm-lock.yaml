@@ -50,6 +50,9 @@ importers:
       '@youone/core-authorization':
         specifier: workspace:*
         version: link:../../packages/core/authorization
+      '@youone/core-identity':
+        specifier: workspace:*
+        version: link:../../packages/core/identity
       '@youone/core-sync':
         specifier: workspace:*
         version: link:../../packages/core/sync
