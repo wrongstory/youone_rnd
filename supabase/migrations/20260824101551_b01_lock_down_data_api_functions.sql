@@ -2,11 +2,27 @@
 -- Managed projects can grant EXECUTE on newly-created public functions directly to
 -- anon/authenticated through default privileges. PUBLIC-only revokes do not remove
 -- those direct grants, so request-role RPCs must be explicitly closed again.
+-- Plain PostgreSQL CI does not define Supabase Data API roles, so provider-role
+-- revokes are applied only when those roles exist. Hosted Supabase still receives
+-- the exact anon/authenticated lockdown below.
 
-revoke execute on all functions in schema public from public, anon, authenticated;
-
+revoke execute on all functions in schema public from public;
 alter default privileges for role postgres in schema public
-  revoke execute on functions from public, anon, authenticated;
+  revoke execute on functions from public;
+
+do $data_api_role_lockdown$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke execute on all functions in schema public from anon';
+    execute 'alter default privileges for role postgres in schema public revoke execute on functions from anon';
+  end if;
+
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke execute on all functions in schema public from authenticated';
+    execute 'alter default privileges for role postgres in schema public revoke execute on functions from authenticated';
+  end if;
+end
+$data_api_role_lockdown$;
 
 -- Supabase Advisor requires a fixed search_path even for small immutable helpers.
 alter function app_private.is_stable_code(text) set search_path = pg_catalog;
@@ -25,8 +41,14 @@ begin
   where function_schema.nspname = 'public'
     and function_record.prosecdef
     and (
-      has_function_privilege('anon', function_record.oid, 'execute')
-      or has_function_privilege('authenticated', function_record.oid, 'execute')
+      (
+        pg_catalog.to_regrole('anon') is not null
+        and has_function_privilege(pg_catalog.to_regrole('anon'), function_record.oid, 'execute')
+      )
+      or (
+        pg_catalog.to_regrole('authenticated') is not null
+        and has_function_privilege(pg_catalog.to_regrole('authenticated'), function_record.oid, 'execute')
+      )
     );
 
   if exposed_count <> 0 then
