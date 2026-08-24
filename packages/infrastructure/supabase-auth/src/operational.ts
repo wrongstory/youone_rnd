@@ -162,7 +162,11 @@ class SupabaseSdkOperationalAuthProvider implements OperationalAuthProvider {
     return this.withSession(session, async (client) => {
       const { data, error } = await client.auth.mfa.listFactors();
       if (error !== null || data === null) throw providerError(error);
-      return Object.freeze(data.totp.map((factor) => Object.freeze({ id: factor.id })));
+      return Object.freeze(
+        data.totp
+          .filter((factor) => factor.status === "verified")
+          .map((factor) => Object.freeze({ id: factor.id }))
+      );
     });
   }
 
