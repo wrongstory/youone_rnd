@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   IdentityResolverDatabaseBoundaryError,
   PostgresActorContextSource,
+  PostgresAuthSessionPresenceSource,
   createNodePostgresIdentityResolverPool
 } from "../../packages/infrastructure/postgres/src/identity-resolver.js";
 import { utcInstant } from "../../packages/shared-kernel/src/public.js";
@@ -118,6 +119,22 @@ databaseDescribe.sequential("R02 active Supabase session identity boundary", () 
 
     runAdmin(`delete from auth.sessions where id = '${sessionId}'`);
     await expect(source.load(authSubject, sessionId, requestTime)).resolves.toBeNull();
+    await pool.close();
+  });
+
+  it("confirms exact provider session absence without returning an identity snapshot", async () => {
+    if (!resolverDatabaseUrl) return;
+    const pool = createNodePostgresIdentityResolverPool({
+      connectionString: resolverDatabaseUrl,
+      max: 1,
+      tls: "disable"
+    });
+    const sessions = new PostgresAuthSessionPresenceSource(pool);
+
+    await expect(sessions.exists(authSubject, sessionId)).resolves.toBe(true);
+    await expect(sessions.exists(otherSubject, sessionId)).resolves.toBe(false);
+    runAdmin(`delete from auth.sessions where id = '${sessionId}'`);
+    await expect(sessions.exists(authSubject, sessionId)).resolves.toBe(false);
     await pool.close();
   });
 

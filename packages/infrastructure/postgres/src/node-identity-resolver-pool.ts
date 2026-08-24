@@ -35,7 +35,11 @@ select
     '00000000-0000-4000-8000-000000000000',
     '00000000-0000-4000-8000-000000000000',
     clock_timestamp()
-  ) is null as active_session_capability_ready
+  ) is null as active_session_capability_ready,
+  app_private.auth_session_exists(
+    '00000000-0000-4000-8000-000000000000',
+    '00000000-0000-4000-8000-000000000000'
+  ) = false as session_presence_capability_ready
 from pg_roles resolver_role
 where resolver_role.rolname = 'youone_identity_resolver'
 `;
@@ -58,6 +62,7 @@ type ResolverProbeRow = Readonly<{
   resolver_role_not_bypassrls: boolean;
   resolver_role_not_superuser: boolean;
   row_security_on: boolean;
+  session_presence_capability_ready: boolean;
 }>;
 
 export type NodePostgresIdentityResolverPoolOptions = Readonly<{

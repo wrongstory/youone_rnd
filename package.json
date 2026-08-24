@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "typecheck": "turbo run typecheck && tsc -p tsconfig.packages.json --noEmit",
     "test": "vitest run",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "test:ci": "vitest run --no-file-parallelism",
+    "check": "pnpm lint && pnpm typecheck && pnpm test:ci && pnpm build"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
