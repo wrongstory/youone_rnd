@@ -23,6 +23,17 @@ const csrf = "csrf-token-that-is-long-enough-for-validation";
 const authSubject = "58000000-0000-4000-8000-000000000010";
 const providerSessionId = "58000000-0000-4000-8000-000000000011";
 
+function authProtection() {
+  return {
+    abusePrevention: {
+      consume: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
+      recordOutcome: vi.fn(async () => undefined)
+    },
+    rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+    rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+  } as const;
+}
+
 function actor() {
   return Object.freeze({
     actorKind: "INTERNAL",
@@ -106,6 +117,7 @@ describe("#58 operational Supabase Auth gateway", () => {
   it("issues a same-site CSRF contract and rejects login before provider dispatch when origin or token is invalid", async () => {
     const authProvider = provider();
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       expectedOrigin: "http://localhost",
       production: false,
@@ -142,6 +154,7 @@ describe("#58 operational Supabase Auth gateway", () => {
 
   it("stores provider sessions only in HttpOnly cookies and returns a stable MFA action", async () => {
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       gateway: new SupabaseOperationalAuthGateway(provider()),
       expectedOrigin: "http://localhost",
       production: false
@@ -164,8 +177,131 @@ describe("#58 operational Supabase Auth gateway", () => {
     expect(cookies).toContain("SameSite=Strict");
   });
 
+  it("blocks provider dispatch when the distributed limiter denies and returns a bounded Retry-After", async () => {
+    const authProvider = provider();
+    const abusePrevention = {
+      consume: vi.fn(async () => ({ allowed: false, retryAfterSeconds: 42 })),
+      recordOutcome: vi.fn(async () => undefined)
+    };
+    const http = createOperationalAuthHttp({
+      abusePrevention,
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      production: false,
+      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+
+    const response = await http.login(authRequest("/api/auth/login", {
+      identifier: "user@example.com",
+      credential: "valid-password"
+    }));
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("42");
+    expect(await response.json()).toEqual({ outcome: "REJECTED", reasonCode: "AUTH_RATE_LIMITED" });
+    expect(authProvider.signIn).not.toHaveBeenCalled();
+    expect(abusePrevention.recordOutcome).not.toHaveBeenCalled();
+  });
+
+  it("persists only HMAC fingerprints and stable outcome codes for successful Auth attempts", async () => {
+    const attempts: unknown[] = [];
+    const outcomes: unknown[] = [];
+    const abusePrevention = {
+      consume: vi.fn(async (attempt: unknown) => {
+        attempts.push(attempt);
+        return { allowed: true, retryAfterSeconds: 0 };
+      }),
+      recordOutcome: vi.fn(async (attempt: unknown, outcome: unknown) => {
+        attempts.push(attempt);
+        outcomes.push(outcome);
+      })
+    };
+    const ids = [
+      "58000000-0000-4000-8000-000000000050",
+      "58000000-0000-4000-8000-000000000051",
+      "58000000-0000-4000-8000-000000000052"
+    ];
+    const http = createOperationalAuthHttp({
+      abusePrevention,
+      authAttemptIdGenerator: () => ids.shift() ?? "",
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(provider()),
+      now: () => new Date("2026-08-24T12:02:00.000Z"),
+      production: false,
+      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+
+    const response = await http.login(authRequest("/api/auth/login", {
+      identifier: "USER@EXAMPLE.COM",
+      credential: "valid-password"
+    }, { "x-correlation-id": "request:rate-limit-audit" }));
+    expect(response.status).toBe(200);
+    const serializedEvidence = JSON.stringify({ attempts, outcomes });
+    expect(serializedEvidence).not.toContain("user@example.com");
+    expect(serializedEvidence).not.toContain("valid-password");
+    expect(serializedEvidence).not.toContain(session.accessToken);
+    expect(serializedEvidence).not.toContain(session.refreshToken);
+    expect(attempts[0]).toMatchObject({
+      action: "LOGIN",
+      attemptId: "58000000-0000-4000-8000-000000000050",
+      policyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+    expect(outcomes[0]).toEqual({
+      auditId: "58000000-0000-4000-8000-000000000052",
+      reasonCode: "AUTH_REQUEST_COMPLETED",
+      result: "SUCCEEDED"
+    });
+  });
+
+  it("fails closed before provider dispatch when rate-limit policy evidence is unavailable", async () => {
+    const authProvider = provider();
+    const http = createOperationalAuthHttp({
+      abusePrevention: {
+        consume: vi.fn(async () => { throw new Error("policy unavailable"); }),
+        recordOutcome: vi.fn(async () => undefined)
+      },
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      production: false,
+      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+    const response = await http.login(authRequest("/api/auth/login", {
+      identifier: "user@example.com",
+      credential: "valid-password"
+    }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ outcome: "UNAVAILABLE", reasonCode: "AUTH_PROVIDER_UNAVAILABLE" });
+    expect(authProvider.signIn).not.toHaveBeenCalled();
+  });
+
+  it("compensates a newly issued provider session when durable result audit cannot commit", async () => {
+    const authProvider = provider();
+    const http = createOperationalAuthHttp({
+      abusePrevention: {
+        consume: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
+        recordOutcome: vi.fn(async () => { throw new Error("audit unavailable"); })
+      },
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      production: false,
+      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+    const response = await http.login(authRequest("/api/auth/login", {
+      identifier: "user@example.com",
+      credential: "valid-password"
+    }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ outcome: "UNAVAILABLE", reasonCode: "AUTH_PROVIDER_UNAVAILABLE" });
+    expect(response.headers.get("set-cookie")).toBeNull();
+    expect(authProvider.signOutGlobally).toHaveBeenCalledWith(session);
+  });
+
   it("uses valid Secure __Host cookies in production", async () => {
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       gateway: new SupabaseOperationalAuthGateway(provider()),
       expectedOrigin: "https://rnd.youone.example",
       production: true,
@@ -209,6 +345,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       }) as never)
     };
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       actors,
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(provider()),
@@ -242,7 +379,12 @@ describe("#58 operational Supabase Auth gateway", () => {
         nextLevel: "aal2"
       }))
     });
-    const http = createOperationalAuthHttp({ expectedOrigin: "http://localhost", gateway: new SupabaseOperationalAuthGateway(authProvider), production: false });
+    const http = createOperationalAuthHttp({
+      ...authProtection(),
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      production: false
+    });
 
     const enrollment = await http.enroll(authRequest("/api/auth/mfa/enroll", {}));
     expect(enrollment.status).toBe(200);
@@ -269,6 +411,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       "58000000-0000-4000-8000-000000000021"
     ];
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       actors: { create: vi.fn(async () => actor()) },
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       expectedOrigin: "http://localhost",
@@ -308,6 +451,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       "58000000-0000-4000-8000-000000000032"
     ];
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       actors: { create: vi.fn(async () => actor()) },
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(authProvider),
@@ -337,6 +481,7 @@ describe("#58 operational Supabase Auth gateway", () => {
 
   it("fails closed and clears cookies when durable revocation evidence cannot commit", async () => {
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       actors: { create: vi.fn(async () => actor()) },
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(provider()),
@@ -359,6 +504,7 @@ describe("#58 operational Supabase Auth gateway", () => {
 
   it("clears stale cookies when refresh cannot establish a provider session", async () => {
     const http = createOperationalAuthHttp({
+      ...authProtection(),
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(provider({
         refresh: vi.fn(async () => { throw new SupabaseOperationalAuthError("AUTH_SESSION_REQUIRED"); })

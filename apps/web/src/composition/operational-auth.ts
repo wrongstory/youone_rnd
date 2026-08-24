@@ -1,5 +1,8 @@
 import type {
+  OperationalAuthAbusePreventionPort,
+  OperationalAuthAttempt,
   OperationalAuthFailure,
+  OperationalAuthRateLimitAction,
   OperationalAuthReasonCode,
   OperationalAuthResponse,
   OperationalActorSessionResponse,
@@ -13,10 +16,12 @@ import type { TrustedActorContext } from "@youone/core-authorization/public";
 import {
   correlationId,
   sha256,
+  stableCode,
   utcInstant,
   uuid
 } from "@youone/shared-kernel/public";
 import {
+  PostgresOperationalAuthAbusePrevention,
   PostgresAuthSessionRevocationEvidenceStore,
   type AuthSessionRevocationEvidence
 } from "@youone/infra-postgres/request";
@@ -26,7 +31,7 @@ import {
   type OperationalProviderSession,
   type SupabaseOperationalAuthGateway
 } from "@youone/infra-supabase-auth/operational";
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { getRequestDatabaseComposition } from "./request-database";
 import { writeSecurityLog } from "./security-log";
@@ -55,6 +60,8 @@ type CookieNames = Readonly<{
 }>;
 
 export type OperationalAuthHttpDependencies = Readonly<{
+  abusePrevention: OperationalAuthAbusePreventionPort;
+  authAttemptIdGenerator?: () => string;
   actors?: Readonly<{
     create(accessToken: string, requestCorrelationId: ReturnType<typeof correlationId>): Promise<TrustedActorContext>;
   }>;
@@ -68,6 +75,8 @@ export type OperationalAuthHttpDependencies = Readonly<{
   now?: () => Date;
   production: boolean;
   randomToken?: () => string;
+  rateLimitFingerprintSecret: string;
+  rateLimitPolicyVersion: string;
   wait?: (milliseconds: number) => Promise<void>;
 }>;
 
@@ -75,9 +84,88 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
   const names = cookieNames(dependencies.production);
   const randomToken = dependencies.randomToken ?? (() => randomBytes(32).toString("base64url"));
   const idGenerator = dependencies.idGenerator ?? randomUUID;
+  const authAttemptIdGenerator = dependencies.authAttemptIdGenerator ?? randomUUID;
   const now = dependencies.now ?? (() => new Date());
   const wait = dependencies.wait ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const expectedOrigin = validatedOrigin(dependencies.expectedOrigin, dependencies.production);
+  const rateLimitFingerprintSecret = validatedRateLimitFingerprintSecret(dependencies.rateLimitFingerprintSecret);
+  const rateLimitPolicyVersion = stableCode(dependencies.rateLimitPolicyVersion);
+
+  async function beginAttempt(
+    action: OperationalAuthRateLimitAction,
+    subjectMaterial: string,
+    requestCorrelationId: string
+  ): Promise<OperationalAuthAttempt> {
+    const attempt = Object.freeze({
+      action,
+      attemptId: uuid(authAttemptIdGenerator()),
+      correlationId: correlationId(requestCorrelationId),
+      globalFingerprint: authAttemptFingerprint(rateLimitFingerprintSecret, action, "GLOBAL"),
+      occurredAt: utcInstant(now()),
+      policyVersion: rateLimitPolicyVersion,
+      rateLimitAuditId: uuid(authAttemptIdGenerator()),
+      subjectFingerprint: authAttemptFingerprint(rateLimitFingerprintSecret, action, subjectMaterial)
+    });
+    let decision;
+    try {
+      decision = await dependencies.abusePrevention.consume(attempt);
+    } catch {
+      throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
+    }
+    if (!decision.allowed) throw new AuthHttpError("AUTH_RATE_LIMITED", decision.retryAfterSeconds);
+    return attempt;
+  }
+
+  async function attemptResponse(
+    attempt: OperationalAuthAttempt,
+    operation: () => Promise<Response>,
+    compensateEvidenceFailure?: () => Promise<void>
+  ): Promise<Response> {
+    let response: Response;
+    try {
+      response = await operation();
+    } catch (error) {
+      await recordAttemptOutcome(
+        attempt,
+        authReason(error) === "AUTH_PROVIDER_UNAVAILABLE" ? "FAILED" : "DENIED",
+        authReason(error)
+      );
+      throw error;
+    }
+    try {
+      await recordAttemptOutcome(
+        attempt,
+        response.status < 400 ? "SUCCEEDED" : response.status < 500 ? "DENIED" : "FAILED",
+        response.status < 400 ? "AUTH_REQUEST_COMPLETED" : response.status < 500 ? "AUTH_REQUEST_DENIED" : "AUTH_REQUEST_FAILED"
+      );
+    } catch {
+      if (compensateEvidenceFailure !== undefined) {
+        try {
+          await compensateEvidenceFailure();
+        } catch {
+          // The response remains fail-closed; provider compensation is best effort only.
+        }
+      }
+      throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
+    }
+    return response;
+  }
+
+  async function recordAttemptOutcome(
+    attempt: OperationalAuthAttempt,
+    result: "DENIED" | "FAILED" | "SUCCEEDED",
+    reasonCode: string
+  ): Promise<void> {
+    try {
+      await dependencies.abusePrevention.recordOutcome(attempt, Object.freeze({
+        auditId: uuid(authAttemptIdGenerator()),
+        reasonCode: stableCode(reasonCode),
+        result
+      }));
+    } catch {
+      throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
+    }
+  }
 
   return Object.freeze({
     csrf(request: Request): Promise<Response> {
@@ -124,114 +212,141 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
     },
 
     login(request: Request): Promise<Response> {
-      return execute("/api/auth/login", request, async () => {
+      return execute("/api/auth/login", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const body = await readJson(request);
         const identifier = requiredEmail(body.identifier);
         const credential = requiredCredential(body.credential);
-        const result = await dependencies.gateway.login(identifier, credential);
-        const response = json<OperationalAuthResponse>(200, {
-          outcome: "SUCCESS",
-          nextAction: result.nextAction
-        });
-        setSessionCookies(response.headers, names, result.session, dependencies.production);
-        if (result.factorId !== undefined) {
-          appendCookie(response.headers, names.factor, requiredFactorId(result.factorId), {
-            httpOnly: true,
-            maxAge: MFA_CONTEXT_SECONDS,
-            path: "/",
-            production: dependencies.production
+        const attempt = await beginAttempt("LOGIN", identifier, requestCorrelationId);
+        let establishedSession: OperationalProviderSession | undefined;
+        return attemptResponse(attempt, async () => {
+          const result = await dependencies.gateway.login(identifier, credential);
+          establishedSession = result.session;
+          const response = json<OperationalAuthResponse>(200, {
+            outcome: "SUCCESS",
+            nextAction: result.nextAction
           });
-        } else {
-          clearCookie(response.headers, names.factor, "/", dependencies.production);
-        }
-        return response;
+          setSessionCookies(response.headers, names, result.session, dependencies.production);
+          if (result.factorId !== undefined) {
+            appendCookie(response.headers, names.factor, requiredFactorId(result.factorId), {
+              httpOnly: true,
+              maxAge: MFA_CONTEXT_SECONDS,
+              path: "/",
+              production: dependencies.production
+            });
+          } else {
+            clearCookie(response.headers, names.factor, "/", dependencies.production);
+          }
+          return response;
+        }, async () => {
+          if (establishedSession !== undefined) await dependencies.gateway.signOutGlobally(establishedSession);
+        });
       });
     },
 
     enroll(request: Request): Promise<Response> {
-      return execute("/api/auth/mfa/enroll", request, async () => {
+      return execute("/api/auth/mfa/enroll", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const enrollment = await dependencies.gateway.enrollTotp(session);
-        const response = json<OperationalMfaEnrollmentResponse>(200, {
-          outcome: "SUCCESS",
-          nextAction: "MFA_CHALLENGE",
-          qrCode: enrollment.qrCode,
-          manualSecret: enrollment.manualSecret
-        });
-        appendCookie(response.headers, names.factor, requiredFactorId(enrollment.factorId), {
-          httpOnly: true,
-          maxAge: MFA_CONTEXT_SECONDS,
-          path: "/",
-          production: dependencies.production
-        });
-        return response;
-      });
-    },
-
-    verify(request: Request): Promise<Response> {
-      return execute("/api/auth/mfa/verify", request, async () => {
-        requireMutationTrust(request, names.csrf, expectedOrigin);
-        const session = requireSession(request, names);
-        const factorId = requiredFactorId(readCookie(request, names.factor) ?? "");
-        const code = requiredTotpCode((await readJson(request)).code);
-        const verified = await dependencies.gateway.verifyTotp(session, factorId, code);
-        const response = json<OperationalAuthResponse>(200, {
-          outcome: "SUCCESS",
-          nextAction: "AUTHENTICATED"
-        });
-        setSessionCookies(response.headers, names, verified, dependencies.production);
-        clearCookie(response.headers, names.factor, "/", dependencies.production);
-        return response;
-      });
-    },
-
-    refresh(request: Request): Promise<Response> {
-      return execute("/api/auth/refresh", request, async () => {
-        requireMutationTrust(request, names.csrf, expectedOrigin);
-        const refreshToken = readCookie(request, names.refresh);
-        if (refreshToken === null || !validOpaque(refreshToken)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
-        let result: Awaited<ReturnType<SupabaseOperationalAuthGateway["refresh"]>>;
-        try {
-          result = await dependencies.gateway.refresh(refreshToken);
-        } catch (error) {
-          const response = failureResponse(authReason(error));
-          clearAuthCookies(response.headers, names, dependencies.production);
-          return response;
-        }
-        const response = json<OperationalAuthResponse>(200, {
-          outcome: "SUCCESS",
-          nextAction: result.nextAction
-        });
-        setSessionCookies(response.headers, names, result.session, dependencies.production);
-        if (result.factorId !== undefined) {
-          appendCookie(response.headers, names.factor, requiredFactorId(result.factorId), {
+        const attempt = await beginAttempt("MFA_ENROLL", session.accessToken, requestCorrelationId);
+        return attemptResponse(attempt, async () => {
+          const enrollment = await dependencies.gateway.enrollTotp(session);
+          const response = json<OperationalMfaEnrollmentResponse>(200, {
+            outcome: "SUCCESS",
+            nextAction: "MFA_CHALLENGE",
+            qrCode: enrollment.qrCode,
+            manualSecret: enrollment.manualSecret
+          });
+          appendCookie(response.headers, names.factor, requiredFactorId(enrollment.factorId), {
             httpOnly: true,
             maxAge: MFA_CONTEXT_SECONDS,
             path: "/",
             production: dependencies.production
           });
-        }
-        return response;
+          return response;
+        });
+      });
+    },
+
+    verify(request: Request): Promise<Response> {
+      return execute("/api/auth/mfa/verify", request, async (requestCorrelationId) => {
+        requireMutationTrust(request, names.csrf, expectedOrigin);
+        const session = requireSession(request, names);
+        const factorId = requiredFactorId(readCookie(request, names.factor) ?? "");
+        const code = requiredTotpCode((await readJson(request)).code);
+        const attempt = await beginAttempt("MFA_VERIFY", session.accessToken, requestCorrelationId);
+        let verifiedSession: OperationalProviderSession | undefined;
+        return attemptResponse(attempt, async () => {
+          const verified = await dependencies.gateway.verifyTotp(session, factorId, code);
+          verifiedSession = verified;
+          const response = json<OperationalAuthResponse>(200, {
+            outcome: "SUCCESS",
+            nextAction: "AUTHENTICATED"
+          });
+          setSessionCookies(response.headers, names, verified, dependencies.production);
+          clearCookie(response.headers, names.factor, "/", dependencies.production);
+          return response;
+        }, async () => {
+          if (verifiedSession !== undefined) await dependencies.gateway.signOutGlobally(verifiedSession);
+        });
+      });
+    },
+
+    refresh(request: Request): Promise<Response> {
+      return execute("/api/auth/refresh", request, async (requestCorrelationId) => {
+        requireMutationTrust(request, names.csrf, expectedOrigin);
+        const refreshToken = readCookie(request, names.refresh);
+        if (refreshToken === null || !validOpaque(refreshToken)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
+        const attempt = await beginAttempt("REFRESH", refreshToken, requestCorrelationId);
+        let refreshedSession: OperationalProviderSession | undefined;
+        return attemptResponse(attempt, async () => {
+          let result: Awaited<ReturnType<SupabaseOperationalAuthGateway["refresh"]>>;
+          try {
+            result = await dependencies.gateway.refresh(refreshToken);
+            refreshedSession = result.session;
+          } catch (error) {
+            const response = failureResponse(authReason(error));
+            clearAuthCookies(response.headers, names, dependencies.production);
+            return response;
+          }
+          const response = json<OperationalAuthResponse>(200, {
+            outcome: "SUCCESS",
+            nextAction: result.nextAction
+          });
+          setSessionCookies(response.headers, names, result.session, dependencies.production);
+          if (result.factorId !== undefined) {
+            appendCookie(response.headers, names.factor, requiredFactorId(result.factorId), {
+              httpOnly: true,
+              maxAge: MFA_CONTEXT_SECONDS,
+              path: "/",
+              production: dependencies.production
+            });
+          }
+          return response;
+        }, async () => {
+          if (refreshedSession !== undefined) await dependencies.gateway.signOutGlobally(refreshedSession);
+        });
       });
     },
 
     recovery(request: Request): Promise<Response> {
-      return execute("/api/auth/recovery", request, async () => {
+      return execute("/api/auth/recovery", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const identifier = requiredEmail((await readJson(request)).identifier);
         const redirectTo = new URL("/auth/recovery", request.url).toString();
-        try {
-          await dependencies.gateway.recover(identifier, redirectTo);
-        } catch (error) {
-          if (error instanceof SupabaseOperationalAuthError && error.reasonCode === "AUTH_RATE_LIMITED") throw error;
-          if (error instanceof SupabaseOperationalAuthError && error.reasonCode === "AUTH_PROVIDER_UNAVAILABLE") throw error;
-          // Account existence and provider-specific recovery details are intentionally indistinguishable.
-        }
-        return json<OperationalRecoveryResponse>(202, {
-          outcome: "ACCEPTED",
-          reasonCode: "AUTH_RECOVERY_ACCEPTED"
+        const attempt = await beginAttempt("RECOVERY", identifier, requestCorrelationId);
+        return attemptResponse(attempt, async () => {
+          try {
+            await dependencies.gateway.recover(identifier, redirectTo);
+          } catch (error) {
+            if (error instanceof SupabaseOperationalAuthError && error.reasonCode === "AUTH_RATE_LIMITED") throw error;
+            if (error instanceof SupabaseOperationalAuthError && error.reasonCode === "AUTH_PROVIDER_UNAVAILABLE") throw error;
+            // Account existence and provider-specific recovery details are intentionally indistinguishable.
+          }
+          return json<OperationalRecoveryResponse>(202, {
+            outcome: "ACCEPTED",
+            reasonCode: "AUTH_RECOVERY_ACCEPTED"
+          });
         });
       });
     },
@@ -240,76 +355,82 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/logout", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        if (dependencies.actors === undefined || dependencies.sessions === undefined || dependencies.revocations === undefined) {
-          const response = failureResponse("AUTH_PROVIDER_UNAVAILABLE");
-          clearAuthCookies(response.headers, names, dependencies.production);
-          return response;
-        }
+        const attempt = await beginAttempt("LOGOUT", session.accessToken, requestCorrelationId);
+        return attemptResponse(attempt, async () => {
+          if (
+            dependencies.actors === undefined || dependencies.sessions === undefined ||
+            dependencies.revocations === undefined
+          ) {
+            const response = failureResponse("AUTH_PROVIDER_UNAVAILABLE");
+            clearAuthCookies(response.headers, names, dependencies.production);
+            return response;
+          }
 
-        let actor: TrustedActorContext;
-        try {
-          actor = await dependencies.actors.create(session.accessToken, correlationId(requestCorrelationId));
-        } catch {
-          const response = failureResponse("AUTH_SESSION_REQUIRED");
-          clearAuthCookies(response.headers, names, dependencies.production);
-          return response;
-        }
-
-        try {
-          await dependencies.gateway.signOutGlobally(session);
-        } catch {
-          // Exact database confirmation below decides whether reconciliation is required.
-        }
-
-        let absenceConfirmed = false;
-        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          let actor: TrustedActorContext;
           try {
-            absenceConfirmed = !(await dependencies.sessions.exists(actor.authSubject, actor.sessionId));
+            actor = await dependencies.actors.create(session.accessToken, correlationId(requestCorrelationId));
           } catch {
-            absenceConfirmed = false;
+            const response = failureResponse("AUTH_SESSION_REQUIRED");
+            clearAuthCookies(response.headers, names, dependencies.production);
+            return response;
           }
-          if (absenceConfirmed) break;
-          if (attempt < 3) await wait(250);
-        }
 
-        const occurredAt = utcInstant(now());
-        const baseEvidence = {
-          auditId: uuid(idGenerator()),
-          bindingHash: revocationBindingHash(actor.authSubject, actor.sessionId),
-          occurredAt,
-          operationId: uuid(idGenerator())
-        } as const;
-        let response: Response;
-        try {
-          if (absenceConfirmed) {
-            await dependencies.revocations.record(actor, Object.freeze({
-              ...baseEvidence,
-              outcome: "CONFIRMED"
-            }));
-            response = json<OperationalLogoutResponse>(200, {
-              outcome: "SUCCESS",
-              nextAction: "LOGIN",
-              revocation: "CONFIRMED"
-            });
-          } else {
-            const reconciliationAt = utcInstant(new Date(new Date(occurredAt).getTime() + 15 * 60 * 1_000));
-            await dependencies.revocations.record(actor, Object.freeze({
-              ...baseEvidence,
-              outcome: "RECONCILIATION_SCHEDULED",
-              outboxEventId: uuid(idGenerator()),
-              reconciliationAt
-            }));
-            response = json<OperationalLogoutResponse>(202, {
-              outcome: "ACCEPTED",
-              nextAction: "LOGIN",
-              revocation: "RECONCILIATION_SCHEDULED"
-            });
+          try {
+            await dependencies.gateway.signOutGlobally(session);
+          } catch {
+            // Exact database confirmation below decides whether reconciliation is required.
           }
-        } catch {
-          response = failureResponse("AUTH_PROVIDER_UNAVAILABLE");
-        }
-        clearAuthCookies(response.headers, names, dependencies.production);
-        return response;
+
+          let absenceConfirmed = false;
+          for (let retry = 1; retry <= 3; retry += 1) {
+            try {
+              absenceConfirmed = !(await dependencies.sessions.exists(actor.authSubject, actor.sessionId));
+            } catch {
+              absenceConfirmed = false;
+            }
+            if (absenceConfirmed) break;
+            if (retry < 3) await wait(250);
+          }
+
+          const occurredAt = utcInstant(now());
+          const baseEvidence = {
+            auditId: uuid(idGenerator()),
+            bindingHash: revocationBindingHash(actor.authSubject, actor.sessionId),
+            occurredAt,
+            operationId: uuid(idGenerator())
+          } as const;
+          let response: Response;
+          try {
+            if (absenceConfirmed) {
+              await dependencies.revocations.record(actor, Object.freeze({
+                ...baseEvidence,
+                outcome: "CONFIRMED"
+              }));
+              response = json<OperationalLogoutResponse>(200, {
+                outcome: "SUCCESS",
+                nextAction: "LOGIN",
+                revocation: "CONFIRMED"
+              });
+            } else {
+              const reconciliationAt = utcInstant(new Date(new Date(occurredAt).getTime() + 15 * 60 * 1_000));
+              await dependencies.revocations.record(actor, Object.freeze({
+                ...baseEvidence,
+                outcome: "RECONCILIATION_SCHEDULED",
+                outboxEventId: uuid(idGenerator()),
+                reconciliationAt
+              }));
+              response = json<OperationalLogoutResponse>(202, {
+                outcome: "ACCEPTED",
+                nextAction: "LOGIN",
+                revocation: "RECONCILIATION_SCHEDULED"
+              });
+            }
+          } catch {
+            response = failureResponse("AUTH_PROVIDER_UNAVAILABLE");
+          }
+          clearAuthCookies(response.headers, names, dependencies.production);
+          return response;
+        });
       });
     }
   });
@@ -325,7 +446,9 @@ export function operationalAuthHttp(
   const supabaseUrl = environment.SUPABASE_URL;
   const publishableKey = environment.SUPABASE_PUBLISHABLE_KEY;
   const appOrigin = environment.APP_ORIGIN;
-  if (!supabaseUrl || !publishableKey || !appOrigin) return null;
+  const rateLimitFingerprintSecret = environment.AUTH_RATE_LIMIT_HMAC_SECRET;
+  const rateLimitPolicyVersion = environment.AUTH_RATE_LIMIT_POLICY_VERSION;
+  if (!supabaseUrl || !publishableKey || !appOrigin || !rateLimitFingerprintSecret || !rateLimitPolicyVersion) return null;
   const production = environment.NODE_ENV === "production";
   const timeout = parsedTimeout(environment.REQUEST_AUTH_TIMEOUT_MS);
   const key = operationalConfigurationKey(environment, production, timeout);
@@ -336,14 +459,14 @@ export function operationalAuthHttp(
   try {
     const authSecurity = requestAuthSecurityComposition(environment);
     const requestDatabase = getRequestDatabaseComposition(environment);
+    if (requestDatabase === null) return null;
     const endpoint = createOperationalAuthHttp({
+      abusePrevention: new PostgresOperationalAuthAbusePrevention(requestDatabase.pool),
       ...(authSecurity === null ? {} : {
         actors: authSecurity.actors,
         sessions: authSecurity.sessions
       }),
-      ...(requestDatabase === null ? {} : {
-        revocations: new PostgresAuthSessionRevocationEvidenceStore(requestDatabase.unitOfWork)
-      }),
+      revocations: new PostgresAuthSessionRevocationEvidenceStore(requestDatabase.unitOfWork),
       expectedOrigin: appOrigin,
       gateway: createSupabaseOperationalAuthGateway({
         production,
@@ -352,7 +475,9 @@ export function operationalAuthHttp(
         requestTimeoutMillis: timeout,
         supabaseUrl
       }),
-      production
+      production,
+      rateLimitFingerprintSecret,
+      rateLimitPolicyVersion
     });
     cached = Object.freeze({ key, endpoint });
     return endpoint;
@@ -393,7 +518,10 @@ function execute(
     return response;
   }).catch((error: unknown) => {
     const reasonCode = authReason(error);
-    const response = failureResponse(reasonCode);
+    const response = failureResponse(
+      reasonCode,
+      error instanceof AuthHttpError ? error.retryAfterSeconds : undefined
+    );
     writeSecurityLog({
       event: response.status >= 500 ? "AUTH_REQUEST_FAILED" : "AUTH_REQUEST_DENIED",
       correlationId: requestCorrelationId,
@@ -406,7 +534,10 @@ function execute(
 }
 
 class AuthHttpError extends Error {
-  public constructor(public readonly reasonCode: OperationalAuthReasonCode) {
+  public constructor(
+    public readonly reasonCode: OperationalAuthReasonCode,
+    public readonly retryAfterSeconds?: number
+  ) {
     super(reasonCode);
     this.name = "AuthHttpError";
   }
@@ -565,13 +696,20 @@ function validOpaque(value: string): boolean {
   return value.length >= 16 && value.length <= 8_192 && !/\s/.test(value) && !/[;,]/.test(value);
 }
 
-function failureResponse(reasonCode: OperationalAuthReasonCode): Response {
+function failureResponse(reasonCode: OperationalAuthReasonCode, retryAfterSeconds?: number): Response {
   const status = reasonStatus(reasonCode);
   const body: OperationalAuthFailure = Object.freeze({
     outcome: status >= 500 ? "UNAVAILABLE" : "REJECTED",
     reasonCode
   });
-  return json(status, body);
+  const response = json(status, body);
+  if (
+    reasonCode === "AUTH_RATE_LIMITED" && retryAfterSeconds !== undefined &&
+    Number.isSafeInteger(retryAfterSeconds) && retryAfterSeconds > 0
+  ) {
+    response.headers.set("Retry-After", String(retryAfterSeconds));
+  }
+  return response;
 }
 
 function reasonStatus(reasonCode: OperationalAuthReasonCode): number {
@@ -615,6 +753,10 @@ function operationalConfigurationKey(
     production,
     timeout,
     APP_ORIGIN: environment.APP_ORIGIN,
+    AUTH_RATE_LIMIT_HMAC_SECRET_SHA256: environment.AUTH_RATE_LIMIT_HMAC_SECRET === undefined
+      ? undefined
+      : createHash("sha256").update(environment.AUTH_RATE_LIMIT_HMAC_SECRET, "utf8").digest("hex"),
+    AUTH_RATE_LIMIT_POLICY_VERSION: environment.AUTH_RATE_LIMIT_POLICY_VERSION,
     SUPABASE_URL: environment.SUPABASE_URL,
     SUPABASE_PUBLISHABLE_KEY: environment.SUPABASE_PUBLISHABLE_KEY,
     IDENTITY_RESOLVER_DATABASE_URL: environment.IDENTITY_RESOLVER_DATABASE_URL,
@@ -629,6 +771,31 @@ function operationalConfigurationKey(
     REQUEST_DATABASE_STATEMENT_TIMEOUT_MS: environment.REQUEST_DATABASE_STATEMENT_TIMEOUT_MS
   };
   return createHash("sha256").update(JSON.stringify(configuration), "utf8").digest("hex");
+}
+
+function validatedRateLimitFingerprintSecret(value: string): string {
+  if (value.length < 32 || value.length > 4_096 || /\s/.test(value)) {
+    throw new AuthHttpError("AUTH_PROVIDER_UNAVAILABLE");
+  }
+  return value;
+}
+
+function authAttemptFingerprint(
+  secret: string,
+  action: OperationalAuthRateLimitAction,
+  subjectMaterial: string
+) {
+  if (subjectMaterial.length === 0 || subjectMaterial.length > 8_192) {
+    throw new AuthHttpError("AUTH_REQUEST_INVALID");
+  }
+  return sha256(
+    createHmac("sha256", secret)
+      .update("YOUONE_AUTH_RATE_LIMIT_V1\0", "utf8")
+      .update(action, "utf8")
+      .update("\0", "utf8")
+      .update(subjectMaterial, "utf8")
+      .digest("hex")
+  );
 }
 
 function parsedTimeout(value: string | undefined): number {

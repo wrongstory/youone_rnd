@@ -6,10 +6,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { TrustedActorContextFactory, type ActorContextSource } from "../../packages/core/authorization/src/public.js";
 import type { IdentitySnapshot } from "../../packages/core/identity/src/public.js";
 import {
+  PostgresOperationalAuthAbusePrevention,
   createNodePostgresRequestPool,
   createTrustedRequestUnitOfWork
 } from "../../packages/infrastructure/postgres/src/request.js";
-import { correlationId, utcInstant, uuid, version } from "../../packages/shared-kernel/src/public.js";
+import { correlationId, sha256, stableCode, utcInstant, uuid, version } from "../../packages/shared-kernel/src/public.js";
 
 const adminDatabaseUrl = process.env.R01_ADMIN_DATABASE_URL;
 const requestDatabaseUrl = process.env.R01_REQUEST_DATABASE_URL;
@@ -94,6 +95,21 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
       grant youone_request, r01_forbidden_bypass to youone_request_overprivileged_login;
       insert into public.user_account(id, auth_subject, account_kind, status, valid_from)
       values ('${actorId}', 'r01-internal', 'INTERNAL', 'ACTIVE', '2026-01-01');
+      insert into public.auth_rate_limit_policy_version(
+        id, policy_version, approval_snapshot_sha256, created_at, approved_at, effective_at, approved_by_user_id
+      ) values (
+        '17000000-0000-4000-8000-000000000090', 'AUTH_RATE_LIMIT_R01_TEST_V1', '${"9".repeat(64)}',
+        '2026-08-23T10:00:00Z', '2026-08-23T10:01:00Z', '2026-08-23T10:02:00Z', '${actorId}'
+      );
+      insert into public.auth_rate_limit_policy_rule(
+        policy_version_id, action_id, window_seconds, subject_max_attempts, global_max_attempts
+      ) values
+        ('17000000-0000-4000-8000-000000000090','auth.login',60,2,3),
+        ('17000000-0000-4000-8000-000000000090','auth.logout',60,2,3),
+        ('17000000-0000-4000-8000-000000000090','auth.mfa.enroll',60,2,3),
+        ('17000000-0000-4000-8000-000000000090','auth.mfa.verify',60,2,3),
+        ('17000000-0000-4000-8000-000000000090','auth.recovery',60,2,3),
+        ('17000000-0000-4000-8000-000000000090','auth.refresh',60,2,3);
     `);
   }, 60_000);
 
@@ -143,6 +159,57 @@ databaseDescribe.sequential("R01 real PostgreSQL request runtime", () => {
       reasonCode: "REQUEST_DATABASE_PRINCIPAL_INVALID"
     });
     await unsafePool.close();
+  });
+
+  it("atomically enforces approved subject/global Auth limits and appends anonymous audit evidence", async () => {
+    if (!requestDatabaseUrl) return;
+    const pool = createNodePostgresRequestPool({ connectionString: requestDatabaseUrl, max: 2, tls: "disable" });
+    const prevention = new PostgresOperationalAuthAbusePrevention(pool);
+    const subject = sha256("1".repeat(64));
+    const otherSubject = sha256("2".repeat(64));
+    const globalFingerprint = sha256("3".repeat(64));
+    const attempt = (sequence: number, subjectFingerprint = subject) => Object.freeze({
+      action: "LOGIN" as const,
+      attemptId: uuid(`17000000-0000-4000-8000-${String(100 + sequence).padStart(12, "0")}`),
+      correlationId: correlationId(`request:r01-rate-limit:${sequence}`),
+      globalFingerprint,
+      occurredAt: utcInstant(`2026-08-23T12:00:0${sequence}.000Z`),
+      policyVersion: stableCode("AUTH_RATE_LIMIT_R01_TEST_V1"),
+      rateLimitAuditId: uuid(`17000000-0000-4000-8000-${String(200 + sequence).padStart(12, "0")}`),
+      subjectFingerprint
+    });
+
+    await expect(prevention.consume(attempt(1))).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(prevention.consume(attempt(2))).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    await expect(prevention.consume(attempt(3))).resolves.toMatchObject({ allowed: false });
+    await expect(prevention.consume(attempt(4, otherSubject))).resolves.toMatchObject({ allowed: false });
+    await prevention.recordOutcome(attempt(1), {
+      auditId: uuid("17000000-0000-4000-8000-000000000301"),
+      reasonCode: stableCode("AUTH_REQUEST_COMPLETED"),
+      result: "SUCCEEDED"
+    });
+
+    expect(runAdmin("select count(*) from public.audit_log where resource_type='AUTH_SECURITY_ATTEMPT';")).toBe("5");
+    expect(runAdmin("select count(*) from public.auth_rate_limit_bucket;")).toBe("3");
+    expect(runAdmin("select count(*) from public.audit_log where anonymous_subject_fingerprint is null and resource_type='AUTH_SECURITY_ATTEMPT';")).toBe("0");
+    await pool.close();
+  });
+
+  it("fails closed for an unapproved or stale Auth rate-limit policy version", async () => {
+    if (!requestDatabaseUrl) return;
+    const pool = createNodePostgresRequestPool({ connectionString: requestDatabaseUrl, max: 1, tls: "disable" });
+    const prevention = new PostgresOperationalAuthAbusePrevention(pool);
+    await expect(prevention.consume(Object.freeze({
+      action: "LOGIN",
+      attemptId: uuid("17000000-0000-4000-8000-000000000401"),
+      correlationId: correlationId("request:r01-rate-limit:missing-policy"),
+      globalFingerprint: sha256("4".repeat(64)),
+      occurredAt: utcInstant("2026-08-23T12:01:00.000Z"),
+      policyVersion: stableCode("AUTH_RATE_LIMIT_NOT_APPROVED"),
+      rateLimitAuditId: uuid("17000000-0000-4000-8000-000000000402"),
+      subjectFingerprint: sha256("5".repeat(64))
+    }))).rejects.toThrow();
+    await pool.close();
   });
 
   it("rejects a login that can SET ROLE beyond youone_request", async () => {

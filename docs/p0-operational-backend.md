@@ -42,14 +42,16 @@ This first slice does not close B01 or issue `#58`.
 
 - Two Supabase projects exist, but the primary candidate is not named/bound as `YOUONE_STAGING_PRIMARY`; no project reference, publishable key, custom SMTP, Web/Identity Resolver login or live user is configured in the repository or local environment.
 - Global sign-out, exact post-sign-out presence probing, three attempts and durable 15-minute reconciliation handoff are implemented, but the Worker consumer, incident escalation and live Staging evidence are not.
-- Provider rate-limit reason mapping exists; an application-owned distributed limiter and append-only login/MFA/logout audit store are not yet composed.
+- The application-owned distributed limiter and append-only request/result audit are composed, but `OD-039` numeric rules, approval actor/snapshot and deployment HMAC secret are not provisioned; operational mutation therefore remains fail-closed.
 - New-device/managed-device trust and sensitive-action step-up remain fail-closed design requirements without a provider implementation.
 - Password recovery request is generic and non-enumerating, but recovery-link exchange, new-password mutation and global session reconciliation are not implemented.
 - Internal/Vendor invitation, provisioning, effective assignment/grant changes, disable/revoke sagas and UserAccount display-profile fields are not implemented as live APIs.
 - Project/WBS/member/link/formal-research Command repositories, actual Project Query projection and server-calculated allowed actions are not composed.
 - There is no `supabase/config.toml` or linked local project; therefore no claim is made that migrations have been applied to a live Supabase instance.
 
-Any schema needed for display profiles, auth audit/rate limit, device trust or operational commands requires reviewed public contracts and a Platform/Security-owned migration. This slice deliberately creates no guessed migration.
+Any additional schema needed for display profiles, device trust or operational commands requires reviewed public contracts and a Platform/Security-owned migration. The rate-limit schema below creates typed policy/rule/revocation/bucket relations without inventing or seeding company-specific numeric values.
+
+The current B01 slice adds the application-owned distributed limiter and durable Auth attempt audit. Login, logout, TOTP enroll/verify, refresh and recovery consume both a subject and deployment-global fixed-window bucket before any Supabase provider dispatch. Only server-HMAC SHA-256 fingerprints and stable outcomes are persisted; raw identifiers, credentials, tokens, cookies and provider errors have no schema slot. Policy version, approval hash, approving `UserAccount`, lifecycle timestamps and six typed rules are immutable, revocation is append-only, and bucket mutation is available only through a guarded request-principal function. No numeric policy is seeded: `OD-039-AUTH-RATE-LIMIT-POLICY`, its actual approving actor and the deployment HMAC secret remain production activation blockers. Missing, incomplete, revoked, stale or non-current policy evidence returns `AUTH_PROVIDER_UNAVAILABLE`; a consumed limit returns `AUTH_RATE_LIMITED` before provider dispatch.
 
 ## 5. Current Supabase compatibility notes
 
@@ -62,7 +64,7 @@ Official references: [Supabase changelog](https://supabase.com/changelog), [Auth
 
 ## 6. Next merge slices
 
-1. Complete B01 with exact post-logout session absence, durable audit, distributed rate limit, recovery confirmation and device/step-up ports.
+1. Complete B01 with Worker reconciliation/incident escalation, recovery confirmation, device/step-up ports and an approved `OD-039` policy binding; the distributed limiter and durable request/result audit contract are implemented fail-closed.
 2. Implement B02 UserAccount/assignment/Vendor grant Query and audited Command workflows.
 3. Implement B03 Project/WBS/member/link/formal designation repositories and HTTP Commands.
 4. Replace preview Query paths under B04 and return server-authorized action lists.

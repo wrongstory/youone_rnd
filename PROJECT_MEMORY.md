@@ -86,6 +86,8 @@ Issue `#58` 1차 운영 Auth slice는 Supabase password login, TOTP enroll/verif
 
 Issue `#58` 후속 logout slice는 trusted ActorContext의 subject/session으로 global sign-out 대상을 고정하고 resolver-only `auth_session_exists`로 최대 3회 부재를 확인한다. 확인 결과는 append-only audit에, 미확인 결과는 동일 transaction의 정확히 15분 reconciliation outbox에 기록되며 DB trigger가 `UserAccount` subject, transaction session, retry 3회와 cadence 15분을 재검증한다. JWT/refresh/cookie는 저장하지 않는다. Worker consumer와 incident escalation, live Staging 실증은 아직 B01 blocker다.
 
+Issue `#58` B01 abuse-prevention slice는 login/logout/TOTP enroll·verify/refresh/recovery의 Supabase provider 호출 전에 PostgreSQL subject+deployment-global fixed-window counter를 원자 소비하고 rate-limit 결정과 stable provider 결과를 append-only Audit로 남긴다. 식별자·credential·token·cookie·provider 원문 대신 deployment-only HMAC SHA-256 fingerprint만 ANONYMOUS actor로 저장한다. immutable policy version과 정확히 6개 typed rule, append-only revocation, FORCE RLS/no Data API table access 및 request-principal 전용 consume capability를 사용한다. 수치는 임의 seed하지 않으며 `OD-039` 승인값·실제 승인자 `UserAccount.id`·HMAC secret이 없거나 정책이 incomplete/revoked/stale이면 provider dispatch 전 fail-closed한다.
+
 Supabase 연결 감사에서는 `ap-northeast-1`의 ACTIVE_HEALTHY 프로젝트 2개가 확인됐다. `wrongstory's Project`는 Primary 후보일 뿐 stable environment binding이 아직 없고 hosted migration은 M02~M10, 업무 데이터는 0건이다. `YOUONE_STAGING_RECOVERY`는 migration/table이 비어 있다. Primary 후보는 managed default privilege 때문에 public `SECURITY DEFINER` RPC 124개가 `anon`과 `authenticated` 각각에 직접 노출되어 Security Advisor WARN 248건과 helper search-path WARN 5건이 있다. B01 forward-fix는 Data API role EXECUTE/default privilege를 명시적으로 회수하고 zero-exposure를 검증하지만, 사용자가 Primary identity를 확정하기 전에는 live project에 적용하지 않는다.
 
 Release Gate #36 R03은 `ADR-010`에 따라 다섯 offline command의 exact schema와 실제 PostgreSQL Application handler를 조합한다. SafetyChecklistDraft, InspectionAttemptDraft, FieldNoteDraft, FieldRecordDraft는 공식 증거와 분리된 typed/normalized aggregate이고 INTERNAL 전용이다. WBS progress만 exact assigned VendorUser와 활성 Membership/Project grant에서 허용하며 `IN_PROGRESS`의 `0..99` 갱신만 수행한다. Web은 32,768 UTF-8 byte에서 스트림을 중단하고, 동일 command ID 동시 요청은 transaction advisory lock으로 직렬화한다. command 등록, 업무 write, 상태전이, 감사, 최소 outbox, terminal result/conflict는 동일 request PostgreSQL transaction에서 commit/rollback되며 DB의 다섯 함수 capability probe까지 성공해야 offline-sync readiness가 ready가 된다.
@@ -123,6 +125,7 @@ P0 운영 Frontend는 Issue `#59`로 로그인·TOTP·복구·세션 만료 publ
 - 실제 회사 양식 업로드 전에는 범용 버전형 템플릿만 설계하고 인쇄 레이아웃을 추정하지 않는다.
 - 운영 DB, request Auth/Identity Resolver, offline handler와 Private Storage 복구의 concrete repository adapter 및 R05/R06 fail-closed 증거 계약은 구현됐지만 실제 Staging 최소권한 LOGIN, live Supabase session, migration/readiness 및 실제 Storage 복구 증적은 아직 없다. 승인된 `OD-019`, `OD-035`, `OD-036` 값을 실제 actor/stable-ID와 versioned evidence에 결합하고 `docs/security-operations.md`의 activation blocker를 모두 닫아야 한다.
 - `OD-035` 기간값은 RPO 60분/RTO 240분, DB 60분/14일, Storage 60분/30일로 확정됐다. 모니터링/증거 위치 stable ID, 사고대응 담당자와 독립 복구 승인자 `UserAccount` UUID는 실제 Staging 계정에서 선택해야 하며 Position/Role seed UUID나 preview 사용자를 대신 쓰지 않는다.
+- 인증 rate-limit의 action별 window/subject/global 수치는 `OD-039`로 미확정이다. 코드·DB 계약은 준비됐지만 승인 snapshot과 실제 승인자 없이 운영 Auth mutation을 허용하지 않는다.
 - P1 권장 세부 범위와 로드맵은 승인됐다. `OD-037`의 남은 차단조건은 P0 릴리즈, P1 논리 ERD/권한/상태머신 검토와 P1 Development Gate다.
 
 ## Development Gate
