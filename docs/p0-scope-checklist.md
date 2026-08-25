@@ -9,6 +9,7 @@
 - [x] 프로젝트 스캐폴딩과 환경분리
 - [x] DB migration·기본코드·감사 기반
 - [x] Auth / RBAC / Position / Scope / 필드 투영
+- [x] 비밀번호 없는 회원가입 신청 + 연구소장 직권 단독 승인/반려 + 승인 후 server-only Auth 초대 (`WF-USER-REGISTRATION-V1`, 2026-08-25 사용자 승인)
 - [x] 외주업체 별도 로그인과 업체·프로젝트·계약 Scope
 - [x] Approval Engine과 불변 승인 스냅샷
 - [x] Document / Template / DocumentVersion / File

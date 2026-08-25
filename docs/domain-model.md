@@ -30,6 +30,12 @@ Application identity profile linked to an Auth provider subject. Holds activatio
 
 `VerifiedAuthSession` is transient authentication evidence, not an application entity. It contains only the provider-verified subject, provider-issued session ID, expiry and assurance level. ActorContext creation requires an exact active provider session/subject match and then reloads the current `user` state and assignments; provider metadata never supplies Role, Position, Permission or Scope.
 
+### `user_registration_application`, `user_registration_decision`, `account_provisioning`
+
+`user_registration_application` is the immutable pre-Auth signup request. It stores a server-HMAC email fingerprint plus encrypted delivery address, display name, `INTERNAL | VENDOR`, optional exact existing Vendor ID, consent policy version/UTC, predecessor link, state, version and checksum. It never stores a password, provider token or self-asserted Position/Role/Scope.
+
+`user_registration_decision` is a one-to-one immutable direct Lab Director approval/rejection evidence bound to the exact request version/checksum. `account_provisioning` is a separate idempotent provider-invite lifecycle; it may bind the resulting provider subject to a PENDING UserAccount but cannot edit the approval or grant assignments. Exact rules are in `docs/identity-registration.md`.
+
 ### `role`, `permission`, `user_role`
 
 RBAC primitives. A user may have multiple roles. Administrative roles are split into `ADMIN_SYSTEM`, `ADMIN_SECURITY`, `ADMIN_DOCUMENT`, `ADMIN_APPROVAL`.

@@ -47,6 +47,9 @@ M03 trust rules:
 - Require exact external-release approval evidence for Vendor L1/L2 technical preview or download; L3/L4 digital preview/download/render/print remain hard-denied.
 - Official approval requires the exact participant evidence plus Lab Director/Representative position or an active official acting-authority record. Permission alone is never sufficient.
 - Account disablement, Vendor disablement, and Vendor membership grant/revoke use guarded optimistic functions that append Audit in the same transaction. Trusted ActorContext also requires the exact provider-issued session ID to remain present for the same subject; missing or cross-subject provider sessions deny before authorization.
+- Public signup creates only an immutable pre-Auth request through the application server. It cannot create an Auth user, UserAccount, Role, Position, VendorMembership or Scope directly.
+- `identity.registration.decide` is not a normal Role permission. It requires a direct active INTERNAL actor whose authenticated/effective IDs match and whose current Position is exactly `POSITION_LAB_DIRECTOR`; Senior, Representative, Admin roles and acting authority are denied.
+- A completed signup approval authorizes provider invitation only. Initial assignments and VendorMembership still require their audited application permissions, and Vendor business access still requires exact Project + Contract grants.
 
 ## 3. Stable Roles
 

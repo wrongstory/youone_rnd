@@ -13,7 +13,7 @@
 | Password + TOTP MFA | Supabase Auth | `INTERNAL`/`VENDOR` 모두 verified TOTP와 `aal2`; AAL1은 업무 ActorContext 생성 금지 |
 | JWT 60분 | Supabase Auth 설정 + 서버 검증 | `exp`, issuer, `sub`, UUID `session_id`, `getUser + getClaims` exact match |
 | session 최대 480분 | PostgreSQL Identity Resolver | `auth.sessions.created_at + 480 minutes` 이후 모든 trusted request 즉시 거부 |
-| inactivity 60분 | PostgreSQL Identity Resolver | `auth.sessions.refreshed_at` 또는 생성시각 + 60분 이후 거부; refresh token 회전과 무관하게 같은 `session_id`에 결합 |
+| refresh inactivity 60분 | PostgreSQL Identity Resolver | `auth.sessions.refreshed_at` 또는 최초 생성시각 + 60분 이후 거부; 마지막 사용자 화면 조작이 아니라 provider session refresh 시각 기준이며 같은 `session_id`에 결합 |
 | single-session | PostgreSQL Identity Resolver | 같은 subject의 가장 최근 provider session 하나만 허용; 이전 session은 provider JWT가 남아도 애플리케이션에서 거부 |
 | 로그아웃·계정차단 | Supabase global sign-out + application deny | exact trusted target JWT, 요청별 `auth.sessions` 확인, retry 3회, 15분 reconciliation, append-only Audit |
 | 신규 기기 재인증 | application-owned DeviceTrust | 서버 발급 random nonce의 HMAC fingerprint만 저장; HttpOnly/Secure/SameSite=Strict cookie와 actor/session exact binding; 신규·철회·만료 기기는 password+TOTP 재인증 전 거부 |
@@ -69,7 +69,8 @@ Vercel Hobby Cron은 하루 1회만 허용하므로 15분/60분 작업의 실행
 ## 6. Staging 완료 체크리스트
 
 - [ ] Supabase JWT expiry 60분, TOTP `aal2`, exact `session_id` 확인
-- [ ] 480분 경과·60분 inactivity·이전 session이 다음 요청에서 각각 거부됨을 실세션으로 증명
+- [ ] `OD-042` one-time ceremony로 최초 실제 Lab Director를 생성하고 이후 `WF-USER-REGISTRATION-V1`으로 ADMIN_SECURITY·일반 연구원·Vendor 가입을 각각 승인/활성화
+- [ ] 480분 absolute 경과·`refreshed_at` 기준 60분 refresh inactivity·이전 session이 다음 요청에서 각각 거부됨을 실세션으로 증명
 - [ ] DeviceTrust nonce/MAC 변조, cross-actor/session, 만료·철회가 provider/업무 호출 전 거부됨을 증명
 - [ ] 민감 action step-up policy version과 유효시간 승인 후 replay/cross-action 거부 증명
 - [ ] 외부 Worker의 15분 reconciliation과 60분 DB/Storage backup을 24시간 이상 연속 실증
@@ -77,5 +78,7 @@ Vercel Hobby Cron은 하루 1회만 허용하므로 15분/60분 작업의 실행
 - [ ] `YOUONE_STAGING_PRIMARY → YOUONE_STAGING_RECOVERY` 격리 복구, role password 재프로비저닝 및 RTO 240분 내 readiness 복구
 - [ ] Free project pause/복구 runbook과 경보를 모의하고, production용 Free 잔여위험을 별도 사용자 승인
 - [ ] exact candidate commit에 귀속된 R05 matrix와 정확히 27개 R06 artifact 생성
+
+DeviceTrust/StepUpGrant 개발과 실제 actor 준비는 순차 대기가 아니라 병행한다. 최초 Lab Director bootstrap이 승인·완료되면 ADMIN_SECURITY, 일반 연구원, Vendor 신청을 즉시 만들어 각 보안기능을 live Supabase session으로 검증한다.
 
 공식 근거: [Supabase User sessions](https://supabase.com/docs/guides/auth/sessions), [Supabase Free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing), [Supabase backups](https://supabase.com/docs/guides/platform/backups), [Vercel Cron usage and pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing), [GitHub Actions scheduled workflow 주의사항](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows#triggering-event-conditions).

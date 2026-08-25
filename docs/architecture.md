@@ -134,6 +134,8 @@ Actor, Resource Context, Projection은 모두 factory provenance를 런타임에
 
 Identity/RBAC 변경은 일반 table write로 열지 않는다. 계정·업체 비활성화와 Vendor membership 부여/회수는 trusted request time, 현재 권한, optimistic version을 검사하고 상태 변경과 M02 Audit을 같은 transaction에 기록하는 guarded function만 사용한다. Acting authority ID도 transaction context에 전달하고 DB가 authenticated/effective actor, 기간, 회수, action set, 공식 승인 role을 재검증한다.
 
+회원가입도 Auth provider가 도메인을 선점하지 않는다. public Web은 passwordless `USER_REGISTRATION_APPLICATION`만 Application Service에 제출하고 Supabase `signUp()`이나 Data API table write를 직접 호출하지 않는다. direct Lab Director의 immutable 승인과 outbox commit 뒤 Worker 전용 Supabase Admin invite adapter가 provider subject를 PENDING UserAccount에 결합한다. provider invite, UserAccount provisioning, assignment/VendorMembership, TOTP/DeviceTrust activation은 각각 독립 Port와 감사경계를 가지며 자세한 계약은 `docs/identity-registration.md`가 정본이다.
+
 ## 6. 데이터와 트랜잭션
 
 - PostgreSQL이 업무 정본이다.

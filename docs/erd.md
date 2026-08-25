@@ -15,6 +15,12 @@
 ```mermaid
 erDiagram
   ORGANIZATION ||--o{ DEPARTMENT : contains
+  USER_REGISTRATION_APPLICATION ||--o| USER_REGISTRATION_DECISION : decided_by
+  USER_REGISTRATION_APPLICATION ||--o| ACCOUNT_PROVISIONING : provisions
+  USER_REGISTRATION_APPLICATION o|--o{ USER_REGISTRATION_APPLICATION : predecessor
+  VENDOR o|--o{ USER_REGISTRATION_APPLICATION : requested_vendor
+  USER_ACCOUNT o|--o{ USER_REGISTRATION_DECISION : director
+  USER_ACCOUNT o|--o| ACCOUNT_PROVISIONING : creates
   USER_ACCOUNT ||--o{ USER_ORGANIZATION_ASSIGNMENT : assigned
   ORGANIZATION ||--o{ USER_ORGANIZATION_ASSIGNMENT : bounds
   USER_ACCOUNT ||--o{ USER_DEPARTMENT_ASSIGNMENT : assigned
@@ -45,6 +51,41 @@ erDiagram
     uuid id PK
     string legal_name
     enum status
+  }
+  USER_REGISTRATION_APPLICATION {
+    uuid id PK
+    uuid predecessor_id FK
+    bytes email_ciphertext
+    string email_hmac UK
+    string display_name
+    enum requested_account_kind
+    uuid requested_vendor_id FK
+    string consent_policy_version
+    datetime consented_at
+    enum state
+    bigint version_no
+    string checksum
+  }
+  USER_REGISTRATION_DECISION {
+    uuid id PK
+    uuid registration_id FK
+    bigint registration_version
+    string registration_checksum
+    uuid decided_by_user_id FK
+    enum decision
+    string reason_code
+    datetime decided_at
+  }
+  ACCOUNT_PROVISIONING {
+    uuid id PK
+    uuid registration_id FK
+    uuid user_account_id FK
+    string provider_subject UK
+    string idempotency_key UK
+    enum state
+    datetime invited_at
+    datetime activated_at
+    bigint version_no
   }
   DEPARTMENT {
     uuid id PK
@@ -172,7 +213,7 @@ erDiagram
   }
 ```
 
-M03 physically creates Identity/RBAC, Vendor/VendorUser, acting-authority, normalized action-set, and named field-projection records. `PROJECT_SCOPE`, `CONTRACT_SCOPE`, and exact DocumentVersion grant records remain logical extension points until M06, M07, and M05 can create them with their real typed FK targets and RLS in the same migration. M03 must not substitute a generic `(resource_type, resource_id)` grant table.
+M03 physically creates Identity/RBAC, Vendor/VendorUser, acting-authority, normalized action-set, and named field-projection records. `USER_REGISTRATION_APPLICATION`, immutable decision and provider provisioning are approved P0 extensions but require a new Platform/Security migration after `OD-042` bootstrap/public contracts are reviewed. `PROJECT_SCOPE`, `CONTRACT_SCOPE`, and exact DocumentVersion grant records remain logical extension points until M06, M07, and M05 can create them with their real typed FK targets and RLS in the same migration. M03 must not substitute a generic `(resource_type, resource_id)` grant table.
 
 M04 physically creates `APPROVAL_POLICY`, immutable/sealed `APPROVAL_POLICY_VERSION`, normalized step/participant policy rules, `APPROVAL_INSTANCE`, snapshotted `APPROVAL_STEP`/`APPROVAL_PARTICIPANT`, append-only `APPROVAL_ACTION`, and the bootstrap typed link `APPROVAL_SUBJECT_POLICY_VERSION`. The typed link uses exact version/checksum composite FKs; later subject adapters are added only with their real aggregate FKs. Policy-rule ownership cannot be reparented to bypass a sealed version, and resubmission requires the same subject root plus a strictly newer sealed version.
 

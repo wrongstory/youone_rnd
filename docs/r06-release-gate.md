@@ -29,7 +29,7 @@ Supabase 공식 문서상 global sign-out은 해당 사용자의 모든 session�
 - [x] MFA actor는 `INTERNAL`, `VENDOR`; 민감 action은 아래 exact allowlist로 step-up한다.
 - [x] factor는 `TOTP`만 허용하고 `aal2`를 요구한다. Phone factor는 허용하지 않는다.
 - [x] JWT 만료시간은 60분이다.
-- [x] session 최대시간은 480분, inactivity timeout은 60분이다.
+- [x] session 최대시간은 480분, provider `auth.sessions.refreshed_at` 기준 refresh inactivity timeout은 60분이다. 이는 마지막 사용자 화면 조작시각을 뜻하지 않는다.
 - [x] single-session per user를 적용한다.
 - [x] 신규 device 재인증을 적용하고 managed-device 제한은 아래 민감정보/운영 action에 적용한다.
 
@@ -125,7 +125,7 @@ stable ID 후보:
 - [ ] Web용 `NOINHERIT`/`NOBYPASSRLS` request login과 별도 Identity Resolver login 발급
 - [ ] Worker용 별도 최소권한 login 발급; `youone_privileged_writer` 외 role SET 및 직접 table 권한 금지
 - [ ] Auth에서 TOTP/AAL2와 JWT 60분 적용·증거화
-- [ ] R06 Identity Resolver의 `auth.sessions` 기반 480분 absolute/60분 inactivity/newest-session-only 거부를 각각 실세션으로 검증
+- [ ] R06 Identity Resolver의 `auth.sessions` 기반 480분 absolute/60분 refresh inactivity (`refreshed_at` 기준)/newest-session-only 거부를 각각 실세션으로 검증
 - [ ] new-device reauthentication/managed-device를 application-owned DeviceTrust로 검증하고 부재·변조·만료·철회 시 민감 action 차단
 - [ ] sensitive-action StepUpGrant 유효시간을 승인하고 actor/session/device/exact-action binding과 replay/cross-action 거부 검증
 - [ ] publishable key와 service-role key를 분리하고 service-role은 Worker secret store에만 저장

@@ -2,6 +2,21 @@
 
 This document describes end-to-end business flows. Exact states and permitted transitions are canonical in `docs/state-machines.md`.
 
+## 0. User Registration and Activation
+
+Workflow ID: `WF-USER-REGISTRATION-V1`.
+
+1. Applicant submits a passwordless pre-Auth request with display name, normalized email, account kind, optional existing Vendor ID and consent evidence.
+2. The public endpoint rate-limits/CAPTCHA-checks the request, HMAC-fingerprints and encrypts the email, returns the same receipt response for duplicate/existing/invalid-internal cases, and creates no Supabase user/session.
+3. A direct active Lab Director reviews the exact immutable request. Senior, Representative, Admin roles, delegation and self-asserted authority cannot decide it.
+4. Approval or rejection is terminal for that request version. Corrections create a successor request; rejection requires a reason.
+5. Approval commits immutable decision/audit/transition plus `IDENTITY_REGISTRATION_APPROVED` outbox in one transaction.
+6. Worker revalidates the approved snapshot and invokes server-only Supabase Admin invite idempotently. Returned provider subject is bound to a PENDING UserAccount; provider credentials and invite links never enter Audit.
+7. UserAccount becomes ACTIVE only after invitation/password, TOTP `aal2`, DeviceTrust and required assignment or VendorMembership readiness are all verified.
+8. Signup approval grants no Role, Position, Project/Contract Scope or technical-information access. Vendor remains Deny by Default.
+
+The first Lab Director cannot self-bootstrap through this flow and remains blocked by `OD-042`.
+
 ## 1. Common Approval
 
 Workflow ID: `WF-APPROVAL-V1`.

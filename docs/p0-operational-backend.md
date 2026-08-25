@@ -46,6 +46,7 @@ This first slice does not close B01 or issue `#58`.
 - New-device/managed-device trust and sensitive-action step-up remain fail-closed design requirements without a provider implementation.
 - Password recovery request is generic and non-enumerating, but recovery-link exchange, new-password mutation and global session reconciliation are not implemented.
 - Internal/Vendor invitation, provisioning, effective assignment/grant changes, disable/revoke sagas and UserAccount display-profile fields are not implemented as live APIs.
+- Passwordless pre-Auth registration and direct Lab Director approval are now approved P0 requirements, but registration persistence, server-only provider invitation, bootstrap evidence and activation orchestration are not implemented.
 - Project/WBS/member/link/formal-research Command repositories, actual Project Query projection and server-calculated allowed actions are not composed.
 - There is no `supabase/config.toml` or linked local project; therefore no claim is made that migrations have been applied to a live Supabase instance.
 
@@ -57,15 +58,15 @@ The current B01 slice adds the application-owned distributed limiter and durable
 
 - Supabase client libraries dropped Node.js 20 support on 2026-06-30; this repository requires Node.js 24, so the runtime baseline is compatible.
 - New tables are moving to explicit Data API exposure. Grants and RLS are separate gates; `authenticated` access is never granted without reviewed object grants and row policies.
-- TOTP MFA is available on Free. Native time-box, inactivity and single-session settings are Pro-only, so Staging must instead prove the repository's request-time `auth.sessions` 480m/60m/newest-session checks; provider refresh alone is not accepted as evidence.
+- TOTP MFA is available on Free. Native time-box, refresh-inactivity and single-session settings are Pro-only, so Staging must instead prove the repository's request-time `auth.sessions` 480m absolute / 60m `refreshed_at`-based refresh-inactivity / newest-session checks. This is not a last-user-click timer.
 - New Free projects using default SMTP cannot customize Auth email templates; production recovery/invitation email requires a reviewed custom SMTP setup.
 
 Official references: [Supabase changelog](https://supabase.com/changelog), [Auth sessions](https://supabase.com/docs/guides/auth/sessions), [TOTP MFA](https://supabase.com/docs/guides/auth/auth-mfa/totp), [Data API security](https://supabase.com/docs/guides/api/securing-your-api).
 
 ## 6. Next merge slices
 
-1. Complete B01 with Worker reconciliation/incident escalation, recovery confirmation, device/step-up ports and an approved `OD-039` policy binding; the distributed limiter and durable request/result audit contract are implemented fail-closed.
-2. Implement B02 UserAccount/assignment/Vendor grant Query and audited Command workflows.
+1. Implement DeviceTrust and StepUpGrant while preparing the reviewed `OD-042` first-actor bootstrap evidence.
+2. Implement B02 passwordless registration, direct Lab Director decision, server-only provider invite, UserAccount/assignment/Vendor grant Query and audited Command workflows.
 3. Implement B03 Project/WBS/member/link/formal designation repositories and HTTP Commands.
 4. Replace preview Query paths under B04 and return server-authorized action lists.
 5. Bind #59 Frontend to the exact DTOs, then execute live Supabase Staging contract/E2E tests and regenerate #36 evidence from the resulting exact `dev` SHA.

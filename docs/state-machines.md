@@ -23,6 +23,28 @@ Legend:
 - `Vendor`: exact active vendor/scope.
 - `System`: idempotent trusted worker.
 
+## 1.1 User Registration and Account Provisioning
+
+Registration machine: `SM-USER-REGISTRATION-V1`.
+
+States: `SUBMITTED`, `APPROVED`, `REJECTED`, `WITHDRAWN`.
+
+Events:
+
+| From | Event | Actor | To | Preconditions |
+|---|---|---|---|---|
+| `SUBMITTED` | `DIRECTOR_APPROVE` | direct Lab Director | `APPROVED` | authenticated=effective, active INTERNAL + `POSITION_LAB_DIRECTOR`, exact version/checksum, decision evidence, no duplicate active/pending account |
+| `SUBMITTED` | `DIRECTOR_REJECT` | direct Lab Director | `REJECTED` | same actor evidence, exact version/checksum, nonempty rejection reason |
+| `SUBMITTED` | `APPLICANT_WITHDRAW` | applicant proof holder | `WITHDRAWN` | exact one-time status proof and version; no decision yet |
+
+`APPROVED`, `REJECTED`, `WITHDRAWN` are terminal for that immutable request. Resubmission creates a successor linked to the terminal predecessor. No Senior, Representative, Admin-role, acting-authority or self-approval event exists.
+
+Provisioning machine: `SM-ACCOUNT-PROVISIONING-V1`.
+
+States: `QUEUED`, `INVITE_SENT`, `ACTIVATION_PENDING`, `ACTIVE`, `FAILED`, `CANCELLED`.
+
+The Worker may process only an exact `APPROVED` request and stable idempotency key. Provider invite success, provider-subject/UserAccount binding, TOTP/DeviceTrust and assignment/membership readiness are separately evidenced. `FAILED` never auto-activates and retry cannot create a second UserAccount. Vendor activation does not create Project/Contract Scope.
+
 ## 2. Project
 
 Machine: `SM-PROJECT-V1`.
