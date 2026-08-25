@@ -45,6 +45,21 @@ States: `QUEUED`, `INVITE_SENT`, `ACTIVATION_PENDING`, `ACTIVE`, `FAILED`, `CANC
 
 The Worker may process only an exact `APPROVED` request and stable idempotency key. Provider invite success, provider-subject/UserAccount binding, TOTP/DeviceTrust and assignment/membership readiness are separately evidenced. `FAILED` never auto-activates and retry cannot create a second UserAccount. Vendor activation does not create Project/Contract Scope.
 
+## 1.2 DeviceTrust
+
+Machine: `SM-DEVICE-TRUST-V1`.
+
+States: `PENDING`, `ACTIVE`, `REVOKED`, `EXPIRED`.
+
+| From | Event | To | Actor | Preconditions / audit |
+|---|---|---|---|---|
+| — | `identity.device-trust.enroll.activation` | `PENDING` | exact-self restricted ActivationContext | effective approved policy, server nonce HMAC, exact UserAccount/session/evidence; one live row only |
+| `PENDING` | `DEVICE_TRUST_ACTIVATED` | `ACTIVE` | exact-self restricted ActivationContext | enrollment cookie MAC, exact HMAC/policy/version, unconsumed PENDING row and unexpired session |
+| `PENDING`,`ACTIVE` | `DEVICE_TRUST_REVOKED` | `REVOKED` | reviewed security command | revoker/reason evidence, optimistic version and audit |
+| `PENDING`,`ACTIVE` | `DEVICE_TRUST_EXPIRED` | `EXPIRED` | trusted idempotent worker/read-time enforcement | policy-derived `expires_at` reached; no trust after boundary |
+
+`ACTIVE` DeviceTrust alone never activates the UserAccount. The separate PENDING→ACTIVE account command rechecks invitation/password, TOTP `aal2`, exact live session, unrevoked activation evidence, active DeviceTrust and the required INTERNAL assignment or VENDOR membership in one transaction.
+
 ## 2. Project
 
 Machine: `SM-PROJECT-V1`.

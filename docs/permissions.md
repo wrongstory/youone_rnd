@@ -55,7 +55,7 @@ M03 trust rules:
 
 A PENDING UserAccount never receives a business `ActorContext`. After exact provider issuer/project/sub/session, live `auth.sessions`, PENDING UserAccount, verified TOTP `aal2` and approved invite/bootstrap activation evidence are all revalidated, the server may derive a separate `ActivationContext`.
 
-This context permits only exact-self `identity.device-trust.enroll.activation` and minimal activation-readiness query. It cannot access Project, Document, Approval, user administration, registration decisions, Vendor/Contract scope or any general Query/Command. It is re-derived per request, accepts no client-supplied actor/user ID, and becomes invalid on DeviceTrust completion or any session/account/TOTP/evidence change. PENDING accounts receive no direct Data API access.
+This context permits only exact-self DeviceTrust enrollment/verification and minimal activation-readiness query. It cannot access Project, Document, Approval, user administration, registration decisions, Vendor/Contract scope or any general Query/Command. It is re-derived per request and accepts no client-supplied actor/user ID. DeviceTrust completion blocks another enrollment as replay but still allows verification/readiness while the account remains PENDING; any session/account/TOTP/evidence invalidation or the PENDING→ACTIVE transition removes the context. PENDING accounts receive no direct Data API access.
 
 ## 3. Stable Roles
 

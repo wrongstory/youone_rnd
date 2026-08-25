@@ -1,6 +1,7 @@
 /** Public cross-module contracts for @youone/core-identity. */
 
 import type { Sha256, StableCode, UtcInstant, Uuid, Version } from "@youone/shared-kernel/public";
+export { IdentityVerificationError } from "./identity-verification-error";
 
 export type AccountStatus = "ACTIVE" | "DISABLED" | "PENDING";
 export type AccountKind = "INTERNAL" | "VENDOR";
@@ -68,11 +69,5 @@ export interface IdentitySnapshotSource {
   loadByVerifiedSubject(authSubject: string, requestTime: UtcInstant): Promise<IdentitySnapshot | null>;
 }
 
-export class IdentityVerificationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "IdentityVerificationError";
-  }
-}
-
 export * from "./operational-auth";
+export * from "./device-trust";

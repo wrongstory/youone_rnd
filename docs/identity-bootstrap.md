@@ -63,7 +63,7 @@ ActivationContext
 
 허용 action은 exact self의 `identity.device-trust.enroll.activation`과 최소 activation-readiness 조회뿐이다. Project, 문서, 결재, 사용자관리, 가입승인, Vendor/Contract Scope, 일반 Query/Command와 다른 사용자/기기 조작은 모두 거부한다. 브라우저가 actor/user ID를 지정하지 않으며 서버가 provider subject에서 exact PENDING UserAccount를 찾는다.
 
-`ActivationContext`는 독립 bearer grant로 저장하지 않고 매 요청 live session과 activation evidence에서 다시 파생한다. DeviceTrust 등록 완료, UserAccount 상태 변경, session/TOTP/evidence 회수 또는 불일치 시 즉시 더 이상 발급하지 않는다. PENDING 계정에는 Data API 직접 접근을 열지 않고 trusted activation application service만 최소 DB command를 수행한다.
+`ActivationContext`는 독립 bearer grant로 저장하지 않고 매 요청 live session과 activation evidence에서 다시 파생한다. DeviceTrust 등록 완료 뒤에는 동일 session의 재등록을 replay로 거부하되, 계정이 PENDING인 동안 verification과 activation-readiness 조회에는 계속 재파생할 수 있다. UserAccount가 ACTIVE/DISABLED로 바뀌거나 session/TOTP/evidence가 회수·만료·불일치하면 즉시 더 이상 발급하지 않는다. PENDING 계정에는 Data API 직접 접근을 열지 않고 trusted activation application service만 최소 DB command를 수행한다.
 
 ## 5. Evidence와 실패 보상
 

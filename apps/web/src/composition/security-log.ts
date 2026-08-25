@@ -1,5 +1,9 @@
 export type SecurityLogInput = Readonly<{
   event:
+    | "ACTIVATION_DATABASE_IDLE_CLIENT_ERROR"
+    | "ACTIVATION_REQUEST_COMPLETED"
+    | "ACTIVATION_REQUEST_DENIED"
+    | "ACTIVATION_REQUEST_FAILED"
     | "AUTH_REQUEST_COMPLETED"
     | "AUTH_REQUEST_DENIED"
     | "AUTH_REQUEST_FAILED"
@@ -10,7 +14,10 @@ export type SecurityLogInput = Readonly<{
     | "SYNC_REQUEST_FAILED";
   correlationId: string;
   route:
+    | "/api/auth/activation"
     | "/api/auth/csrf"
+    | "/api/auth/device-trust/enroll"
+    | "/api/auth/device-trust/verify"
     | "/api/auth/login"
     | "/api/auth/logout"
     | "/api/auth/mfa/enroll"
@@ -19,6 +26,7 @@ export type SecurityLogInput = Readonly<{
     | "/api/auth/refresh"
     | "/api/auth/session"
     | "/api/v1/sync/commands"
+    | "runtime:activation-database"
     | "runtime:identity-resolver"
     | "runtime:request-database";
   outcome: string;

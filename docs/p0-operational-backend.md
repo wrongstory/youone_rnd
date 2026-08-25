@@ -66,7 +66,7 @@ Official references: [Supabase changelog](https://supabase.com/changelog), [Auth
 ## 6. Next merge slices
 
 1. Merge the approved OD-042/043 design Gate.
-2. Implement the minimal DeviceTrust vertical slice, including the restricted `ActivationContext`, before creating the first real account.
+2. Merge and deploy issue `#65`'s minimal DeviceTrust vertical slice, including the restricted `ActivationContext`, dedicated activation DB capability and adversarial tests, before creating the first real account.
 3. Execute the `OD-042` first-actor bootstrap ceremony in `docs/identity-bootstrap.md` and activate the first Lab Director only after TOTP and DeviceTrust.
 4. Implement B02 passwordless registration, direct Lab Director decision, server-only provider invite, UserAccount/assignment/Vendor grant Query and audited Command workflows under the effective `OD-043` policy.
 5. Bind #59 registration Frontend to the exact DTOs and Turnstile contract.
