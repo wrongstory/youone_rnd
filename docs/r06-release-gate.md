@@ -2,7 +2,7 @@
 
 ## 1. 상태
 
-`R06-RELEASE-EVIDENCE-V1`은 P0 릴리즈 승격을 검증하는 fail-closed 계약이다. 2026-08-23 사용자가 `OD-019`, `OD-035`, `OD-036`의 정책값과 공급자 잔여위험을 승인했다. 다만 실제 승인자 `UserAccount` UUID, 운영 stable ID, versioned approval snapshot/evidence digest, 실제 Staging 증거, 복구훈련 및 전체 증거 ID가 아직 없으므로 결과는 `BLOCKED`다. `READY_FOR_RELEASE_PR`도 production 전환 승인이 아니며, 별도의 사용자 승인 `dev → main` PR을 만들 수 있다는 뜻만 가진다.
+`R06-RELEASE-EVIDENCE-V1`은 P0 릴리즈 승격을 검증하는 fail-closed 계약이다. 2026-08-23 사용자가 `OD-019`, `OD-035`, `OD-036`의 정책값과 공급자 잔여위험을 승인했고, 2026-08-25 `YOUONE_STAGING_PRIMARY`/Recovery binding, Vercel, monitoring/evidence/Google Drive backup stable ID와 `OD-039` 값을 승인했다. 같은 날 Supabase는 당분간 Free Plan으로 유지하고 Pro 전용 session controls를 애플리케이션·PostgreSQL·외부 Worker로 대체하기로 변경했다. 다만 실제 승인자 `UserAccount` UUID, versioned approval snapshot/evidence digest, DeviceTrust/StepUpGrant와 외부 Worker 실증, 실제 Staging 증거, 복구훈련 및 전체 증거 ID가 아직 없으므로 결과는 `BLOCKED`다. `READY_FOR_RELEASE_PR`도 production 전환 승인이 아니며, 별도의 사용자 승인 `dev → main` PR을 만들 수 있다는 뜻만 가진다.
 
 ## 2. 운영정책 계약
 
@@ -29,7 +29,7 @@ Supabase 공식 문서상 global sign-out은 해당 사용자의 모든 session�
 - [x] MFA actor는 `INTERNAL`, `VENDOR`; 민감 action은 아래 exact allowlist로 step-up한다.
 - [x] factor는 `TOTP`만 허용하고 `aal2`를 요구한다. Phone factor는 허용하지 않는다.
 - [x] JWT 만료시간은 60분이다.
-- [x] session 최대시간은 480분, inactivity timeout은 60분이다.
+- [x] session 최대시간은 480분, provider `auth.sessions.refreshed_at` 기준 refresh inactivity timeout은 60분이다. 이는 마지막 사용자 화면 조작시각을 뜻하지 않는다.
 - [x] single-session per user를 적용한다.
 - [x] 신규 device 재인증을 적용하고 managed-device 제한은 아래 민감정보/운영 action에 적용한다.
 
@@ -49,11 +49,11 @@ managed-device 전용 후보는 `audit.security.read`, `contract.detail.finance.
 - [x] RPO 60분, RTO 240분
 - [x] DB 백업 주기 60분, 보존 14일
 - [x] Private Storage 백업 주기 60분, 보존 30일
-- [ ] 모니터링 목적지 stable ID
+- [x] 모니터링 목적지 stable ID
 - [ ] 사고대응 담당자 actor UUID
 - [ ] 복구 승인자 actor UUID
 - [ ] 복구 실행자 actor UUID와 승인자/실행자 집합 무교집합
-- [ ] 운영증거 보관 위치 stable ID
+- [x] 운영증거 보관 위치 stable ID
 
 구현수단은 비용을 고려할 수 있지만 승인된 RPO/RTO를 낮추거나 DB와 Storage 객체 백업을 혼동할 수 없다. DB backup cadence와 Storage manifest/byte backup cadence는 각각 60분 이하여야 하고, 격리 복구 실증이 RTO 240분 이내 완료됨을 증명해야 한다.
 
@@ -107,26 +107,32 @@ order by u.id;
 stable ID 후보:
 
 - actor selection reference: `POSITION_LAB_DIRECTOR` (`10000000-0000-4000-8000-000000000003`), `ADMIN_SYSTEM` (`20000000-0000-4000-8000-000000000006`), `ADMIN_SECURITY` (`20000000-0000-4000-8000-000000000007`), `ROLE_SAFETY_MANAGER` (`20000000-0000-4000-8000-000000000009`)
-- monitoring: `MONITORING_SUPABASE_PLATFORM`, `MONITORING_GITHUB_ACTIONS`, `MONITORING_APPLICATION_SECURITY_LOG`
-- evidence location: `OPS_EVIDENCE_PRIVATE_PRIMARY`
-- Staging environment: `YOUONE_STAGING_PRIMARY`
-- isolated restore target: `YOUONE_STAGING_RECOVERY`
+- monitoring (approved): `MONITORING_SUPABASE_PLATFORM`, `MONITORING_GITHUB_ACTIONS`, `MONITORING_APPLICATION_SECURITY_LOG`
+- evidence location (approved): `OPS_EVIDENCE_PRIVATE_PRIMARY`, provider binding = encrypted private Google Drive
+- Staging environment (approved): `YOUONE_STAGING_PRIMARY` → Supabase project `dttwfqzkhjujqkcatyav`
+- isolated restore target (approved): `YOUONE_STAGING_RECOVERY` → Supabase project `jzxhetszlucgutnwidkd`
 
 후보 ID는 credential이나 URL이 아니며, 실제 대상과 owner/retention/access control을 검토한 후 policy snapshot에 등록한다.
 
 ### Supabase Staging 준비 목록
 
-- [ ] 서로 다른 두 non-production project 준비: `YOUONE_STAGING_PRIMARY`, `YOUONE_STAGING_RECOVERY`
+- [x] 서로 다른 두 non-production project와 stable binding 준비: `YOUONE_STAGING_PRIMARY`, `YOUONE_STAGING_RECOVERY`
+- [x] Supabase 조직은 당분간 Free Plan으로 유지; Pro 전용 session-control에 의존하지 않음
+- [x] 비공유 Google Drive에 manifest/DB 14일/Storage 30일/release evidence/recovery drill 폴더 분리
+- [ ] Google Drive API 서비스 계정/OAuth, client-side encryption key, 60분 scheduler와 retention deletion을 restricted secret store에 결합
 - [ ] 동일 candidate commit migration을 clean/upgrade 경로로 적용하고 recovery target은 restore 시작 전 비어 있음을 증명
+- [x] 기존 M10 Primary에 M11~M16/R02/R03/R06/B01 ordered upgrade 적용 및 Security Advisor WARN/ERROR 0 확인
 - [ ] Web용 `NOINHERIT`/`NOBYPASSRLS` request login과 별도 Identity Resolver login 발급
 - [ ] Worker용 별도 최소권한 login 발급; `youone_privileged_writer` 외 role SET 및 직접 table 권한 금지
-- [ ] Auth에서 TOTP/AAL2, JWT 60분, session 480분, inactivity 60분, single-session과 신규 device 재인증 적용·증거화
-- [ ] Supabase plan이 time-box/inactivity/single-session을 지원하는지 확인하고 미지원이면 activation 차단
-- [ ] time-box/inactivity/single-session 변경이 refresh 시점에 적용되고 JWT expiry까지 최대 60분 지연될 수 있음을 실제 세션으로 검증
-- [ ] new-device reauthentication/managed-device는 별도 application/device-trust 계약으로 검증하고 provider 부재 시 민감 action 차단
+- [ ] Auth에서 TOTP/AAL2와 JWT 60분 적용·증거화
+- [ ] R06 Identity Resolver의 `auth.sessions` 기반 480분 absolute/60분 refresh inactivity (`refreshed_at` 기준)/newest-session-only 거부를 각각 실세션으로 검증
+- [ ] new-device reauthentication/managed-device를 application-owned DeviceTrust로 검증하고 부재·변조·만료·철회 시 민감 action 차단
+- [ ] sensitive-action StepUpGrant 유효시간을 승인하고 actor/session/device/exact-action binding과 replay/cross-action 거부 검증
 - [ ] publishable key와 service-role key를 분리하고 service-role은 Worker secret store에만 저장
 - [ ] 모든 Storage bucket `public=false`; source와 recovery bucket/object가 서로 다른 project에 존재
 - [ ] DB 60분/14일과 Storage 60분/30일 backup job 및 실패 알림 구성
+- [ ] 회사 통제 상시 Worker에서 15분 reconciliation, 60분 backup/retention, heartbeat를 실행; Vercel Hobby/GitHub-hosted schedule을 단독 cadence 증거로 사용하지 않음
+- [ ] Free project 자동 pause 경보·수동 resume·전체 readiness 재검증 runbook과 production 잔여위험 승인
 - [ ] RPO 60분/RTO 240분 내 DB+Storage 격리 복구훈련, count/size/SHA-256 및 migration head 검증
 - [ ] DB restore 후 custom Web/Identity Resolver/Worker login password를 secret store에서 재프로비저닝
 - [ ] 재프로비저닝 후 Web database/request-auth와 Worker database/private-storage readiness 재검증

@@ -134,6 +134,8 @@ Actor, Resource Context, Projection은 모두 factory provenance를 런타임에
 
 Identity/RBAC 변경은 일반 table write로 열지 않는다. 계정·업체 비활성화와 Vendor membership 부여/회수는 trusted request time, 현재 권한, optimistic version을 검사하고 상태 변경과 M02 Audit을 같은 transaction에 기록하는 guarded function만 사용한다. Acting authority ID도 transaction context에 전달하고 DB가 authenticated/effective actor, 기간, 회수, action set, 공식 승인 role을 재검증한다.
 
+회원가입도 Auth provider가 도메인을 선점하지 않는다. public Web은 passwordless `USER_REGISTRATION_APPLICATION`만 Application Service에 제출하고 Supabase `signUp()`이나 Data API table write를 직접 호출하지 않는다. direct Lab Director의 immutable 승인과 outbox commit 뒤 Worker 전용 Supabase Admin invite adapter가 provider subject를 PENDING UserAccount에 결합한다. provider invite, UserAccount provisioning, assignment/VendorMembership, TOTP/DeviceTrust activation은 각각 독립 Port와 감사경계를 가지며 자세한 계약은 `docs/identity-registration.md`가 정본이다.
+
 ## 6. 데이터와 트랜잭션
 
 - PostgreSQL이 업무 정본이다.
@@ -228,7 +230,7 @@ R02 request Auth는 SDK의 session persistence/refresh를 끄고 caller token을
 
 Issue `#58`의 운영 Auth 1차 경계는 브라우저가 Supabase SDK나 token을 소유하지 않게 한다. `@youone/infra-supabase-auth/operational`이 password login, TOTP enrollment/verification, refresh, recovery request와 global sign-out provider 호출을 소유하고 Web route는 typed stable response만 반환한다. Access/refresh/TOTP factor context는 production `Secure`·`HttpOnly`·`SameSite=Strict`·`__Host-` cookie로 보존하며 모든 mutation은 exact same-origin과 double-submit CSRF를 요구한다. AAL1은 MFA enroll/challenge 외 업무 ActorContext를 만들 수 없고 `/api/auth/session`도 기존 `getUser + getClaims + auth.sessions + UserAccount` 전체 chain을 통과해야 한다.
 
-B01 abuse-prevention 경계는 Provider 호출 전에 `@youone/infra-postgres`의 request-principal capability로 subject/global fixed-window counter를 원자 소비한다. Login/recovery는 normalized identifier를 사용한다. 로그인 후 session mutation은 서버가 발급한 256-bit nonce와 `YOUONE_AUTH_RATE_SUBJECT_V1` domain-separated HMAC-SHA256 signature를 HttpOnly `nonce.signature` cookie로 보관하고, constant-time MAC 검증을 통과한 nonce만 token rotation과 무관한 limiter subject로 사용한다. Identifier·token·cookie·network 원문은 저장하지 않으며 limiter cookie가 없거나 변조되면 limiter와 Provider 호출 전 fail-closed한다. 정책은 immutable version/rule/revocation과 typed Approval link로 분리되고, sorted canonical V1 SHA-256이 정확히 6개 rule과 일치하며 distinct active `ADMIN_SECURITY` agreement와 `POSITION_LAB_DIRECTOR` approval이 completed ApprovalInstance에 존재해야 한다. Consume/result Audit은 동일 exact policy UUID를 `reason_record_ref`로 보존하고 result 기록은 선행 consume evidence를 재검증한다. `anon`/`authenticated` 및 request role은 정책·bucket/approval table을 직접 읽거나 쓸 수 없다. 실제 수치·2인 actor·deployment secret은 `OD-039` 전까지 미확정이다.
+B01 abuse-prevention 경계는 Provider 호출 전에 `@youone/infra-postgres`의 request-principal capability로 subject/global fixed-window counter를 원자 소비한다. Login/recovery는 normalized identifier를 사용한다. 로그인 후 session mutation은 서버가 발급한 256-bit nonce와 `YOUONE_AUTH_RATE_SUBJECT_V1` domain-separated HMAC-SHA256 signature를 HttpOnly `nonce.signature` cookie로 보관하고, constant-time MAC 검증을 통과한 nonce만 token rotation과 무관한 limiter subject로 사용한다. Identifier·token·cookie·network 원문은 저장하지 않으며 limiter cookie가 없거나 변조되면 limiter와 Provider 호출 전 fail-closed한다. 정책은 immutable version/rule/revocation과 typed Approval link로 분리되고, sorted canonical V1 SHA-256이 정확히 6개 rule과 일치하며 distinct active `ADMIN_SECURITY` agreement와 `POSITION_LAB_DIRECTOR` approval이 completed ApprovalInstance에 존재해야 한다. Consume/result Audit은 동일 exact policy UUID를 `reason_record_ref`로 보존하고 result 기록은 선행 consume evidence를 재검증한다. `anon`/`authenticated` 및 request role은 정책·bucket/approval table을 직접 읽거나 쓸 수 없다. `OD-039` 수치는 2026-08-25 승인됐지만 실제 2인 actor, effective Approval snapshot과 deployment secret을 결합하기 전에는 fail-closed한다.
 
 `#58`의 다음 B01 slice는 logout target을 trusted ActorContext의 exact subject/session에 결합하고 Identity Resolver 전용 presence port로 `auth.sessions` 부재를 최대 3회 확인한다. 결과 audit과 미확인 시 15분 reconciliation outbox는 같은 trusted request transaction에서 기록된다. DB trigger는 event subject를 authenticated `UserAccount`, provider session을 transaction-local session에 다시 결합하고 승인된 retry/cadence 외 값을 거부한다. Web은 JWT를 reconciliation payload에 넣지 않는다. 이 handoff는 Worker consumer와 live Staging 실행을 대신하지 않는다.
 
@@ -244,12 +246,14 @@ R06 release boundary는 Worker composition의 fail-closed 검증기로 운영정
 
 ### 초기 권장
 
-- Web/Application: Node.js 호환 Next.js App Router 배포.
+- Web/Application: Node.js 호환 Next.js App Router를 Vercel Staging에 배포하고, 검증된 exact `dev` SHA만 별도 사용자 승인 후 production 승격한다.
 - DB/Auth/File: Managed Supabase.
-- Background worker: 별도 worker 프로세스 또는 검증된 scheduler/queue adapter.
+- Background worker: 회사 통제 상시 worker 프로세스 또는 self-hosted runner. Supabase Free 대체 경로의 15분 reconciliation과 60분 backup은 Vercel Hobby/GitHub-hosted schedule에 단독 의존하지 않는다.
 - Environments: local, staging, production 분리.
 - Observability: 구조화 로그, request/actor correlation ID, error monitoring, security audit.
-- Backup: DB와 Storage manifest를 함께 검증하는 복구훈련.
+- Backup: 60분 주기 DB/Private Storage 산출물을 클라이언트 측 암호화한 뒤 비공유 Google Drive에 각각 14일/30일 보존하고, DB와 Storage manifest를 함께 검증하는 격리 복구훈련. Drive folder ID와 OAuth 자격증명은 Worker/CI secret store에서만 stable ID `OPS_EVIDENCE_PRIVATE_PRIMARY`에 결합한다.
+
+Supabase는 2026-08-25 사용자 결정에 따라 당분간 Free Plan으로 유지한다. Pro 전용 time-box/inactivity/single-session은 `20260824001800_r06_free_session_policy.sql`의 request-time `auth.sessions` 검사로 대체하고, 신규기기·managed-device·민감행위 재인증은 application-owned DeviceTrust/StepUpGrant로 분리한다. Free 자동 pause와 외부 scheduler 잔여위험은 `docs/supabase-free-operations.md` 및 R06 증거 Gate에서 fail-closed로 관리한다.
 
 ### 온프레미스 경로
 
