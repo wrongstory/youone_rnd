@@ -51,6 +51,12 @@ M03 trust rules:
 - `identity.registration.decide` is not a normal Role permission. It requires a direct active INTERNAL actor whose authenticated/effective IDs match and whose current Position is exactly `POSITION_LAB_DIRECTOR`; Senior, Representative, Admin roles and acting authority are denied.
 - A completed signup approval authorizes provider invitation only. Initial assignments and VendorMembership still require their audited application permissions, and Vendor business access still requires exact Project + Contract grants.
 
+### PENDING ActivationContext
+
+A PENDING UserAccount never receives a business `ActorContext`. After exact provider issuer/project/sub/session, live `auth.sessions`, PENDING UserAccount, verified TOTP `aal2` and approved invite/bootstrap activation evidence are all revalidated, the server may derive a separate `ActivationContext`.
+
+This context permits only exact-self `identity.device-trust.enroll.activation` and minimal activation-readiness query. It cannot access Project, Document, Approval, user administration, registration decisions, Vendor/Contract scope or any general Query/Command. It is re-derived per request, accepts no client-supplied actor/user ID, and becomes invalid on DeviceTrust completion or any session/account/TOTP/evidence change. PENDING accounts receive no direct Data API access.
+
 ## 3. Stable Roles
 
 | Role ID | Purpose | Does not imply |

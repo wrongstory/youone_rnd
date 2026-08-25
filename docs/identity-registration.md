@@ -69,6 +69,8 @@ AND no disable/revoke/expiry
 ACTIVE UserAccount
 ```
 
+초대 수락 후 아직 PENDING인 계정은 일반 업무 `ActorContext`나 Data API 권한을 받지 않는다. exact live provider session, TOTP `aal2`와 approved invite/bootstrap evidence로 매 요청 파생한 restricted `ActivationContext`에서 exact-self DeviceTrust enrollment와 최소 readiness 조회만 허용한다.
+
 내부 사용자의 조직·부서·직책·Role은 별도 audited assignment 명령으로 부여한다. 가입 승인이 `ROLE_RESEARCHER`, `ADMIN_SECURITY` 또는 연구소장 직책을 자동 부여하지 않는다. 외주 사용자는 별도 active VendorMembership이 필요하며, 그 이후에도 exact Project + Contract grant가 없으면 업무 데이터는 계속 Deny by Default다.
 
 provider invite 성공 후 DB 결합이 실패하면 초대 성공을 숨기지 않고 provisioning을 `FAILED`로 기록하고 provider session 생성 여부를 확인·회수한다. DB 성공 후 이메일 전송 상태가 불명확하면 같은 idempotency key로 reconciliation하며 중복 UserAccount나 두 번째 invite를 만들지 않는다.

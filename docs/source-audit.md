@@ -107,7 +107,7 @@
 | AUD-25 | 중복/불일치 | 계약 지급비율 예시가 `SRC-07`의 20~30/30~40/30~50과 `SRC-10`의 10~30/30~50/20~40로 다름 | 모두 권장 예시일 뿐 확정값이 아님. 계약별 입력이며 기본 하드코딩 금지 |
 | AUD-26 | 구버전/운영 | 2026-08-25 초기 운영 준비에서 Supabase Pro 전환 승인이 기록됐으나 같은 날 사용자가 당분간 Free Plan 유지로 변경 | 최신 사용자 결정이 우선한다. Pro 전용 session controls는 request-time Identity Resolver와 application-owned DeviceTrust/StepUpGrant로, 15분/60분 작업은 회사 통제 외부 Worker로 대체한다. Free auto-pause/SLA 잔여위험은 production 승격 전 별도 승인·실증한다. |
 | AUD-27 | 범위/운영 | 초기 P0 Auth는 초대·UserAccount 관리 화면을 예정했지만 공개 회원가입 신청과 최종 승인 authority가 정본에 없었음 | 2026-08-25 사용자 결정으로 비밀번호 없는 가입신청 → 연구소장 직권 단독 승인/반려 → server-only Supabase invite를 P0에 추가한다. 가입 승인은 Role/Position/VendorMembership/Scope 부여가 아니며 최초 연구소장 bootstrap은 `OD-042`로 별도 차단한다. |
-| AUD-28 | 보안/누락 | 공개 가입 신청 endpoint에 CAPTCHA 필요성만 있었고 email/network/global limit, privacy, `Retry-After`, provider 장애 및 versioned approval 계약이 없었음 | `OD-043`으로 분리하고 `docs/registration-abuse-policy.md`에 권장안을 기록한다. 사용자 승인 전 B02-A 구현·활성화는 fail-closed한다. |
+| AUD-28 | 보안/누락 | 공개 가입 신청 endpoint에 CAPTCHA 필요성만 있었고 email/network/global limit, privacy, `Retry-After`, provider 장애 및 versioned approval 계약이 없었음 | `OD-043` 초기값/provider는 2026-08-25 승인됐다. max-over-limit `Retry-After`, Vercel-owned IP source, deployment-specific Turnstile 결합과 raw IP/Siteverify `remoteip` 금지를 포함하며 runtime policy evidence 전 B02-A는 fail-closed한다. |
 
 ## 5. 채택한 정본 정책
 

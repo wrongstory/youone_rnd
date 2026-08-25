@@ -12,8 +12,9 @@ Workflow ID: `WF-USER-REGISTRATION-V1`.
 4. Approval or rejection is terminal for that request version. Corrections create a successor request; rejection requires a reason.
 5. Approval commits immutable decision/audit/transition plus `IDENTITY_REGISTRATION_APPROVED` outbox in one transaction.
 6. Worker revalidates the approved snapshot and invokes server-only Supabase Admin invite idempotently. Returned provider subject is bound to a PENDING UserAccount; provider credentials and invite links never enter Audit.
-7. UserAccount becomes ACTIVE only after invitation/password, TOTP `aal2`, DeviceTrust and required assignment or VendorMembership readiness are all verified.
-8. Signup approval grants no Role, Position, Project/Contract Scope or technical-information access. Vendor remains Deny by Default.
+7. A PENDING account with exact live provider session, verified TOTP and invite/bootstrap evidence may receive only a server-derived `ActivationContext` for self DeviceTrust enrollment; it receives no business ActorContext or general data access.
+8. UserAccount becomes ACTIVE only after invitation/password, TOTP `aal2`, DeviceTrust and required assignment or VendorMembership readiness are all verified.
+9. Signup approval grants no Role, Position, Project/Contract Scope or technical-information access. Vendor remains Deny by Default.
 
 The first Lab Director cannot self-bootstrap through this flow and remains blocked by `OD-042`. The public endpoint remains blocked until `OD-043` is approved and effective.
 
