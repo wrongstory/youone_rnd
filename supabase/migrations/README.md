@@ -26,6 +26,7 @@ Applied sequence:
 - `20260823001500_m16_force_registry_rls.sql`: forward-fix that applies FORCE RLS and explicit deny-all grants to the six M02 stable definition registries, closing table-owner policy bypass for non-migration identities.
 - `20260823001600_r02_active_auth_session.sql`: Identity Resolver-only exact Supabase `auth.sessions` subject/session capability with fail-closed provider-schema detection.
 - `20260824115454_b01_auth_session_revocation_confirmation.sql`: resolver-only post-sign-out session presence probe plus exact actor/session-bound audit and 15-minute reconciliation outbox enforcement.
+- `20260824154415_b01_auth_rate_limit_audit.sql`: canonical six-rule hash, distinct `ADMIN_SECURITY` + Lab Director Approval evidence, subject/global Auth buckets and exact-policy append-only HMAC audit capability; no numeric production policy is seeded.
 - `20260823001700_r03_offline_handlers.sql`: command-ID advisory serialization and five explicit R03 offline handlers with typed normalized drafts, exact actor/scope/state/version checks, safe stale projections, atomic transition/audit/outbox evidence, FORCE RLS, and Vendor-deny-by-default boundaries. This is a forward-only M15 race fix: a failed deployment or command transaction is rolled back in full; after production data exists, correction uses a new forward migration rather than dropping immutable command/evidence rows or draft tables.
 
 M03 intentionally does not create ProjectScope, ContractScope, or DocumentVersion grants before their typed FK targets exist.

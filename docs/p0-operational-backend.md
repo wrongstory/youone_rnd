@@ -42,14 +42,16 @@ This first slice does not close B01 or issue `#58`.
 
 - Two Supabase projects exist, but the primary candidate is not named/bound as `YOUONE_STAGING_PRIMARY`; no project reference, publishable key, custom SMTP, Web/Identity Resolver login or live user is configured in the repository or local environment.
 - Global sign-out, exact post-sign-out presence probing, three attempts and durable 15-minute reconciliation handoff are implemented, but the Worker consumer, incident escalation and live Staging evidence are not.
-- Provider rate-limit reason mapping exists; an application-owned distributed limiter and append-only login/MFA/logout audit store are not yet composed.
+- The application-owned distributed limiter and append-only request/result audit are composed, but `OD-039` numeric rules, distinct actual `ADMIN_SECURITY`/Lab Director actors, completed Approval evidence and deployment HMAC secret are not provisioned; operational mutation therefore remains fail-closed.
 - New-device/managed-device trust and sensitive-action step-up remain fail-closed design requirements without a provider implementation.
 - Password recovery request is generic and non-enumerating, but recovery-link exchange, new-password mutation and global session reconciliation are not implemented.
 - Internal/Vendor invitation, provisioning, effective assignment/grant changes, disable/revoke sagas and UserAccount display-profile fields are not implemented as live APIs.
 - Project/WBS/member/link/formal-research Command repositories, actual Project Query projection and server-calculated allowed actions are not composed.
 - There is no `supabase/config.toml` or linked local project; therefore no claim is made that migrations have been applied to a live Supabase instance.
 
-Any schema needed for display profiles, auth audit/rate limit, device trust or operational commands requires reviewed public contracts and a Platform/Security-owned migration. This slice deliberately creates no guessed migration.
+Any additional schema needed for display profiles, device trust or operational commands requires reviewed public contracts and a Platform/Security-owned migration. The rate-limit schema below creates typed policy/rule/revocation/bucket relations without inventing or seeding company-specific numeric values.
+
+The current B01 slice adds the application-owned distributed limiter and durable Auth attempt audit. Login/recovery use normalized identifier material; successful login issues an independent random 256-bit nonce in an HttpOnly/SameSite=Strict `nonce.signature` limiter-subject cookie. The signature is a domain-separated HMAC-SHA256 made with the deployment secret. Logout, TOTP enroll/verify and refresh verify the MAC in constant time before limiter or Provider dispatch and then use only the authenticated nonce, so provider-token rotation or client cookie replacement cannot reset the subject bucket. Only server-HMAC SHA-256 fingerprints and stable outcomes are persisted. The database recomputes the exact sorted canonical six-rule SHA-256, requires one completed immutable ApprovalInstance with distinct active `ADMIN_SECURITY` agreement and `POSITION_LAB_DIRECTOR` approval actions, and binds both consume/result Audit rows to the selected policy UUID. Result audit also requires matching prior consume evidence. Provider-created sessions are globally signed out best-effort after both post-provider application failures and outcome-audit failures. No numeric policy is seeded: `OD-039`, actual two-person actors, completed approval evidence and deployment secret remain production activation blockers.
 
 ## 5. Current Supabase compatibility notes
 
@@ -62,7 +64,7 @@ Official references: [Supabase changelog](https://supabase.com/changelog), [Auth
 
 ## 6. Next merge slices
 
-1. Complete B01 with exact post-logout session absence, durable audit, distributed rate limit, recovery confirmation and device/step-up ports.
+1. Complete B01 with Worker reconciliation/incident escalation, recovery confirmation, device/step-up ports and an approved `OD-039` policy binding; the distributed limiter and durable request/result audit contract are implemented fail-closed.
 2. Implement B02 UserAccount/assignment/Vendor grant Query and audited Command workflows.
 3. Implement B03 Project/WBS/member/link/formal designation repositories and HTTP Commands.
 4. Replace preview Query paths under B04 and return server-authorized action lists.

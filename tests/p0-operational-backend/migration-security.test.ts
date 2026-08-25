@@ -111,3 +111,61 @@ describe("B01 exact session revocation migration contract", () => {
     expect(confirmation).not.toMatch(/['"](?:accessToken|refreshToken|password|cookie|authorization)['"]/i);
   });
 });
+
+describe("B01 distributed Auth rate-limit and audit migration contract", () => {
+  const rateLimitName = "20260824154415_b01_auth_rate_limit_audit.sql";
+  const rateLimit = readFileSync(resolve(migrationsDirectory, rateLimitName), "utf8");
+
+  it("requires an immutable approved policy and exact six-action rule set without seeding defaults", () => {
+    expect(rateLimit).toContain("create table public.auth_rate_limit_policy_version");
+    expect(rateLimit).toContain("approval_snapshot_sha256");
+    expect(rateLimit).toContain("create table public.auth_rate_limit_policy_approval");
+    expect(rateLimit).toContain("security_owner_action_id uuid not null unique references public.approval_action(id)");
+    expect(rateLimit).toContain("lab_director_action_id uuid not null unique references public.approval_action(id)");
+    expect(rateLimit).toContain("auth_rate_limit_policy_version_immutable");
+    expect(rateLimit).toContain("auth_rate_limit_policy_rule_immutable");
+    expect(rateLimit).toContain("auth_rate_limit_policy_approval_immutable");
+    expect(rateLimit).toContain("select count(*) from public.auth_rate_limit_policy_rule");
+    expect(rateLimit).toContain(") <> 6 then");
+    expect(rateLimit).toContain("YOUONE_AUTH_RATE_LIMIT_POLICY_V1");
+    expect(rateLimit).toContain("policy.approval_snapshot_sha256 = app_private.auth_rate_limit_policy_sha256(policy.id)");
+    expect(rateLimit).toContain("security_role.stable_code = 'ADMIN_SECURITY'");
+    expect(rateLimit).toContain("director_position.stable_code = 'POSITION_LAB_DIRECTOR'");
+    expect(rateLimit).toContain("security_action.effective_actor_user_id <> director_action.effective_actor_user_id");
+    expect(rateLimit).not.toMatch(/insert\s+into\s+public\.auth_rate_limit_policy_version/i);
+  });
+
+  it("binds counters to trusted anonymous HMAC fingerprints and current effective policy", () => {
+    expect(rateLimit).toContain("app_private.required_setting('app.actor_kind') <> 'ANONYMOUS'");
+    expect(rateLimit).toContain("app.anonymous_subject_fingerprint");
+    expect(rateLimit).toContain("policy.effective_at = (");
+    expect(rateLimit).toContain("select max(candidate.effective_at)");
+    expect(rateLimit).toContain("scope_kind in ('GLOBAL', 'SUBJECT')");
+    expect(rateLimit).toContain("on conflict (scope_kind, scope_fingerprint, action_id) do update");
+  });
+
+  it("keeps policy and counters out of Data API roles and exposes only the request capability", () => {
+    expect(rateLimit).toContain("alter table public.auth_rate_limit_bucket force row level security");
+    expect(rateLimit).toContain("alter table public.auth_rate_limit_policy_approval force row level security");
+    expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from public, youone_request");
+    expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from anon");
+    expect(rateLimit).toContain("revoke all on public.auth_rate_limit_bucket from authenticated");
+    expect(rateLimit).toMatch(
+      /grant\s+execute\s+on\s+function\s+app_private\.consume_auth_rate_limit\(text,text,text,text,timestamptz\)[\s\S]*to\s+youone_request/i
+    );
+  });
+
+  it("binds consume and result audit evidence to one exact approved policy version", () => {
+    expect(rateLimit).toContain("returns table(allowed boolean, policy_version_id uuid, retry_after_seconds integer)");
+    expect(rateLimit).toContain("create or replace function app_private.append_auth_rate_limit_outcome");
+    expect(rateLimit).toContain("consumed.reason_record_ref = entry_policy_version_id");
+    expect(rateLimit).toContain("consumed.action_id = entry_action_id || '.rate_limit.consume'");
+    expect(rateLimit).toMatch(
+      /grant\s+execute\s+on\s+function\s+app_private\.append_auth_rate_limit_outcome\(uuid,uuid,text,uuid,text,text,timestamptz\)[\s\S]*to\s+youone_request/i
+    );
+  });
+
+  it("contains no raw credential-bearing persistence fields", () => {
+    expect(rateLimit).not.toMatch(/\b(?:email|identifier|password|access_token|refresh_token|cookie|authorization|network_address)\b/i);
+  });
+});

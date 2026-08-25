@@ -1,5 +1,48 @@
 /** Stable browser/server contract for the P0 operational authentication flow. */
+import type { CorrelationId, Sha256, StableCode, UtcInstant, Uuid } from "@youone/shared-kernel/public";
+
 export type OperationalAuthNextAction = "AUTHENTICATED" | "LOGIN" | "MFA_CHALLENGE" | "MFA_ENROLL";
+
+export type OperationalAuthRateLimitAction =
+  | "LOGIN"
+  | "LOGOUT"
+  | "MFA_ENROLL"
+  | "MFA_VERIFY"
+  | "RECOVERY"
+  | "REFRESH";
+
+export type OperationalAuthAttempt = Readonly<{
+  action: OperationalAuthRateLimitAction;
+  attemptId: Uuid;
+  correlationId: CorrelationId;
+  globalFingerprint: Sha256;
+  occurredAt: UtcInstant;
+  policyVersion: StableCode;
+  rateLimitAuditId: Uuid;
+  subjectFingerprint: Sha256;
+}>;
+
+export type OperationalAuthRateLimitDecision = Readonly<{
+  allowed: boolean;
+  policyVersionId: Uuid;
+  retryAfterSeconds: number;
+}>;
+
+export type OperationalAuthAttemptOutcome = Readonly<{
+  auditId: Uuid;
+  policyVersionId: Uuid;
+  reasonCode: StableCode;
+  result: "DENIED" | "FAILED" | "SUCCEEDED";
+}>;
+
+/**
+ * Application-owned, distributed abuse-prevention boundary. Implementations must
+ * persist only one-way fingerprints and reviewed stable outcome codes.
+ */
+export interface OperationalAuthAbusePreventionPort {
+  consume(attempt: OperationalAuthAttempt): Promise<OperationalAuthRateLimitDecision>;
+  recordOutcome(attempt: OperationalAuthAttempt, outcome: OperationalAuthAttemptOutcome): Promise<void>;
+}
 
 export type OperationalAuthReasonCode =
   | "AUTH_CSRF_INVALID"

@@ -46,12 +46,22 @@ export class SupabaseOperationalAuthGateway {
 
   public async login(identifier: string, credential: string): Promise<OperationalLoginResult> {
     const session = await this.provider.signIn(identifier, credential);
-    return this.classify(session);
+    try {
+      return await this.classify(session);
+    } catch (error) {
+      await this.compensateSession(session);
+      throw error;
+    }
   }
 
   public async refresh(refreshToken: string): Promise<OperationalLoginResult> {
     const session = await this.provider.refresh(refreshToken);
-    return this.classify(session);
+    try {
+      return await this.classify(session);
+    } catch (error) {
+      await this.compensateSession(session);
+      throw error;
+    }
   }
 
   public enrollTotp(session: OperationalProviderSession): Promise<OperationalEnrollmentResult> {
@@ -64,11 +74,16 @@ export class SupabaseOperationalAuthGateway {
     code: string
   ): Promise<OperationalProviderSession> {
     const verified = await this.provider.verifyTotp(session, factorId, code);
-    const assurance = await this.provider.assurance(verified.accessToken);
-    if (assurance.currentLevel !== "aal2") {
-      throw new SupabaseOperationalAuthError("AUTH_MFA_CODE_INVALID");
+    try {
+      const assurance = await this.provider.assurance(verified.accessToken);
+      if (assurance.currentLevel !== "aal2") {
+        throw new SupabaseOperationalAuthError("AUTH_MFA_CODE_INVALID");
+      }
+      return verified;
+    } catch (error) {
+      await this.compensateSession(verified);
+      throw error;
     }
-    return verified;
   }
 
   public recover(identifier: string, redirectTo: string): Promise<void> {
@@ -77,6 +92,14 @@ export class SupabaseOperationalAuthGateway {
 
   public signOutGlobally(session: OperationalProviderSession): Promise<void> {
     return this.provider.signOutGlobally(session);
+  }
+
+  private async compensateSession(session: OperationalProviderSession): Promise<void> {
+    try {
+      await this.provider.signOutGlobally(session);
+    } catch {
+      // The original failure is retained; compensation is best effort and never exposes provider details.
+    }
   }
 
   private async classify(session: OperationalProviderSession): Promise<OperationalLoginResult> {
