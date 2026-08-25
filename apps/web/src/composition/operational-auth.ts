@@ -42,6 +42,7 @@ const MAXIMUM_AUTH_BODY_BYTES = 16 * 1024;
 const MAXIMUM_SESSION_SECONDS = 8 * 60 * 60;
 const CSRF_SECONDS = MAXIMUM_SESSION_SECONDS;
 const MFA_CONTEXT_SECONDS = 10 * 60;
+const RATE_LIMIT_SUBJECT_CONTEXT = "YOUONE_AUTH_RATE_SUBJECT_V1\0";
 
 type OperationalAuthRoute =
   | "/api/auth/csrf"
@@ -232,7 +233,11 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
         const body = await readJson(request);
         const identifier = requiredEmail(body.identifier);
         const credential = requiredCredential(body.credential);
-        const rateSubject = requiredRateLimitSubject(rateLimitSubjectGenerator());
+        const rateSubjectNonce = requiredRateLimitSubjectNonce(rateLimitSubjectGenerator());
+        const rateSubjectCookie = signedRateLimitSubject(
+          rateLimitFingerprintSecret,
+          rateSubjectNonce
+        );
         const attempt = await beginAttempt("LOGIN", identifier, requestCorrelationId);
         let establishedSession: OperationalProviderSession | undefined;
         return attemptResponse(attempt, async () => {
@@ -243,7 +248,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
             nextAction: result.nextAction
           });
           setSessionCookies(response.headers, names, result.session, dependencies.production);
-          appendCookie(response.headers, names.rateSubject, rateSubject, {
+          appendCookie(response.headers, names.rateSubject, rateSubjectCookie, {
             httpOnly: true,
             maxAge: MAXIMUM_SESSION_SECONDS,
             path: "/",
@@ -270,7 +275,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/mfa/enroll", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const rateSubject = requireRateLimitSubject(request, names);
+        const rateSubject = requireRateLimitSubject(request, names, rateLimitFingerprintSecret);
         const attempt = await beginAttempt("MFA_ENROLL", rateSubject, requestCorrelationId);
         return attemptResponse(attempt, async () => {
           const enrollment = await dependencies.gateway.enrollTotp(session);
@@ -295,7 +300,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/mfa/verify", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const rateSubject = requireRateLimitSubject(request, names);
+        const rateSubject = requireRateLimitSubject(request, names, rateLimitFingerprintSecret);
         const factorId = requiredFactorId(readCookie(request, names.factor) ?? "");
         const code = requiredTotpCode((await readJson(request)).code);
         const attempt = await beginAttempt("MFA_VERIFY", rateSubject, requestCorrelationId);
@@ -321,7 +326,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const refreshToken = readCookie(request, names.refresh);
         if (refreshToken === null || !validOpaque(refreshToken)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
-        const rateSubject = requireRateLimitSubject(request, names);
+        const rateSubject = requireRateLimitSubject(request, names, rateLimitFingerprintSecret);
         const attempt = await beginAttempt("REFRESH", rateSubject, requestCorrelationId);
         let refreshedSession: OperationalProviderSession | undefined;
         return attemptResponse(attempt, async () => {
@@ -380,7 +385,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
       return execute("/api/auth/logout", request, async (requestCorrelationId) => {
         requireMutationTrust(request, names.csrf, expectedOrigin);
         const session = requireSession(request, names);
-        const rateSubject = requireRateLimitSubject(request, names);
+        const rateSubject = requireRateLimitSubject(request, names, rateLimitFingerprintSecret);
         const attempt = await beginAttempt("LOGOUT", rateSubject, requestCorrelationId);
         return attemptResponse(attempt, async () => {
           if (
@@ -590,15 +595,41 @@ function requireSession(request: Request, names: CookieNames): OperationalProvid
   return Object.freeze({ accessToken, refreshToken, expiresInSeconds: 3_600 });
 }
 
-function requireRateLimitSubject(request: Request, names: CookieNames): string {
+function requireRateLimitSubject(
+  request: Request,
+  names: CookieNames,
+  rateLimitFingerprintSecret: string
+): string {
   const subject = readCookie(request, names.rateSubject);
   if (subject === null) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
-  return requiredRateLimitSubject(subject);
+  const match = /^([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(subject);
+  if (match === null) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
+  const nonce = requiredRateLimitSubjectNonce(match[1] ?? "");
+  const suppliedSignature = match[2] ?? "";
+  const expectedSignature = rateLimitSubjectSignature(
+    rateLimitFingerprintSecret,
+    nonce
+  );
+  if (!constantTimeEqual(suppliedSignature, expectedSignature)) {
+    throw new AuthHttpError("AUTH_SESSION_REQUIRED");
+  }
+  return nonce;
 }
 
-function requiredRateLimitSubject(value: string): string {
+function requiredRateLimitSubjectNonce(value: string): string {
   if (!/^[A-Za-z0-9_-]{43}$/.test(value)) throw new AuthHttpError("AUTH_SESSION_REQUIRED");
   return value;
+}
+
+function signedRateLimitSubject(secret: string, nonce: string): string {
+  return `${nonce}.${rateLimitSubjectSignature(secret, nonce)}`;
+}
+
+function rateLimitSubjectSignature(secret: string, nonce: string): string {
+  return createHmac("sha256", secret)
+    .update(RATE_LIMIT_SUBJECT_CONTEXT, "utf8")
+    .update(nonce, "utf8")
+    .digest("base64url");
 }
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {

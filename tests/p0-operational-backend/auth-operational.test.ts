@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -23,7 +24,13 @@ const csrf = "csrf-token-that-is-long-enough-for-validation";
 const authSubject = "58000000-0000-4000-8000-000000000010";
 const providerSessionId = "58000000-0000-4000-8000-000000000011";
 const rateLimitPolicyId = "58000000-0000-4000-8000-000000000013";
-const rateSubject = "R".repeat(43);
+const rateLimitFingerprintSecret = "test-auth-rate-limit-secret-that-is-long-enough";
+const rateSubjectNonce = "R".repeat(43);
+const rateSubjectSignature = createHmac("sha256", rateLimitFingerprintSecret)
+  .update("YOUONE_AUTH_RATE_SUBJECT_V1\0", "utf8")
+  .update(rateSubjectNonce, "utf8")
+  .digest("base64url");
+const rateSubject = `${rateSubjectNonce}.${rateSubjectSignature}`;
 
 function authProtection() {
   return {
@@ -31,7 +38,7 @@ function authProtection() {
       consume: vi.fn(async () => ({ allowed: true, policyVersionId: rateLimitPolicyId, retryAfterSeconds: 0 })),
       recordOutcome: vi.fn(async () => undefined)
     },
-    rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+    rateLimitFingerprintSecret,
     rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
   } as const;
 }
@@ -193,7 +200,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       production: false,
-      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitFingerprintSecret,
       rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
     });
 
@@ -233,7 +240,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       gateway: new SupabaseOperationalAuthGateway(provider()),
       now: () => new Date("2026-08-24T12:02:00.000Z"),
       production: false,
-      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitFingerprintSecret,
       rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
     });
 
@@ -248,6 +255,7 @@ describe("#58 operational Supabase Auth gateway", () => {
     expect(serializedEvidence).not.toContain(session.accessToken);
     expect(serializedEvidence).not.toContain(session.refreshToken);
     expect(serializedEvidence).not.toContain(rateSubject);
+    expect(serializedEvidence).not.toContain(rateSubjectNonce);
     expect(attempts[0]).toMatchObject({
       action: "LOGIN",
       attemptId: "58000000-0000-4000-8000-000000000050",
@@ -271,7 +279,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       production: false,
-      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitFingerprintSecret,
       rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
     });
     const response = await http.login(authRequest("/api/auth/login", {
@@ -293,7 +301,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       production: false,
-      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitFingerprintSecret,
       rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
     });
     const response = await http.login(authRequest("/api/auth/login", {
@@ -312,7 +320,8 @@ describe("#58 operational Supabase Auth gateway", () => {
       gateway: new SupabaseOperationalAuthGateway(provider()),
       expectedOrigin: "https://rnd.youone.example",
       production: true,
-      randomToken: () => csrf
+      randomToken: () => csrf,
+      rateLimitSubjectGenerator: () => rateSubjectNonce
     });
     const csrfResponse = await http.csrf(new Request("https://rnd.youone.example/api/auth/csrf"));
     const csrfCookie = csrfResponse.headers.get("set-cookie") ?? "";
@@ -334,7 +343,7 @@ describe("#58 operational Supabase Auth gateway", () => {
     expect(cookies).toContain("__Host-youone-access=");
     expect(cookies).toContain("__Host-youone-refresh=");
     expect(cookies).toContain("__Host-youone-mfa-factor=");
-    expect(cookies).toContain("__Host-youone-auth-rate-subject=");
+    expect(cookies).toContain(`__Host-youone-auth-rate-subject=${rateSubject}`);
     expect(cookies).not.toContain("Path=/api");
   });
 
@@ -352,7 +361,7 @@ describe("#58 operational Supabase Auth gateway", () => {
       expectedOrigin: "http://localhost",
       gateway: new SupabaseOperationalAuthGateway(authProvider),
       production: false,
-      rateLimitFingerprintSecret: "test-auth-rate-limit-secret-that-is-long-enough",
+      rateLimitFingerprintSecret,
       rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
     });
 
@@ -368,6 +377,38 @@ describe("#58 operational Supabase Auth gateway", () => {
     }));
     expect(withoutStableSubject.status).toBe(401);
     expect(authProvider.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a tampered limiter-subject MAC before limiter or provider dispatch for every session mutation", async () => {
+    const authProvider = provider();
+    const abusePrevention = {
+      consume: vi.fn(async () => ({ allowed: true, policyVersionId: rateLimitPolicyId, retryAfterSeconds: 0 })),
+      recordOutcome: vi.fn(async () => undefined)
+    };
+    const http = createOperationalAuthHttp({
+      abusePrevention,
+      expectedOrigin: "http://localhost",
+      gateway: new SupabaseOperationalAuthGateway(authProvider),
+      production: false,
+      rateLimitFingerprintSecret,
+      rateLimitPolicyVersion: "AUTH_RATE_LIMIT_TEST_V1"
+    });
+    const tamperedSubject = `${rateSubjectNonce}.${"A".repeat(43)}`;
+    const tamperedCookie = `youone-csrf=${csrf}; youone-access=${session.accessToken}; youone-refresh=${session.refreshToken}; youone-mfa-factor=${factorId}; youone-auth-rate-subject=${tamperedSubject}`;
+
+    const responses = await Promise.all([
+      http.enroll(authRequest("/api/auth/mfa/enroll", {}, { cookie: tamperedCookie })),
+      http.verify(authRequest("/api/auth/mfa/verify", { code: "123456" }, { cookie: tamperedCookie })),
+      http.refresh(authRequest("/api/auth/refresh", {}, { cookie: tamperedCookie })),
+      http.logout(authRequest("/api/auth/logout", {}, { cookie: tamperedCookie }))
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401, 401]);
+    expect(abusePrevention.consume).not.toHaveBeenCalled();
+    expect(authProvider.enrollTotp).not.toHaveBeenCalled();
+    expect(authProvider.verifyTotp).not.toHaveBeenCalled();
+    expect(authProvider.refresh).not.toHaveBeenCalled();
+    expect(authProvider.signOutGlobally).not.toHaveBeenCalled();
   });
 
   it("compensates a provider session when response construction fails after successful login", async () => {
