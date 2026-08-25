@@ -2,7 +2,7 @@
 
 ## 1. 상태
 
-`R06-RELEASE-EVIDENCE-V1`은 P0 릴리즈 승격을 검증하는 fail-closed 계약이다. 2026-08-23 사용자가 `OD-019`, `OD-035`, `OD-036`의 정책값과 공급자 잔여위험을 승인했다. 다만 실제 승인자 `UserAccount` UUID, 운영 stable ID, versioned approval snapshot/evidence digest, 실제 Staging 증거, 복구훈련 및 전체 증거 ID가 아직 없으므로 결과는 `BLOCKED`다. `READY_FOR_RELEASE_PR`도 production 전환 승인이 아니며, 별도의 사용자 승인 `dev → main` PR을 만들 수 있다는 뜻만 가진다.
+`R06-RELEASE-EVIDENCE-V1`은 P0 릴리즈 승격을 검증하는 fail-closed 계약이다. 2026-08-23 사용자가 `OD-019`, `OD-035`, `OD-036`의 정책값과 공급자 잔여위험을 승인했고, 2026-08-25 `YOUONE_STAGING_PRIMARY`/Recovery binding, Pro/Vercel, monitoring/evidence/Google Drive backup stable ID와 `OD-039` 값을 승인했다. 다만 실제 승인자 `UserAccount` UUID, versioned approval snapshot/evidence digest, Pro 활성화, 실제 Staging 증거, 복구훈련 및 전체 증거 ID가 아직 없으므로 결과는 `BLOCKED`다. `READY_FOR_RELEASE_PR`도 production 전환 승인이 아니며, 별도의 사용자 승인 `dev → main` PR을 만들 수 있다는 뜻만 가진다.
 
 ## 2. 운영정책 계약
 
@@ -107,17 +107,21 @@ order by u.id;
 stable ID 후보:
 
 - actor selection reference: `POSITION_LAB_DIRECTOR` (`10000000-0000-4000-8000-000000000003`), `ADMIN_SYSTEM` (`20000000-0000-4000-8000-000000000006`), `ADMIN_SECURITY` (`20000000-0000-4000-8000-000000000007`), `ROLE_SAFETY_MANAGER` (`20000000-0000-4000-8000-000000000009`)
-- monitoring: `MONITORING_SUPABASE_PLATFORM`, `MONITORING_GITHUB_ACTIONS`, `MONITORING_APPLICATION_SECURITY_LOG`
-- evidence location: `OPS_EVIDENCE_PRIVATE_PRIMARY`
-- Staging environment: `YOUONE_STAGING_PRIMARY`
-- isolated restore target: `YOUONE_STAGING_RECOVERY`
+- monitoring (approved): `MONITORING_SUPABASE_PLATFORM`, `MONITORING_GITHUB_ACTIONS`, `MONITORING_APPLICATION_SECURITY_LOG`
+- evidence location (approved): `OPS_EVIDENCE_PRIVATE_PRIMARY`, provider binding = encrypted private Google Drive
+- Staging environment (approved): `YOUONE_STAGING_PRIMARY` → Supabase project `dttwfqzkhjujqkcatyav`
+- isolated restore target (approved): `YOUONE_STAGING_RECOVERY` → Supabase project `jzxhetszlucgutnwidkd`
 
 후보 ID는 credential이나 URL이 아니며, 실제 대상과 owner/retention/access control을 검토한 후 policy snapshot에 등록한다.
 
 ### Supabase Staging 준비 목록
 
-- [ ] 서로 다른 두 non-production project 준비: `YOUONE_STAGING_PRIMARY`, `YOUONE_STAGING_RECOVERY`
+- [x] 서로 다른 두 non-production project와 stable binding 준비: `YOUONE_STAGING_PRIMARY`, `YOUONE_STAGING_RECOVERY`
+- [ ] Supabase 조직을 실제 Pro 이상으로 전환하고 session-control 지원을 Dashboard/실세션으로 확인
+- [x] 비공유 Google Drive에 manifest/DB 14일/Storage 30일/release evidence/recovery drill 폴더 분리
+- [ ] Google Drive API 서비스 계정/OAuth, client-side encryption key, 60분 scheduler와 retention deletion을 restricted secret store에 결합
 - [ ] 동일 candidate commit migration을 clean/upgrade 경로로 적용하고 recovery target은 restore 시작 전 비어 있음을 증명
+- [x] 기존 M10 Primary에 M11~M16/R02/R03/R06/B01 ordered upgrade 적용 및 Security Advisor WARN/ERROR 0 확인
 - [ ] Web용 `NOINHERIT`/`NOBYPASSRLS` request login과 별도 Identity Resolver login 발급
 - [ ] Worker용 별도 최소권한 login 발급; `youone_privileged_writer` 외 role SET 및 직접 table 권한 금지
 - [ ] Auth에서 TOTP/AAL2, JWT 60분, session 480분, inactivity 60분, single-session과 신규 device 재인증 적용·증거화
