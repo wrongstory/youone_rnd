@@ -65,8 +65,10 @@ Official references: [Supabase changelog](https://supabase.com/changelog), [Auth
 
 ## 6. Next merge slices
 
-1. Implement DeviceTrust and StepUpGrant while preparing the reviewed `OD-042` first-actor bootstrap evidence.
-2. Implement B02 passwordless registration, direct Lab Director decision, server-only provider invite, UserAccount/assignment/Vendor grant Query and audited Command workflows.
-3. Implement B03 Project/WBS/member/link/formal designation repositories and HTTP Commands.
-4. Replace preview Query paths under B04 and return server-authorized action lists.
-5. Bind #59 Frontend to the exact DTOs, then execute live Supabase Staging contract/E2E tests and regenerate #36 evidence from the resulting exact `dev` SHA.
+1. Approve and execute the reviewed `OD-042` first-actor bootstrap ceremony in `docs/identity-bootstrap.md`.
+2. Approve `OD-043` in `docs/registration-abuse-policy.md` before implementing or enabling the public registration endpoint.
+3. Implement DeviceTrust while preparing the remaining real Staging actors through the approved registration flow.
+4. Implement B02 passwordless registration, direct Lab Director decision, server-only provider invite, UserAccount/assignment/Vendor grant Query and audited Command workflows.
+5. Implement B03 Project/WBS/member/link/formal designation repositories and HTTP Commands.
+6. Replace preview Query paths under B04 and return server-authorized action lists.
+7. Bind #59 Frontend to the exact DTOs, then execute live Supabase Staging contract/E2E tests and regenerate #36 evidence from the resulting exact `dev` SHA.
