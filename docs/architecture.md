@@ -246,10 +246,12 @@ R06 release boundary는 Worker composition의 fail-closed 검증기로 운영정
 
 - Web/Application: Node.js 호환 Next.js App Router를 Vercel Staging에 배포하고, 검증된 exact `dev` SHA만 별도 사용자 승인 후 production 승격한다.
 - DB/Auth/File: Managed Supabase.
-- Background worker: 별도 worker 프로세스 또는 검증된 scheduler/queue adapter.
+- Background worker: 회사 통제 상시 worker 프로세스 또는 self-hosted runner. Supabase Free 대체 경로의 15분 reconciliation과 60분 backup은 Vercel Hobby/GitHub-hosted schedule에 단독 의존하지 않는다.
 - Environments: local, staging, production 분리.
 - Observability: 구조화 로그, request/actor correlation ID, error monitoring, security audit.
 - Backup: 60분 주기 DB/Private Storage 산출물을 클라이언트 측 암호화한 뒤 비공유 Google Drive에 각각 14일/30일 보존하고, DB와 Storage manifest를 함께 검증하는 격리 복구훈련. Drive folder ID와 OAuth 자격증명은 Worker/CI secret store에서만 stable ID `OPS_EVIDENCE_PRIVATE_PRIMARY`에 결합한다.
+
+Supabase는 2026-08-25 사용자 결정에 따라 당분간 Free Plan으로 유지한다. Pro 전용 time-box/inactivity/single-session은 `20260824001800_r06_free_session_policy.sql`의 request-time `auth.sessions` 검사로 대체하고, 신규기기·managed-device·민감행위 재인증은 application-owned DeviceTrust/StepUpGrant로 분리한다. Free 자동 pause와 외부 scheduler 잔여위험은 `docs/supabase-free-operations.md` 및 R06 증거 Gate에서 fail-closed로 관리한다.
 
 ### 온프레미스 경로
 

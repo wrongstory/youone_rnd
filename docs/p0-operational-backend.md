@@ -13,7 +13,7 @@ This document tracks GitHub issue `#58` without treating repository contracts or
 - Project/WBS and formal-research designation domain/application contracts and tables exist, but the ordinary Project HTTP routes still use an unavailable/preview Query boundary and have no live write Command composition.
 - Private Storage backup/restore and release evidence contracts exist, but no actual primary/recovery Staging project drill or retained 27-item evidence set exists.
 
-The connected Supabase account has two `ACTIVE_HEALTHY` Postgres 17 projects in `ap-northeast-1`. On 2026-08-25 the user bound `wrongstory's Project` (`dttwfqzkhjujqkcatyav`) to `YOUONE_STAGING_PRIMARY` and retained `YOUONE_STAGING_RECOVERY` (`jzxhetszlucgutnwidkd`) as the isolated restore target. M11-M16, R02/R03/R06 and the three B01 forward-fixes were then applied in repository order, giving Primary 21 hosted migrations with zero Auth/UserAccount/Project rows. Recovery remains empty with no repository migration, public table, Auth user or Storage bucket. The organization is still Free even though the user approved Pro activation, so session-control proof remains blocked until the billing change is actually completed.
+The connected Supabase account has two `ACTIVE_HEALTHY` Postgres 17 projects in `ap-northeast-1`. On 2026-08-25 the user bound `wrongstory's Project` (`dttwfqzkhjujqkcatyav`) to `YOUONE_STAGING_PRIMARY` and retained `YOUONE_STAGING_RECOVERY` (`jzxhetszlucgutnwidkd`) as the isolated restore target. M11-M16, R02/R03/R06 and the three B01 forward-fixes were then applied in repository order, giving Primary 21 hosted migrations with zero Auth/UserAccount/Project rows. Recovery remains empty with no repository migration, public table, Auth user or Storage bucket. The user subsequently fixed the organization to Free for now. Native Pro session controls are therefore not an activation dependency; equivalent request-time enforcement and the remaining DeviceTrust/StepUpGrant plus external Worker evidence follow `docs/supabase-free-operations.md`.
 
 Before activation the Primary Security Advisor reported five mutable helper `search_path` findings plus 124 `SECURITY DEFINER` RPCs directly executable by each of `anon` and `authenticated`. Migration `20260824101551_b01_lock_down_data_api_functions.sql` revoked both Data API roles, hardened future `postgres` default function privileges and fixed the helper search paths. Post-apply SQL proves zero public tables without RLS and zero public `SECURITY DEFINER` functions executable by `anon`/`authenticated`; the Security Advisor now reports zero WARN/ERROR and only `rls_enabled_no_policy` INFO for deny-by-default/FORCE-RLS tables.
 
@@ -40,7 +40,7 @@ Provider-dependent configuration is `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, 
 
 This first slice does not close B01 or issue `#58`.
 
-- The two Supabase projects are stably bound, but Pro is not yet active and no custom SMTP, Web/Identity Resolver/Worker login or live user is configured in the repository or runtime secret store.
+- The two Supabase projects are stably bound on Free, but no custom SMTP, Web/Identity Resolver/Worker login or live user is configured in the repository or runtime secret store.
 - Global sign-out, exact post-sign-out presence probing, three attempts and durable 15-minute reconciliation handoff are implemented, but the Worker consumer, incident escalation and live Staging evidence are not.
 - The application-owned distributed limiter and append-only request/result audit are composed and `OD-039` numeric rules are approved, but the exact six rules, distinct actual `ADMIN_SECURITY`/Lab Director actors, completed Approval evidence and deployment HMAC secret are not provisioned; operational mutation therefore remains fail-closed.
 - New-device/managed-device trust and sensitive-action step-up remain fail-closed design requirements without a provider implementation.
@@ -57,7 +57,7 @@ The current B01 slice adds the application-owned distributed limiter and durable
 
 - Supabase client libraries dropped Node.js 20 support on 2026-06-30; this repository requires Node.js 24, so the runtime baseline is compatible.
 - New tables are moving to explicit Data API exposure. Grants and RLS are separate gates; `authenticated` access is never granted without reviewed object grants and row policies.
-- TOTP MFA is available on all projects, while time-box, inactivity and single-session settings still require plan/Staging verification. Session-policy changes are observed on refresh and may lag by the JWT lifetime.
+- TOTP MFA is available on Free. Native time-box, inactivity and single-session settings are Pro-only, so Staging must instead prove the repository's request-time `auth.sessions` 480m/60m/newest-session checks; provider refresh alone is not accepted as evidence.
 - New Free projects using default SMTP cannot customize Auth email templates; production recovery/invitation email requires a reviewed custom SMTP setup.
 
 Official references: [Supabase changelog](https://supabase.com/changelog), [Auth sessions](https://supabase.com/docs/guides/auth/sessions), [TOTP MFA](https://supabase.com/docs/guides/auth/auth-mfa/totp), [Data API security](https://supabase.com/docs/guides/api/securing-your-api).
