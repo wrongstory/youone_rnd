@@ -30,6 +30,8 @@ Application identity profile linked to an Auth provider subject. Holds activatio
 
 `VerifiedAuthSession` is transient authentication evidence, not an application entity. It contains only the provider-verified subject, provider-issued session ID, expiry and assurance level. ActorContext creation requires an exact active provider session/subject match and then reloads the current `user` state and assignments; provider metadata never supplies Role, Position, Permission or Scope.
 
+`ActivationContext` is a separate transient trusted value, never a Role or partial business ActorContext. It is re-derived from an exact live provider session, PENDING UserAccount, verified TOTP `aal2` and approved invite/bootstrap activation evidence, and authorizes only exact-self `identity.device-trust.enroll.activation` plus minimal readiness query. It grants no general repository/Data API access and ceases to exist after DeviceTrust completion or any source-evidence change.
+
 ### `user_registration_application`, `user_registration_decision`, `account_provisioning`
 
 `user_registration_application` is the immutable pre-Auth signup request. It stores a server-HMAC email fingerprint plus encrypted delivery address, display name, `INTERNAL | VENDOR`, optional exact existing Vendor ID, consent policy version/UTC, predecessor link, state, version and checksum. It never stores a password, provider token or self-asserted Position/Role/Scope.

@@ -70,7 +70,7 @@ infrastructure/
 
 | 모듈 ID | 책임 | 금지 |
 |---|---|---|
-| `core.identity` | User, Organization, Department, Position, Role, Permission | 업무 승인권 자동 추론 금지 |
+| `core.identity` | User, Organization, Department, Position, Role, Permission, restricted ActivationContext | 업무 승인권 자동 추론 및 PENDING 계정의 일반 ActorContext 생성 금지 |
 | `core.authorization` | ActorContext, Scope, policy evaluation, field projection | UI 메뉴를 권한 근거로 사용 금지 |
 | `core.approval` | ApprovalPolicy, Instance, Step, Participant, delegation | 문서 본문을 직접 소유하지 않음 |
 | `core.document` | Template, Document, DocumentVersion, rendering, retention | 승인본 덮어쓰기 금지 |
@@ -99,6 +99,8 @@ infrastructure/
 Feature 간 직접 테이블 수정은 금지한다. 예를 들어 검수 합격이 지급 가능 상태에 영향을 주면 `InspectionAccepted` 도메인 이벤트를 Application 계층이 받아 ContractMilestone Use Case를 호출한다.
 
 ## 5. 요청 처리와 권한
+
+Interface Auth composition은 ACTIVE 계정에만 full business `ActorContext`를 만들고, exact PENDING self-service 활성화에는 별도의 restricted `ActivationContext`만 만든다. `ActivationContext`는 일반 Application use case나 repository가 받을 수 없고 DeviceTrust enrollment 전용 activation service만 받을 수 있다.
 
 ```mermaid
 sequenceDiagram

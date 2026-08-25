@@ -35,7 +35,7 @@ Public route는 `GET /register`, `POST /api/auth/registrations`다. 최소 입�
 
 신청자는 Position, Role, Permission, 관리권한, Project, Contract 또는 기술자료 등급을 입력하거나 선택할 수 없다. 미등록 업체 생성은 별도 Vendor onboarding 대상이며 회원가입이 Vendor 레코드를 자동 생성하지 않는다.
 
-이메일은 공개 조회가 불가능한 암호문과 server-HMAC 검색 fingerprint를 분리해 저장한다. 평문 이메일, password, provider token, cookie와 invite link는 Audit·log·일반 projection에 남기지 않는다. Public endpoint는 approved `OD-039`과 별도의 registration abuse/CAPTCHA 정책이 없으면 fail-closed한다. 중복·기존계정·존재하지 않는 Vendor 등 내부 사유와 무관하게 외부에는 동일한 접수 응답만 반환한다.
+이메일은 공개 조회가 불가능한 암호문과 server-HMAC 검색 fingerprint를 분리해 저장한다. 평문 이메일, password, provider token, cookie와 invite link는 Audit·log·일반 projection에 남기지 않는다. Public endpoint는 approved `OD-039`과 별도의 `OD-043-REGISTRATION-ABUSE-POLICY`가 없으면 fail-closed한다. 권장 수치·CAPTCHA·network privacy 계약은 `docs/registration-abuse-policy.md`에 있다. 중복·기존계정·존재하지 않는 Vendor 등 내부 사유와 무관하게 외부에는 동일한 접수 응답만 반환한다.
 
 ## 4. 상태와 불변성
 
@@ -69,6 +69,8 @@ AND no disable/revoke/expiry
 ACTIVE UserAccount
 ```
 
+초대 수락 후 아직 PENDING인 계정은 일반 업무 `ActorContext`나 Data API 권한을 받지 않는다. exact live provider session, TOTP `aal2`와 approved invite/bootstrap evidence로 매 요청 파생한 restricted `ActivationContext`에서 exact-self DeviceTrust enrollment와 최소 readiness 조회만 허용한다.
+
 내부 사용자의 조직·부서·직책·Role은 별도 audited assignment 명령으로 부여한다. 가입 승인이 `ROLE_RESEARCHER`, `ADMIN_SECURITY` 또는 연구소장 직책을 자동 부여하지 않는다. 외주 사용자는 별도 active VendorMembership이 필요하며, 그 이후에도 exact Project + Contract grant가 없으면 업무 데이터는 계속 Deny by Default다.
 
 provider invite 성공 후 DB 결합이 실패하면 초대 성공을 숨기지 않고 provisioning을 `FAILED`로 기록하고 provider session 생성 여부를 확인·회수한다. DB 성공 후 이메일 전송 상태가 불명확하면 같은 idempotency key로 reconciliation하며 중복 UserAccount나 두 번째 invite를 만들지 않는다.
@@ -85,7 +87,7 @@ provider invite 성공 후 DB 결합이 실패하면 초대 성공을 숨기지 
 
 ## 7. 최초 연구소장 bootstrap
 
-현재 Staging에는 UserAccount가 0명이므로 첫 `POSITION_LAB_DIRECTOR`는 자신을 승인할 수 없다. 최초 bootstrap은 일반 회원가입 경로의 예외를 코드에 숨기지 않는다. 실제 actor UUID, provider subject, 사용자 승인 evidence, 실행자와 검증자, 생성 SQL/관리 API 결과, TOTP/DeviceTrust, 감사 import를 묶은 one-time bootstrap ceremony가 먼저 승인되어야 한다.
+현재 Staging에는 UserAccount가 0명이므로 첫 `POSITION_LAB_DIRECTOR`는 자신을 승인할 수 없다. 최초 bootstrap은 일반 회원가입 경로의 예외를 코드에 숨기지 않는다. 실제 actor UUID, provider subject, 사용자 승인 evidence, 실행자와 검증자, 생성 SQL/관리 API 결과, TOTP/DeviceTrust, 감사 import를 묶은 `docs/identity-bootstrap.md`의 one-time bootstrap ceremony가 먼저 승인되어야 한다.
 
 bootstrap 완료 후에는 모든 일반 가입이 본 문서의 연구소장 직권 승인 경로를 사용한다. 임의 `FIRST_USER_IS_ADMIN`, 이메일 allowlist나 environment flag로 운영 권한을 자동 부여하지 않는다.
 
