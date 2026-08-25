@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./activation": "./src/activation.ts",
     "./identity-resolver": "./src/identity-resolver.ts",
     "./offline-sync": "./src/offline-sync.ts",
     "./request": "./src/request.ts",

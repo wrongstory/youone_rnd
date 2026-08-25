@@ -102,6 +102,8 @@ Feature 간 직접 테이블 수정은 금지한다. 예를 들어 검수 합격
 
 Interface Auth composition은 ACTIVE 계정에만 full business `ActorContext`를 만들고, exact PENDING self-service 활성화에는 별도의 restricted `ActivationContext`만 만든다. `ActivationContext`는 일반 Application use case나 repository가 받을 수 없고 DeviceTrust enrollment 전용 activation service만 받을 수 있다.
 
+P0 DeviceTrust slice는 업무 request principal과 분리된 `youone_activation` NOLOGIN/NOINHERIT/NOBYPASSRLS capability와 전용 server-side pool을 사용한다. 이 principal은 FORCE RLS가 적용된 DeviceTrust/activation-evidence/policy table을 직접 읽거나 쓸 수 없고, exact verified subject/session/AAL2/PENDING/evidence를 다시 검사하는 `app_private` 함수만 실행한다. Web은 2단계 enrollment/verification cookie를 domain-separated HMAC으로 actor와 exact provider session에 결합하며 raw nonce, browser fingerprint, provider token을 DB·Audit·log에 전달하지 않는다.
+
 ```mermaid
 sequenceDiagram
   actor U as User

@@ -188,6 +188,7 @@ describe("workspace package inventory", () => {
 
       if (boundary.name === "@youone/infra-postgres") {
         expect(packageJson.exports).toEqual({
+          "./activation": "./src/activation.ts",
           "./identity-resolver": "./src/identity-resolver.ts",
           "./offline-sync": "./src/offline-sync.ts",
           "./request": "./src/request.ts",

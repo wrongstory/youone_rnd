@@ -57,6 +57,8 @@ type OperationalAuthRoute =
 type CookieNames = Readonly<{
   access: string;
   csrf: string;
+  deviceEnrollment: string;
+  deviceTrust: string;
   factor: string;
   rateSubject: string;
   refresh: string;
@@ -247,6 +249,7 @@ export function createOperationalAuthHttp(dependencies: OperationalAuthHttpDepen
             outcome: "SUCCESS",
             nextAction: result.nextAction
           });
+          clearDeviceTrustCookies(response.headers, names, dependencies.production);
           setSessionCookies(response.headers, names, result.session, dependencies.production);
           appendCookie(response.headers, names.rateSubject, rateSubjectCookie, {
             httpOnly: true,
@@ -704,6 +707,12 @@ function clearAuthCookies(headers: Headers, names: CookieNames, production: bool
   clearCookie(headers, names.factor, "/", production);
   clearCookie(headers, names.rateSubject, "/", production);
   clearCookie(headers, names.csrf, "/", production, false);
+  clearDeviceTrustCookies(headers, names, production);
+}
+
+function clearDeviceTrustCookies(headers: Headers, names: CookieNames, production: boolean): void {
+  clearCookie(headers, names.deviceEnrollment, "/", production);
+  clearCookie(headers, names.deviceTrust, "/", production);
 }
 
 function cookieNames(production: boolean): CookieNames {
@@ -711,6 +720,8 @@ function cookieNames(production: boolean): CookieNames {
   return Object.freeze({
     access: `${prefix}youone-access`,
     csrf: `${prefix}youone-csrf`,
+    deviceEnrollment: `${prefix}youone-device-enrollment`,
+    deviceTrust: `${prefix}youone-device-trust`,
     factor: `${prefix}youone-mfa-factor`,
     rateSubject: `${prefix}youone-auth-rate-subject`,
     refresh: `${prefix}youone-refresh`

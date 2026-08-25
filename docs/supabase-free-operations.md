@@ -27,6 +27,8 @@
 
 DeviceTrust는 브라우저 fingerprint를 신뢰하지 않는다. 서버가 256-bit random nonce를 만들고 deployment secret으로 domain-separated HMAC을 생성한다. DB에는 raw nonce·cookie·token 대신 HMAC fingerprint, `UserAccount.id`, provider `session_id`, 생성·만료·철회시각, 승인한 인증방법과 optimistic version만 저장한다. cookie 누락·MAC 불일치·다른 actor/session·만료·철회·provider 장애는 모두 민감 action 호출 전에 거부한다.
 
+Issue `#65`의 최소 vertical slice는 별도 `ActivationContext`와 `youone_activation` DB capability, no-seed versioned policy, 2단계 enrollment/verification, readiness 및 guarded account-activation 계약을 구현한다. 이는 로컬 코드·migration 계약 완료를 뜻할 뿐 실제 정책 version, HMAC secret, Staging actor/session 및 live evidence가 적용됐다는 뜻은 아니다. 따라서 아래 Staging 검증 항목은 계속 열린다.
+
 StepUpGrant는 immutable challenge 결과와 짧은 유효기간을 갖고 다음 tuple에 exact 결합한다.
 
 ```text
